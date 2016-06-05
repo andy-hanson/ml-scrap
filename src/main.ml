@@ -32,10 +32,11 @@ let print_fun(f: Ast.decl_val): unit =
 let do_stuff source ctx =
 	let modul = Parse.parse ctx source in
 	let bindings = Bind.bind ctx modul in
-	modul, bindings
+	let types = TypeCheck.f ctx modul bindings in
+	modul, bindings, types
 
 let compile(ctx: CompileContext.t)(source: string): Modul.t =
-	let modul, bindings =
+	let modul, bindings, types =
 		if true then
 			try
 				do_stuff source ctx
@@ -45,7 +46,7 @@ let compile(ctx: CompileContext.t)(source: string): Modul.t =
 		else
 			do_stuff source ctx in
 	(* print_fun (get_only_fn modul); *)
-	WriteCode.write_modul modul bindings
+	WriteCode.write_modul modul bindings types
 
 let compile_and_run(source: string)(fn_name: string)(params: Val.t array): unit =
 	let ctx = CompileContext.make() in
@@ -67,8 +68,8 @@ fn factorial Int x Int
 	cond (< x 2) 1: * x: factorial: decr x
 "
 
-let src = "
-rec Point
+let src =
+"rec Point
 	x Int
 	y Int
 
@@ -76,27 +77,17 @@ fn zero Point a Int
 	Point a a
 "
 
-(* TODO: type checker *)
+(*
+TODO:
+replace Array.iter with U.iter (reverse args)
+atom: how to escape from find?
 
-(* let () = print_tokens src *)
+*)
+
 
 let ctx = CompileContext.make()
+(* let () = print_tokens src *)
 (* let () = print_ast src *)
 let xxx = compile ctx src
 (* let () = print_code (Modul.func_named xxx (CompileContext.symbol ctx "factorial")) *)
 let _ = compile_and_run src "zero" [| Val.Int 5 |]
-
-
-
-(*
-module Int = struct
-	type t = int
-end
-
-module L = Lookup.L(Int)
-
-let l = L.create()
-let () = L.set l 0 1
-let n = L.get l 0
-let () = Printf.printf "%d" n
- *)

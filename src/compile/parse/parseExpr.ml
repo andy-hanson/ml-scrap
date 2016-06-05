@@ -61,13 +61,13 @@ let rec parse_block(p: Parser.t): Ast.expr =
 	if find_eq p then begin
 		let declare = ParseLocalDeclare.f p in
 		ParseU.must_skip p Token.Equals;
-		let (expr, next_is_newline) = parse_expr p false in
+		let expr, next_is_newline = parse_expr p false in
 		let loc = Parser.loc_from p start in
 		CompileError.check next_is_newline loc CompileError.BlockCantEndInDeclare;
 		let rest = parse_block p in
 		Ast.Expr(loc, Ast.Let(declare, expr, rest))
 	end else
-		let (expr, next_is_newline) = parse_expr p false in
+		let expr, next_is_newline = parse_expr p false in
 		if next_is_newline then
 			let loc = Parser.loc_from p start in
 			let rest = parse_block p in

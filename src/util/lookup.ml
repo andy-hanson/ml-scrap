@@ -8,6 +8,8 @@ module T(Key: LookupKey): sig
 	val create: unit -> 'v t
 	val set: 'v t -> Key.t -> 'v -> unit
 	val get: 'v t -> Key.t -> 'v
+	val keys: 'v t -> Key.t array
+	val values: 'v t -> 'v array
 
 end = struct
 	module H = Hashtbl.Make(struct
@@ -26,4 +28,10 @@ end = struct
 
 	let get m k =
 		H.find m k
+
+	let keys m =
+		U.build_array_0 (fun build -> H.iter (fun k _ -> build k) m)
+
+	let values m =
+		U.build_array_0 (fun build -> H.iter (fun _ v -> build v) m)
 end

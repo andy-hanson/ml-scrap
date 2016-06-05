@@ -12,6 +12,10 @@ type message =
 	| CantBind of Symbol.t
 	| CantUseTypeAsValue
 	| NameAlreadyBound of Symbol.t
+	(* checkTypes *)
+	| NotCallable (*TODO:args*)
+	| NotExpectedType of Type.t * Type.t (* expected * actual *)
+	| NumArgs of int * int (* n_params * n_args *)
 
 type warning = Warning of Loc.t * message
 exception T of warning
@@ -44,6 +48,13 @@ let output_message(out: 'a BatIO.output)(m: message): unit =
 		str "Attempted to use a type as a value"
 	| NameAlreadyBound name ->
 		OutputU.out out "Attempt to redeclare %a" Symbol.output name
+
+	| NotCallable ->
+		str "This is not a callable type"
+	| NotExpectedType(expected, actual) ->
+		OutputU.out out "Expected %a, got %a" Type.output expected Type.output actual
+	| NumArgs(n_params, n_args) ->
+		OutputU.out out "Function needs %d parameters, but is given %d" n_params n_args
 
 let check(cond: bool)(loc: Loc.t)(message: message): unit =
 	if not cond then

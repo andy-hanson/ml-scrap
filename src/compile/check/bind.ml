@@ -1,10 +1,18 @@
+(* TODO: lots of cleanup in this file *)
+
 (* Maps Access to type *)
 module Bindings = Lookup.T(struct type t = Ast.expr end)
-type bindings =  Binding.t Bindings.t
+type value_bindings =  Binding.t Bindings.t
 module TypeBindings = Lookup.T(struct type t = Ast.typ end)
 type type_bindings = Binding.t TypeBindings.t
 
-let get_binding = Bindings.get
+type t = {
+	values: value_bindings;
+	types: type_bindings
+}
+
+let value_binding {values} access = Bindings.get values access
+let type_binding {types} access = TypeBindings.get types access
 
 module SymMapU = U.MapU(Symbol.SymMap)
 
@@ -43,9 +51,9 @@ let get_base_scope(ctx: CompileContext.t)(modul: Ast.modul): scope =
 	end;
 	!map
 
-let bind(ctx: CompileContext.t)(modul: Ast.modul): bindings =
+let bind(ctx: CompileContext.t)(modul: Ast.modul): t =
 	let base_scope = get_base_scope ctx modul in
-	let bindings: bindings = Bindings.create() in
+	let bindings: value_bindings = Bindings.create() in
 	let type_bindings: type_bindings = TypeBindings.create() in
 
 	(* access should be an Ast.Access with loc loc and name name *)
@@ -57,6 +65,7 @@ let bind(ctx: CompileContext.t)(modul: Ast.modul): bindings =
 				CompileError.raise loc (CompileError.CantBind name) in
 		Bindings.set bindings access binding in
 
+	(*TODO: just have access as paremeter, not loc+name*)
 	let write_type_binding(scope: scope)(access: Ast.typ)(loc: Loc.t)(name: Symbol.t): unit =
 		(*TODO:REUSE CODE*)
 		let binding = try
@@ -66,6 +75,7 @@ let bind(ctx: CompileContext.t)(modul: Ast.modul): bindings =
 				CompileError.raise loc (CompileError.CantBind name) in
 		TypeBindings.set type_bindings access binding in
 
+	(*TODO: naming*)
 	let bind_declare_type(scope: scope)(Ast.LocalDeclare(_, _, typ)) =
 		let Ast.TypeAccess(loc, name) = typ in
 		write_type_binding scope typ loc name in
@@ -88,18 +98,28 @@ let bind(ctx: CompileContext.t)(modul: Ast.modul): bindings =
 			add_expr_bindings scope a;
 			add_expr_bindings scope b in
 
-	let add_fn_bindings(Ast.Fn(Ast.Signature(_, _, params), body)): unit =
+	let add_fn_bindings(Ast.Fn(Ast.Signature(loc, (Ast.TypeAccess(return_loc, return_name) as return_type), params), body)): unit =
+		write_type_binding base_scope return_type return_loc return_name;
 		Array.iter (bind_declare_type base_scope) params;
 		add_expr_bindings (augment_scope_many base_scope params) body in
 
-	each_decl modul (function
-		| Ast.Val (Ast.DeclVal(loc, sym, kind)) ->
-			(match kind with
-			| Ast.Fn(_, _) as f ->
-				add_fn_bindings f)
-		| Ast.Type _ -> ());
+	let add_rec_bindings(Ast.Rec properties): unit =
+		let foo(Ast.Property(_, _, (Ast.TypeAccess(loc, name) as typ))): unit =
+			write_type_binding base_scope typ loc name in
+		Array.iter foo properties in
 
-	bindings
+	each_decl modul begin function
+		| Ast.Val (Ast.DeclVal(loc, sym, kind)) ->
+			begin match kind with
+			| Ast.Fn(_, _) as f ->
+				add_fn_bindings f
+			end
+		| Ast.Type(Ast.DeclType(_, _, r)) ->
+			add_rec_bindings r
+	end;
+
+	(*TODO: rename variables to match record field names*)
+	{ values = bindings; types = type_bindings }
 
 
 (* boilerplate *)

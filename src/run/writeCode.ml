@@ -2,7 +2,7 @@
 type label = int BatDynArray.t
 
 (* Write a function body. *)
-let write_code(get_func: Ast.decl_val -> Code.func)(get_record: Ast.decl_type -> Type.record)(bindings: Bind.bindings)(params: Ast.local_declare array)(e: Ast.expr): Code.t =
+let write_code(get_func: Ast.decl_val -> Code.func)(bindings: Bind.t)(types: TypeCheck.t)(params: Ast.local_declare array)(e: Ast.expr): Code.t =
 	let stack_depth = ref 0 in
 	let apply_fn_to_stack_depth arity =
 		(* Take off args, push return value *)
@@ -83,7 +83,7 @@ let write_code(get_func: Ast.decl_val -> Code.func)(get_record: Ast.decl_type ->
 	and write_expr(Ast.Expr(loc, kind) as expr): unit =
 		match kind with
 		| Ast.Access _ ->
-			begin match Bind.get_binding bindings expr with
+			begin match Bind.value_binding bindings expr with
 			| Binding.Builtin b ->
 				write_bc (Code.Const (Builtins.value b))
 			| Binding.Declared _ ->
@@ -103,7 +103,7 @@ let write_code(get_func: Ast.decl_val -> Code.func)(get_record: Ast.decl_type ->
 			let Ast.Expr(_, kind) = called in
 			begin match kind with
 			| Ast.Access _ ->
-				begin match Bind.get_binding bindings called with
+				begin match Bind.value_binding bindings called with
 				| Binding.Builtin b ->
 					write_builtin b args
 				| Binding.Declared f ->
@@ -117,7 +117,7 @@ let write_code(get_func: Ast.decl_val -> Code.func)(get_record: Ast.decl_type ->
 					CompileError.raise loc CompileError.CantUseTypeAsValue
 				| Binding.DeclaredType r ->
 					Array.iter write_expr args;
-					let record = get_record r in
+					let record = TypeCheck.type_of_type_ast types r in
 					write_bc (Code.Construct record);
 					apply_fn_to_stack_depth (Type.record_arity record)
 				end
@@ -158,54 +158,30 @@ let write_code(get_func: Ast.decl_val -> Code.func)(get_record: Ast.decl_type ->
 	write_bc Code.Return;
 	BatDynArray.to_array code
 
-(*TODO:MOVE?*)
-let empty_rec_from_ast(Ast.DeclType(_, name, Ast.Rec(props))): Type.record =
-	{ Type.rname = name; Type.properties = [||] }
-
-let write_modul(Ast.Modul(_, decls))(bindings: Bind.bindings): Modul.t =
+let write_modul(Ast.Modul(_, decls))(bindings: Bind.t)(types: TypeCheck.t): Modul.t =
 	(*
 	Funcs may recursively depend upon each other.
 	So, initalize them all now once, and then write to each func's code.
 	*)
 	let funcs: (Ast.decl_val, Code.func) Hashtbl.t = Hashtbl.create 0 in
 	let get_func f =
+		(*TODO:lookup*)
 		Hashtbl.find funcs f in
-	(*TODO: naming: records vs recs vs code_recs is too confusing! *)
-	let records: (Ast.decl_type, Type.record) Hashtbl.t = Hashtbl.create 0 in
-	let get_record f =
-		Hashtbl.find records f in
-
 	let get_fn = function
 	| Ast.Val dv ->
 		Some dv
 	| _ ->
 		None in
 	let fns = BatArray.filter_map get_fn decls in
-	let get_rec = function | Ast.Type dt -> Some dt | _ -> None in
-	let recs = BatArray.filter_map get_rec decls in
 
 	let set_fn f =
 		Hashtbl.add funcs f (Code.empty_func_from_ast f) in
 	Array.iter set_fn fns;
 
-	let set_rec r =
-		Hashtbl.add records r (empty_rec_from_ast r) in
-	Array.iter set_rec recs;
-
-	let write_rec(Ast.DeclType(_, _, Ast.Rec(properties)) as r): Type.record =
-		(*TODO: names are confusing... r vs rc*)
-		U.returning (get_record r) begin fun rc ->
-			let make_prop(Ast.Property(_, name, _)) =
-				(*TODO: actual type*)
-				{ Type.prop_name = name; Type.prop_type = Type.Builtin Type.Bool } in
-			rc.Type.properties <- Array.map make_prop properties
-		end in
-	let code_recs = Array.map write_rec recs in
-
 	let write_fn_code(Ast.DeclVal(_, _, Ast.Fn(Ast.Signature(_, _, params), body)) as f): Code.func =
-		let code = write_code get_func get_record bindings params body in
+		let code = write_code get_func bindings types params body in
 		U.returning (get_func f) (fun func -> func.Code.code <- code) in
 
 	let code_fns = Array.map write_fn_code fns in
 
-	{ Modul.recs = code_recs; Modul.fns = code_fns }
+	{ Modul.recs = TypeCheck.all_records types; Modul.fns = code_fns }

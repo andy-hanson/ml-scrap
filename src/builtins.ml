@@ -29,6 +29,23 @@ let name = function
 	| True -> "true"
 	| False -> "false"
 
+let type_of(b: builtin): Type.t =
+	match b with
+	| Cond ->
+		(*TODO: parameterized types*)
+		raise U.TODO
+	| Not ->
+		Type.Fn(Type.Builtin Type.Bool, [| Type.Builtin Type.Bool |])
+	| Less ->
+		Type.Fn(Type.Builtin Type.Bool, [| Type.Builtin Type.Int; Type.Builtin Type.Int |])
+	| Add | Subtract | Times ->
+		(*TODO: interface type, so it can work on floats too*)
+		Type.Fn(Type.Builtin Type.Int, [| Type.Builtin Type.Int; Type.Builtin Type.Int |])
+	| True ->
+		Type.Builtin Type.Bool
+	| False ->
+		Type.Builtin Type.Bool
+
 let value = function
 	| True -> Val.Bool true
 	| False -> Val.Bool false

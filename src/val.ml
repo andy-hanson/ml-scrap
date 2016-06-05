@@ -1,8 +1,16 @@
 type t =
 	| Bool of bool
-	| Int of int
 	| Float of float
+	| Int of int
 	| Record of Type.record * t array
+	| Void
+
+let typ = function
+	| Bool _ -> Type.Builtin Type.Bool
+	| Int _ -> Type.Builtin Type.Int
+	| Float _ -> Type.Builtin Type.Float
+	| Record(typ, _) -> Type.Rec typ
+	| Void -> Type.Builtin Type.Void
 
 (* If this is raised, the typechecker was wrong. *)
 exception CastFail
@@ -36,3 +44,5 @@ let rec output(out: 'a BatIO.output)(value: t): unit =
 			OutputU.out out "%a=%a, " Symbol.output type_property.Type.prop_name output value in
 		Array.iteri out_prop record.Type.properties;
 		OutputU.str out ")"
+	| Void ->
+		OutputU.str out "void"
