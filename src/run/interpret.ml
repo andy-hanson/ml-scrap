@@ -1,14 +1,18 @@
+(*TODO:lots of cleanup*)
 
 type call_stack_entry = {
 	fn: Code.func;
 	(* The function's code *)
 	code: Code.bytecode array;
+	(* Index of the first local on the stack. Parameters come before this. *)
+	stack_start_index: int;
 	(* Index where we were in this function before entering another one *)
 	mutable code_idx: int
 }
-let entry_of(fn: Code.func): call_stack_entry = {
+let entry_of(fn: Code.func)(cur_stack_index: int): call_stack_entry = {
 	fn = fn;
 	code = fn.Code.code;
+	stack_start_index = cur_stack_index;
 	code_idx = 0
 }
 
@@ -24,7 +28,8 @@ let pop(state: interpreter_state): Val.t =
 	GoodStack.pop state.data_stack
 
 let pop_n(state: interpreter_state)(n: int): Val.t array =
-	Array.init n (fun _ -> pop state)
+	(*TODO: ArrayU.init_reverse*)
+	BatArray.rev (Array.init n (fun _ -> pop state))
 
 let push(state: interpreter_state)(value: Val.t): unit =
 	GoodStack.push state.data_stack value
@@ -69,7 +74,9 @@ let step(state: interpreter_state): bool =
 		(*TODO: neater *)
 		GoodStack.push state.call_stack state.cur;
 		(* When fn finishes, we want to return to the *next* bytecode. *)
-		U.returning (next()) (fun _ -> state.cur <- entry_of fn)
+		U.returning (next()) begin fun _ ->
+			state.cur <- entry_of fn (GoodStack.size state.data_stack)
+		end
 
 	| Code.CallBuiltin b ->
 		call_builtin state b;
@@ -95,11 +102,21 @@ let step(state: interpreter_state): bool =
 		let cond = pop state in
 		if Val.cast_as_bool cond then next() else goto new_idx
 
-	| Code.Load offset ->
-		push state (GoodStack.peek_by state.data_stack offset);
+	| Code.Load stack_index ->
+		let index = state.cur.stack_start_index + stack_index in
+		let loaded = GoodStack.get state.data_stack index in
+		push state loaded;
+		(* push state (GoodStack.peek_by state.data_stack offset); *)
 		next()
 
 	| Code.Return ->
+		(* Remove args from the stack, but leave return value. *)
+		let return_value = pop state in
+		U.do_times (Code.func_arity state.cur.fn) begin fun () ->
+			ignore (pop state)
+		end;
+		push state return_value;
+
 		begin match GoodStack.try_pop state.call_stack with
 		| None ->
 			(* Main function exited, we're done *)
@@ -116,10 +133,11 @@ let step(state: interpreter_state): bool =
 		push state x;
 		next()
 
+(*TODO: use somewhere*)
 let debug_step(state: interpreter_state): bool =
 	let stack = state.data_stack in
-	Batteries.Printf.printf "Stack: %a\n" (GoodStack.output Val.output) stack;
-	Batteries.Printf.printf "Executing: %a\n" Code.output_code (cur_code state);
+	OutputU.printf "Stack: %a (start: %d)\n" (GoodStack.output Val.output) stack state.cur.stack_start_index;
+	OutputU.printf "Executing: %a\n" Code.output_code (cur_code state);
 	step state
 
 let call_fn(fn: Code.func)(args: Val.t array): Val.t =
@@ -127,32 +145,8 @@ let call_fn(fn: Code.func)(args: Val.t array): Val.t =
 	let state = {
 		data_stack = GoodStack.create();
 		call_stack = GoodStack.create();
-		cur = entry_of fn
+		cur = entry_of fn (Code.func_arity fn)
 	} in
-	Array.iter (push state) args;
+	ArrayU.iter args (push state);
 	while not (debug_step state) do () done;
 	(GoodStack.peek state.data_stack)
-
-let test_interpret(): Val.t =
-	let f = {
-		(* Code.ast = Ast.DeclVal(Loc.start, { Symbol.name = "dummy" }, Ast.Fn(Ast.Signature(Loc.start, Ast.DumbTyp, [||]), Ast.Literal (Val.Int 0))); *)
-		Code.fname = { Symbol.name = "dummy" };
-		Code.params = [| |];
-		Code.code = [| Code.CallBuiltin Builtins.Add; Code.Return |]
-	} in
-	call_fn f [| Val.Int 1; Val.Int 2 |]
-
-
-(* let test_interpret(): Val.t =
-	let codes = [| Const (Val.Int 1); Const (Val.Int 2); CallPrim Add |] in
-	let state = {
-		data_stack = new GoodStack.t;
-		call_stack = new GoodStack.t;
-		code = codes;
-		code_idx = 0
-	} in
-	step state;
-	step state;
-	step state;
-	state.data_stack#peek
-*)

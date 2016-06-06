@@ -1,7 +1,7 @@
 type typ =
 	| TypeAccess of Loc.t * Symbol.t
 
-type local_declare = LocalDeclare of Loc.t * Symbol.t * typ
+type local_declare = LocalDeclare of Loc.t * Symbol.t
 
 type expr_kind =
 	| Access of Symbol.t
@@ -13,7 +13,9 @@ and expr = Expr of Loc.t * expr_kind
 
 type property = Property of Loc.t * Symbol.t * typ
 
-type signature = Signature of Loc.t * typ * local_declare array
+type parameter = Parameter of Loc.t * Symbol.t * typ
+
+type signature = Signature of Loc.t * typ * parameter array
 
 type decl_val_kind =
 	| Fn of signature * expr
@@ -32,22 +34,24 @@ type modul = Modul of Loc.t * (decl array)
 
 (* boilerplate *)
 
-let output_typ(out: 'a BatIO.output)(typ: typ): unit =
+let output_typ(out: 'a OutputU.t)(typ: typ): unit =
 	match typ with
 	| TypeAccess(_, sym) ->
 		Symbol.output out sym
 
+let output_parameter(out: 'a OutputU.t)(Parameter(_, name, typ)): unit =
+	OutputU.out out "%a %a" Symbol.output name output_typ typ
 
-let output_local_declare(out: 'a BatIO.output)(LocalDeclare(_, name, typ)): unit =
-	OutputU.out out "%a: %a" Symbol.output name output_typ typ
+let output_local_declare(out: 'a OutputU.t)(LocalDeclare(_, name)): unit =
+	OutputU.out out "%a" Symbol.output name
 
-let output_decl_val_kind(out: 'a BatIO.output)(Fn(signature, expr)): unit =
+let output_decl_val_kind(out: 'a OutputU.t)(Fn(signature, expr)): unit =
 	OutputU.out out "Fn..."
-let output_decl_val(out: 'a BatIO.output)(DeclVal(_, name, kind)): unit =
+let output_decl_val(out: 'a OutputU.t)(DeclVal(_, name, kind)): unit =
 	OutputU.out out "DeclVal(%a, %a)" Symbol.output name output_decl_val_kind kind
 
 
-let rec output_expr(out: 'a BatIO.output)(Expr(_, kind)): unit =
+let rec output_expr(out: 'a OutputU.t)(Expr(_, kind)): unit =
 	match kind with
 	| Access sym ->
 		Symbol.output out sym
@@ -65,24 +69,24 @@ let output_decl_val_kind out kind =
 	match kind with
 	| Fn (sign, body) ->
 		let out_sig out (Signature(_, typ, params)) =
-			let out_param out (LocalDeclare(_, sym, typ)) =
+			let out_param out (Parameter(_, sym, typ)) =
 				OutputU.out out "%a %a" Symbol.output sym output_typ typ in
 			OutputU.out out "%a %a" output_typ typ (OutputU.out_array out_param) params in
 		OutputU.out out "fn %a %a" out_sig sign output_expr body
-let output_decl_val(out: 'a BatIO.output)(DeclVal(_, symbol, kind)): unit =
+let output_decl_val(out: 'a OutputU.t)(DeclVal(_, symbol, kind)): unit =
 	OutputU.out out "DeclVal(%a, %a)" Symbol.output symbol output_decl_val_kind kind
 
 let output_decl_type_kind out kind =
 	match kind with
 	| Rec _ ->
-		BatIO.nwrite out "Rec..."
-let output_decl_type(out: 'a BatIO.output)(DeclType(_, symbol, kind)): unit =
+		OutputU.str out "Rec..."
+let output_decl_type(out: 'a OutputU.t)(DeclType(_, symbol, kind)): unit =
 	OutputU.out out "DeclType(%a, %a)" Symbol.output symbol output_decl_type_kind kind
 
-let output_decl(out: 'a BatIO.output)(decl: decl): unit =
+let output_decl(out: 'a OutputU.t)(decl: decl): unit =
 	match decl with
 	| Val v -> output_decl_val out v
 	| Type t -> output_decl_type out t
 
-let output_modul(out: 'a BatIO.output)(Modul(_, decls)): unit =
+let output_modul(out: 'a OutputU.t)(Modul(_, decls)): unit =
 	OutputU.out_array output_decl out decls

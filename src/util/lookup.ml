@@ -1,5 +1,5 @@
 module type LookupKey = sig
-    type t
+  type t
 end
 
 module T(Key: LookupKey): sig
@@ -30,8 +30,13 @@ end = struct
 		H.find m k
 
 	let keys m =
-		U.build_array_0 (fun build -> H.iter (fun k _ -> build k) m)
+		ArrayU.build_array_0 begin fun build ->
+			(*TODO: hashU.iter*)
+			H.iter (fun k _ -> build k) m
+		end
 
 	let values m =
-		U.build_array_0 (fun build -> H.iter (fun _ v -> build v) m)
+		ArrayU.build_array_0 begin fun build ->
+			H.iter (fun _ v -> build v) m
+		end
 end

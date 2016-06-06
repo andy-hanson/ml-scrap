@@ -30,10 +30,12 @@ and func = {
 let empty_func_from_ast(Ast.DeclVal(_, name, Ast.Fn(Ast.Signature(_, _, params), expr))): func =
 	{
 		fname = name;
-		params =
-			(let to_param(Ast.LocalDeclare(_, name, typ)): parameter =
+		params = begin
+			let to_param(Ast.Parameter(_, name, typ)): parameter =
 				{ name = name } in
-			Array.map to_param params);
+			(*TODO:ArrayU.map*)
+			Array.map to_param params
+		end;
 		(* Code is empty for now, will be written to in writeCode.ml *)
 		code = [| |]
 	}
@@ -44,12 +46,12 @@ let func_arity({params}: func): int =
 
 (* boilerplate *)
 
-let output_parameter(out: 'a BatIO.output)({name}: parameter): unit =
+let output_parameter(out: 'a OutputU.t)({name}: parameter): unit =
 	OutputU.out out "{ name: %a }" Symbol.output name
-let rec output_func(out: 'a BatIO.output)({fname; params; code}: func): unit =
+let rec output_func(out: 'a OutputU.t)({fname; params; code}: func): unit =
 	OutputU.out out "{ fname: %a, params: %a, code: %a }" Symbol.output fname (OutputU.out_array output_parameter) params output code
-and output_code(out: 'a BatIO.output)(c: bytecode): unit =
-	let str = BatIO.nwrite out in
+and output_code(out: 'a OutputU.t)(c: bytecode): unit =
+	let str = OutputU.str out in
 	match c with
 	| Call f ->
 		OutputU.out out "CallFn(%a)" Symbol.output f.fname
@@ -71,5 +73,5 @@ and output_code(out: 'a BatIO.output)(c: bytecode): unit =
 		str "Return"
 	| UnLet ->
 		str "UnLet"
-and output(out: 'a BatIO.output)(code: t): unit =
+and output(out: 'a OutputU.t)(code: t): unit =
 	OutputU.out out "Code(%a)" (OutputU.out_array output_code) code

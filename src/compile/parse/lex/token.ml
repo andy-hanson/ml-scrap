@@ -44,7 +44,7 @@ let keyword_to_string(keyword: t): string =
 
 (* boilerplate *)
 
-let output(out: 'a BatIO.output)(token: t) =
+let output(out: 'a OutputU.t)(token: t) =
 	match token with
 	| Name s ->
 		OutputU.out out "'%s'" s.Symbol.name
@@ -59,4 +59,4 @@ let output(out: 'a BatIO.output)(token: t) =
 		| _ -> failwith "not a literal"
 		end
 	| k ->
-		BatIO.nwrite out (keyword_to_string k)
+		OutputU.str out (keyword_to_string k)

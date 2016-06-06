@@ -3,8 +3,8 @@ type t = { name: string }
 let make(name: string): t =
 	{ name = name }
 
-let output(out: 'a BatIO.output)(symbol: t) =
-	BatIO.nwrite out symbol.name
+let output(out: 'a OutputU.t)(symbol: t) =
+	OutputU.str out symbol.name
 
 let eq(a: t)(b: t) =
 	a == b

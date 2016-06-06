@@ -1,6 +1,7 @@
 type message =
 	(* lexer *)
 	| LeadingSpace
+	| NegMustPrecedeNumber
 	| TooMuchIndent
 	| TrailingSpace
 	| UnrecognizedCharacter of char
@@ -23,11 +24,13 @@ exception T of warning
 let raise(loc: Loc.t)(m: message): 'a =
 	raise (T (Warning(loc, m)))
 
-let output_message(out: 'a BatIO.output)(m: message): unit =
-	let str = BatIO.nwrite out in
+let output_message(out: 'a OutputU.t)(m: message): unit =
+	let str = OutputU.str out in
 	match m with
 	| LeadingSpace ->
 		str "Line may not begin with a space"
+	| NegMustPrecedeNumber ->
+		str "`-` must be followed by a space or a number."
 	| TooMuchIndent ->
 		str "Too much indent!"
 	| TrailingSpace ->
@@ -43,7 +46,7 @@ let output_message(out: 'a BatIO.output)(m: message): unit =
 		OutputU.out out "Unexpected token %a" Token.output token
 
 	| CantBind name ->
-		OutputU.out out "Can't bind %a" Symbol.output name
+		OutputU.out out "Can't bind `%a`" Symbol.output name
 	| CantUseTypeAsValue ->
 		str "Attempted to use a type as a value"
 	| NameAlreadyBound name ->

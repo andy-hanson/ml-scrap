@@ -1,50 +1,59 @@
 (*TODO: join with lexer?*)
 
-let in_range(value: char)(min: char)(max: char): bool =
-	min <= value && value <= max
-
-type t = {
+(* type t = {
 	source: string;
 	mutable idx: int;
 	(* TODO: rename to pos *)
 	mutable p: Loc.pos
+} *)
+
+type t = {
+	source: BatIO.input;
+	mutable peek: char option; (* '\x00' if no more input *)
+	mutable p: Loc.pos (*TODO: rename to pos*)
 }
 
-type restore = { idx: int; p: Loc.pos }
+(*TODO: declaration order in this file could use cleanup*)
 
-let get_restore(r: t): restore =
-	{ idx = r.idx; p = r.p }
+let safe_read(input: BatIO.input): char =
+	try
+		BatIO.read input
+	with BatIO.No_more_input ->
+		'\x00' (*TODO: give this constant a name*)
 
-let do_restore(r: t)(restore: restore): unit =
-	r.idx <- restore.idx;
-	r.p <- restore.p
-
-
+(*Advance without affecting pos*)
+let advance(r: t): char =
+	match r.peek with
+	| Some p ->
+		r.peek <- None;
+		p
+	| None ->
+		safe_read r.source
 
 let pos(r: t): Loc.pos =
 	r.p
 
 let undo_read_newline(r: t): unit =
-	r.idx <- r.idx - 1;
-	(*TODO: get column by counting the line*)
-	r.p <- { Loc.line = r.p.Loc.line - 1; Loc.column = 1 }
+	r.peek <- Some '\n';
+	r.p <- Loc.prev_line r.p
 
-let can_peek(r: t)(n: int): bool =
-	let peeked = r.idx + n in
-	0 <= peeked && peeked < (String.length r.source)
-
+(*TODO: use less*)
 let peek(r: t): char =
-	String.get r.source r.idx
-
-let peek_by(r: t)(n: int): char =
-	String.get r.source (r.idx + n)
+	match r.peek with
+	| Some p ->
+		p
+	| None ->
+		U.returning (safe_read r.source) begin fun ch ->
+			r.peek <- Some ch
+		end
 
 let skip(r: t): unit =
-	r.idx <- r.idx + 1;
-	r.p <- Loc.pos_column_shift r.p 1
+	ignore (advance r);
+	r.p <- Loc.next_column r.p
 
 let next(r: t): char =
-	U.returning (peek r) (fun _ -> skip r)
+	advance r
+	(* U.returning (peek r) (fun _ -> skip r) *)
 
 let try_eat_if(r: t)(pred: char -> bool): bool =
 	U.returning (pred (peek r)) (fun a -> if a then skip r)
@@ -52,57 +61,44 @@ let try_eat_if(r: t)(pred: char -> bool): bool =
 let try_eat(r: t)(char_to_eat: char): bool =
 	try_eat_if r (fun ch -> ch == char_to_eat)
 
-let skip_rest_of_line(r: t): unit =
-	raise U.TODO
-
-let take_rest_of_line(r: t): string =
-	raise U.TODO
-
-let slice(r: t)(first: int)(last: int): string =
-	BatString.slice ~first:first ~last:last r.source
-
-let slice_from(r: t)(first: int): string =
-	slice r first r.idx
-
 let skip_while(r: t)(cond: char -> bool): unit =
 	while cond (peek r) do
 		skip r
 	done
 
-let take_num_decimal(r: t): Val.t =
-	let start = r.idx - 1 in
-	let is_digit ch = in_range ch '0' '9' in
-	skip_while r is_digit;
-	if (peek r) = '.' then begin
+let buffer_while(b: BatBuffer.t)(r: t)(cond: char -> bool): unit =
+	while cond (peek r) do
+		BatBuffer.add_char b (next r)
+	done
+
+let take_num_decimal(negate: bool)(fst: char)(r: t): Token.t =
+	let b = BatBuffer.create 4 in
+	BatBuffer.add_char b fst;
+	buffer_while b r CharU.is_digit;
+	let value = if (peek r = '.') then begin
+		raise U.TODO
+		(*
 		if is_digit (peek_by r 1) then begin
 			skip r;
 			skip_while r is_digit
 		end;
 		let s = slice_from r start in
 		Val.Float (float_of_string s)
+		*)
 	end else
-		let s = slice_from r start in
-		Val.Int (int_of_string s)
+		let s = BatBuffer.contents b in
+		let i = int_of_string s in
+		let i = if negate then -i else i in
+		Val.Int i in
+	Token.Literal value
 
-(*TODO: count is never used?*)
-let count_newlines(r: t): int =
-	let start_line = r.p.Loc.line in
-	(*TODO: helper in Loc*)
-	let incr_line () = r.p <- {r.p with Loc.line = r.p.Loc.line + 1} in
-	incr_line ();
-	while (peek r) = '\n' do
-		r.idx <- r.idx + 1;
-		incr_line ()
-	done;
-	(*TODO: helper in Loc*)
-	r.p <- { r.p with Loc.column = Loc.start_pos.Loc.column };
-	r.p.Loc.line - start_line
-
-let take_name_like(r: t): string =
-	let start = r.idx - 1 in
-	(* TODO: Str.regex would speed this up a ton! *)
-	skip_while r (fun ch -> in_range ch 'a' 'z');
-	slice_from r start
+let take_name_like(fst: char)(r: t): string =
+	(*TODO:build pattern*)
+	let b = BatBuffer.create 4 in
+	BatBuffer.add_char b fst;
+	(*TODO: alter parameter order of in_range so we can curry here*)
+	buffer_while b r CharU.is_name_char;
+	BatBuffer.contents b
 
 let count_while(r: t)(cond: char -> bool): int =
 	let count = ref 0 in
@@ -112,18 +108,26 @@ let count_while(r: t)(cond: char -> bool): int =
 	done;
 	!count
 
+let skip_rest_of_line(r: t): unit =
+	raise U.TODO
+let take_rest_of_line(r: t): string =
+	raise U.TODO
+
 let skip_newlines(r: t): unit =
-	ignore (count_newlines r)
+	let incr_line() = r.p <- Loc.next_line r.p in
+	incr_line();
+	while (peek r) = '\n' do
+		ignore (advance r);
+		incr_line()
+	done
 
 let skip_tabs(r: t): int =
 	count_while r (fun ch -> ch = '\t')
 
-
-
-let make(source: string): t =
+let make(source: BatIO.input): t =
 	let r = {
-		source = source ^ "\x00";
-		idx = 0;
+		source;
+		peek = None;
 		p = Loc.start_pos
 	} in
 	U.returning r skip_newlines

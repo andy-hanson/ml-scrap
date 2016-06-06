@@ -1,31 +1,44 @@
-type ('o, 'a) printer = 'o BatIO.output -> 'a -> unit
+type 'a t = 'a BatIO.output
+
+(*TODO: just use BatIO.printer (is backwards from this...)*)
+type ('o, 'a) printer = 'o t -> 'a -> unit
+
+let printf = Batteries.Printf.printf
 
 let out = Batteries.Printf.fprintf
 
 let str = BatIO.nwrite
 
-let out_array(output: ('o, 'a) printer)(out: 'o BatIO.output)(arr: 'a array): unit =
-	BatIO.nwrite out "[| ";
-	let o em =
+let out_array(output: ('o, 'a) printer)(out: 'o t)(arr: 'a array): unit =
+	str out "[| ";
+	ArrayU.iter arr begin fun em ->
 		output out em;
-		BatIO.nwrite out "; " in
-	Array.iter o arr;
-	BatIO.nwrite out "|]"
+		str out "; "
+	end;
+	str out "|]"
 
-let out_hashtbl(out_key: ('o, 'a) printer)(out_val: ('o, 'b) printer)(out: 'o BatIO.output)(tbl: ('a, 'b) Hashtbl.t): unit =
+let out_hashtbl(out_key: ('o, 'a) printer)(out_val: ('o, 'b) printer)(out: 'o t)(tbl: ('a, 'b) Hashtbl.t): unit =
 	let output_pair key value =
 		out_key out key;
-		BatIO.nwrite out ": ";
+		str out ": ";
 		out_val out value;
-		BatIO.nwrite out ", " in
-	BatIO.nwrite out "{ ";
+		str out ", " in
+	str out "{ ";
+	(*TODO:HashU.iter*)
 	Hashtbl.iter output_pair tbl;
-	BatIO.nwrite out "}"
+	str out "}"
 
-let out_to_string(p: ('o, 'a) printer)(value: 'a): string =
+let out_option(output: ('o, 'a) printer)(o: 'o t)(op: 'a option): unit =
+	match op with
+	| Some value ->
+		out o "Some(%a)" output value
+	| None ->
+		str o "None"
+
+let out_to_string(p: (string, 'a) printer)(value: 'a): string =
 	let b = BatBuffer.create 0 in
 	p (BatBuffer.output_buffer b) value;
 	BatBuffer.contents b
 
-let output_int(o: 'o BatIO.output)(i: int): unit =
+let output_int(o: 'o t)(i: int): unit =
 	out o "%d" i

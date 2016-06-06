@@ -27,7 +27,7 @@ let cast_as_float = function
 	| Float f -> f
 	| _ -> raise CastFail
 
-let rec output(out: 'a BatIO.output)(value: t): unit =
+let rec output(out: 'a OutputU.t)(value: t): unit =
 	match value with
 	| Bool b ->
 		OutputU.out out "%b" b
@@ -42,6 +42,7 @@ let rec output(out: 'a BatIO.output)(value: t): unit =
 		let out_prop i type_property =
 			let value = Array.get properties i in
 			OutputU.out out "%a=%a, " Symbol.output type_property.Type.prop_name output value in
+		(*TODO:ArrayU.iteri*)
 		Array.iteri out_prop record.Type.properties;
 		OutputU.str out ")"
 	| Void ->

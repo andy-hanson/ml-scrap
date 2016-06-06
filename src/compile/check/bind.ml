@@ -19,23 +19,27 @@ module SymMapU = U.MapU(Symbol.SymMap)
 type scope = Binding.t Symbol.SymMap.t
 
 let builtins_scope(ctx: CompileContext.t): scope =
-	let m1 = SymMapU.make Builtins.all (fun b ->
+	let m1 = SymMapU.make Builtins.all begin fun b ->
 		let name = CompileContext.symbol ctx (Builtins.name b) in
-		(name, Binding.Builtin b)) in
-	let m2 = SymMapU.make Type.builtins (fun b ->
+		(name, Binding.Builtin b)
+	end in
+	let m2 = SymMapU.make Type.builtins begin fun b ->
 		let name = CompileContext.symbol ctx (Type.builtin_name b) in
-		(name, Binding.BuiltinType b)) in
+		(name, Binding.BuiltinType b)
+	end in
 	SymMapU.union m1 m2
 
-
-let augment_scope(base: scope)(Ast.LocalDeclare(_, name, _) as local): scope =
+let augment_scope(base: scope)(Ast.LocalDeclare(_, name) as local): scope =
 	Symbol.SymMap.add name (Binding.Local local) base
 
-let augment_scope_many(base: scope)(more: Ast.local_declare array): scope =
-	Array.fold_left augment_scope base more
+(*TODO:neater*)
+let augment_scope_param(base: scope)(Ast.Parameter(_, name, _) as parameter): scope =
+	Symbol.SymMap.add name (Binding.Parameter parameter) base
+let augment_scope_many(base: scope)(more: Ast.parameter array): scope =
+	ArrayU.fold base more augment_scope_param
 
 let each_decl(Ast.Modul(_, decls))(fn: Ast.decl -> unit) =
-	Array.iter fn decls
+	ArrayU.iter decls fn
 
 let get_base_scope(ctx: CompileContext.t)(modul: Ast.modul): scope =
 	let map: scope ref = ref (builtins_scope ctx) in
@@ -76,8 +80,8 @@ let bind(ctx: CompileContext.t)(modul: Ast.modul): t =
 		TypeBindings.set type_bindings access binding in
 
 	(*TODO: naming*)
-	let bind_declare_type(scope: scope)(Ast.LocalDeclare(_, _, typ)) =
-		let Ast.TypeAccess(loc, name) = typ in
+	(*TODO: inline?*)
+	let bind_param_type(scope: scope)(Ast.Parameter(_, _, (Ast.TypeAccess(loc, name) as typ))): unit =
 		write_type_binding scope typ loc name in
 
 	let rec add_expr_bindings(scope: scope)(Ast.Expr(loc, kind) as expr): unit =
@@ -86,9 +90,8 @@ let bind(ctx: CompileContext.t)(modul: Ast.modul): t =
 			write_binding scope expr loc name
 		| Ast.Call(called, arguments) ->
 			add_expr_bindings scope called;
-			Array.iter (add_expr_bindings scope) arguments
+			ArrayU.iter arguments (add_expr_bindings scope)
 		| Ast.Let(declare, value, expr) ->
-			bind_declare_type scope declare;
 			add_expr_bindings scope value;
 			let scope = augment_scope scope declare in
 			add_expr_bindings scope expr
@@ -100,13 +103,13 @@ let bind(ctx: CompileContext.t)(modul: Ast.modul): t =
 
 	let add_fn_bindings(Ast.Fn(Ast.Signature(loc, (Ast.TypeAccess(return_loc, return_name) as return_type), params), body)): unit =
 		write_type_binding base_scope return_type return_loc return_name;
-		Array.iter (bind_declare_type base_scope) params;
+		ArrayU.iter params (bind_param_type base_scope);
 		add_expr_bindings (augment_scope_many base_scope params) body in
 
 	let add_rec_bindings(Ast.Rec properties): unit =
-		let foo(Ast.Property(_, _, (Ast.TypeAccess(loc, name) as typ))): unit =
-			write_type_binding base_scope typ loc name in
-		Array.iter foo properties in
+		ArrayU.iter properties begin fun (Ast.Property(_, _, (Ast.TypeAccess(loc, name) as typ))) ->
+			write_type_binding base_scope typ loc name
+		end in
 
 	each_decl modul begin function
 		| Ast.Val (Ast.DeclVal(loc, sym, kind)) ->
@@ -124,6 +127,6 @@ let bind(ctx: CompileContext.t)(modul: Ast.modul): t =
 
 (* boilerplate *)
 
-(* let output(out: 'a BatIO.output)(bindings: bindings): unit =
+(* let output(out: 'a OutputU.t)(bindings: bindings): unit =
 	OutputU.out_hashtbl Ast.output_expr Binding.output out bindings
  *)

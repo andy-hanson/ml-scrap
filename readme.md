@@ -1,8 +1,8 @@
 
-Requires ocamlbuild
-
 ## Build
 
-	sudo apt install opam ocaml-findlib ocaml-batteries-included
-	opam install ocamlbuild batteries assertions
+[Install opam](https://opam.ocaml.org/doc/Install.html).
+
+	opam switch 4.03.0
+	opam install batteries ocamlbuild dead_code_analyzer
 	make run

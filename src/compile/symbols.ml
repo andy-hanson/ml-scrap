@@ -12,12 +12,13 @@ let t_get(t: table)(s: string): Symbol.t =
 		U.returning (Symbol.make s) (Hashtbl.add t s)
 
 let create_name_to_keyword(table: table): (Symbol.t, Token.t) Hashtbl.t =
-	let nk = Hashtbl.create 1 in
-	let add keyword =
-		let sym = t_get table (Token.keyword_to_string keyword) in
-		Hashtbl.add nk sym keyword in
-	Array.iter add Token.all_keywords;
-	nk
+	(*TODO:HashU.build*)
+	U.returning (Hashtbl.create 0) begin fun nk ->
+		ArrayU.iter Token.all_keywords begin fun keyword ->
+			let sym = t_get table (Token.keyword_to_string keyword) in
+			Hashtbl.add nk sym keyword
+		end
+	end
 
 type t = {
 	table: table;

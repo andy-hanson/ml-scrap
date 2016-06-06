@@ -3,20 +3,34 @@ type t = { start: pos; rear: pos }
 
 let start_pos = { line = 1; column = 1 }
 
-let output_pos(out: 'a BatIO.output)({line; column}): unit =
-	OutputU.out out "%d:%d" line column
+(*TODO: KILL?*)
+(* let pos_column_shift p n =
+	{ p with column = p.column + n } *)
 
-let output(out: 'a BatIO.output)({start; rear}: t): unit =
-	OutputU.out out "%a-%a" output_pos start output_pos rear
-
-(* let make_pos line column =
-	{ line = line; column = column }
- *)
-let pos_column_shift p n =
-	{ line = p.line; column = p.column + n }
-
-let make start rear =
+let make(start: pos)(rear: pos): t =
 	{ start = start; rear = rear }
 
-let single p =
-	{ start = p; rear = p }
+let single(p: pos): t =
+	make p p
+
+
+let line(p: pos): int =
+	p.line
+
+let next_line(p: pos): pos =
+	{ line = p.line + 1; column = start_pos.column }
+
+let prev_line(p: pos): pos =
+	(*TODO: find prev column*)
+	{ p with line = p.line - 1 }
+
+let next_column(p: pos): pos =
+	{ p with column = p.column - 1 }
+
+(* boilerplate *)
+
+let output_pos(out: 'a OutputU.t)({line; column}): unit =
+	OutputU.out out "%d:%d" line column
+
+let output(out: 'a OutputU.t)({start; rear}: t): unit =
+	OutputU.out out "%a-%a" output_pos start output_pos rear

@@ -29,22 +29,25 @@ let name = function
 	| True -> "true"
 	| False -> "false"
 
-let type_of(b: builtin): Type.t =
-	match b with
+let type_of(builtin: builtin): Type.t =
+	let i = Type.Builtin Type.Int in
+	let b = Type.Builtin Type.Bool in
+	let f r a = Type.t_fn r a in
+	match builtin with
 	| Cond ->
-		(*TODO: parameterized types*)
-		raise U.TODO
+		(*TODO: parameterized type!*)
+		f i [| b; i; i |]
 	| Not ->
-		Type.Fn(Type.Builtin Type.Bool, [| Type.Builtin Type.Bool |])
+		f b [| b; b |]
 	| Less ->
-		Type.Fn(Type.Builtin Type.Bool, [| Type.Builtin Type.Int; Type.Builtin Type.Int |])
+		f b [| i; i |]
 	| Add | Subtract | Times ->
 		(*TODO: interface type, so it can work on floats too*)
-		Type.Fn(Type.Builtin Type.Int, [| Type.Builtin Type.Int; Type.Builtin Type.Int |])
+		f i [| i; i |]
 	| True ->
-		Type.Builtin Type.Bool
+		b
 	| False ->
-		Type.Builtin Type.Bool
+		b
 
 let value = function
 	| True -> Val.Bool true
@@ -62,5 +65,5 @@ let arity(b: builtin): int =
 	| Times -> 2
 	| b -> failwith ("not a function: " ^ (name b))
 
-let output(out: 'a BatIO.output)(b: builtin): unit =
-	BatIO.nwrite out (name b)
+let output(out: 'a OutputU.t)(b: builtin): unit =
+	OutputU.str out (name b)

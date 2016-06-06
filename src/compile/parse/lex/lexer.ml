@@ -3,17 +3,10 @@ type t = {
 	mutable indent: int;
 }
 
-let make(source: string): t = {
+let make(source: BatIO.input): t = {
 	r = Reader.make source;
 	indent = 0
 }
-
-type restore = { r: Reader.restore; indent: int }
-let get_restore(l: t): restore =
-	{ r = Reader.get_restore l.r; indent = l.indent }
-let do_restore(l: t)(r: restore): unit =
-	Reader.do_restore l.r r.r;
-	l.indent <- r.indent
 
 let pos(l: t): Loc.pos =
 	Reader.pos l.r
@@ -27,30 +20,18 @@ let lex_indent(l: t): int =
 	CompileError.check ((Reader.peek l.r) != ' ') (loc_from l start) CompileError.LeadingSpace;
 	indent
 
-let lex_number(l: t): Token.t =
-	let num = (Reader.take_num_decimal l.r) in
-	Token.Literal num
-
-let lex_name(l: t)(ctx: CompileContext.t): Token.t =
-	let str = (Reader.take_name_like l.r) in
-	let name = CompileContext.symbol ctx str in
-	BatOption.((CompileContext.keyword ctx name) |? (Token.Name name))
-
-let lex_type_name(l: t)(ctx: CompileContext.t): Token.t =
-	let name = CompileContext.symbol ctx (Reader.take_name_like l.r) in
-	Token.TypeName name
-
 let rec next(l: t)(ctx: CompileContext.t): Token.t =
-	match Reader.next l.r with
+	let ch = Reader.next l.r in
+	match ch with
 	| '\x00' ->
 		Token.End
 
 	| ' ' ->
+		if (Reader.peek l.r = '\n') then
+			CompileContext.warn ctx (Loc.single (pos l)) CompileError.TrailingSpace;
 		next l ctx
 
 	| '\n' ->
-		if ((Reader.can_peek l.r) (-2)) && ((Reader.peek_by l.r (-2)) = '.') then
-			CompileContext.warn ctx (Loc.single (pos l)) CompileError.TrailingSpace;
 		let old_indent = l.indent in
 		l.indent <- lex_indent l;
 		if l.indent > old_indent then begin
@@ -82,22 +63,28 @@ let rec next(l: t)(ctx: CompileContext.t): Token.t =
 	| ')' -> Token.Rparen
 
 	| '-' ->
-		if '0' < (Reader.peek l.r) && (Reader.peek l.r) <= '9' then
-			lex_number l
-		else
-			lex_name l ctx
+		let next = Reader.next l.r in
+		if next = ' ' then
+			Token.Name (CompileContext.symbol ctx "-")
+		else begin
+			CompileError.check (CharU.is_digit next) (Loc.single (pos l)) CompileError.NegMustPrecedeNumber;
+			Reader.take_num_decimal true next l.r
+		end
 
 	| '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' ->
-		lex_number l
+		Reader.take_num_decimal false ch l.r
 
 	| 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm'
 	| 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z'
 	| '+' | '*' | '/' | '^' | '?' | '<' | '>' ->
-		lex_name l ctx
+		let str = Reader.take_name_like ch l.r in
+		let name = CompileContext.symbol ctx str in
+		BatOption.((CompileContext.keyword ctx name) |? (Token.Name name))
 
 	| 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'
 	| 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z' ->
-		lex_type_name l ctx
+		let name = CompileContext.symbol ctx (Reader.take_name_like ch l.r) in
+		Token.TypeName name
 
 	| ch ->
 		CompileError.raise (Loc.single (pos l)) (CompileError.UnrecognizedCharacter ch)
