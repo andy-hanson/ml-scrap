@@ -1,39 +1,43 @@
-#
-# Pure OCaml, no packages, no _tags, code in serveral directories
-#
-
-# bin-annot is required for Merlin and other IDE-like tools
-# The -I flag introduces sub-directories to search for code
-
-#OCB_FLAGS = -tag bin_annot -I src -I src/utilities -I src/compile -I src/compile/lex
-# -I src: use the src directory
-# -r: recursive (doesn't seem to work?)
-OCB_FLAGS = -use-ocamlfind -I src -r -I src/compile -I src/compile/check -I src/compile/parse -I src/compile/parse/lex -I src/run -I src/util
-MORE_OCB_FLAGS = -lflags -custom,c_src/add.o
-OCB = 		ocamlbuild $(OCB_FLAGS) $(MORE_OCB_FLAGS)
+# Disabled warnings: See http://caml.inria.fr/pub/docs/manual-ocaml/comp.html
+OCB_FLAGS = -use-ocamlfind -cflags -strict-sequence,-strict-formats,-nolabels,-w=A-4-28-29,-warn-error=A-32
+OCB_BYTE_FLAGS = -lflags -custom,c_src/add.o
+# TODO: http://caml.inria.fr/pub/docs/manual-ocaml/native.html#sec284
+OCB_NATIVE_FLAGS = -cflags -cc=clang
+OCB_NATIVE_SLOW_FLAGS = -cflags -g
+OCB_NATIVE_FAST_FLAGS = -cflags -unsafe,-noassert,-no-app-funct
+OCB = ocamlbuild $(OCB_FLAGS)
 
 all:		run
 
-# TODO: this is stupid
+# TODO: this is stupid, do it as part of compilation
 clib:
-			ocamlbuild -use-ocamlfind add.o -I c_src
+	ocamlbuild -use-ocamlfind add.o -I c_src
 
 run: byte
-			./main.byte
+	./main.byte
+
+run-native: native
+	./main.native
+
+run-fast: native-fast
+	./main.native
 
 clean:
-			$(OCB) -clean
-
-#native:
-#			$(OCB) main.native
+	$(OCB) -clean
 
 byte:		clib
-			$(OCB) main.byte
+	$(OCB) $(OCB_BYTE_FLAGS) main.byte
 
-#profile:
-#			$(OCB) -tag profile main.native
+native: clib
+	$(OCB) $(OCB_NATIVE_FLAGS) $(OCB_NATIVE_SLOW_FLAGS) main.native
 
-#debug:
-#			$(OCB) -tag debug main.byte
+native-fast: clib
+	$(OCB) $(OCB_NATIVE_FLAGS) $(OCB_NATIVE_FAST_FLAGS) main.native
 
-#.PHONY: 	all clean byte native profile debug test
+profile: clib
+	$(OCB) -tag profile main.native
+
+debug: clib
+	$(OCB) -tag debug main.byte
+
+.PHONY: 	all clean byte native profile debug test

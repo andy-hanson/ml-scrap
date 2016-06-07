@@ -9,6 +9,7 @@ let output(out: 'a OutputU.t)(symbol: t) =
 let eq(a: t)(b: t) =
 	a == b
 
+(*TODO: Just use Lookup, and move MapU stuff to lookup!!!*)
 module SymbolMapImpl = struct
 	type tt = t
 	type t = tt

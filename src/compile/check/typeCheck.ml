@@ -21,21 +21,21 @@ type t = {
 	records: records
 }
 
-let type_of_expr({types}: t)(expr: Ast.expr): Type.t =
+let type_of_expr({types; _}: t)(expr: Ast.expr): Type.t =
 	Types.get types expr
-let type_of_fn({fn_types}: t)(fn: Ast.decl_val): Type.fn =
+let type_of_fn({fn_types; _}: t)(fn: Ast.decl_val): Type.fn =
 	FnTypes.get fn_types fn
-let type_of_type_ast({records}: t)(type_ast: Ast.decl_type): Type.record =
+let type_of_type_ast({records; _}: t)(type_ast: Ast.decl_type): Type.record =
 	Records.get records type_ast
-let all_records({records}: t): Type.record array =
+let all_records({records; _}: t): Type.record array =
 	Records.values records
 
 
 (*TODO:MOVE?*)
-let empty_rec_from_ast(Ast.DeclType(_, name, Ast.Rec(props))): Type.record =
+let empty_rec_from_ast(Ast.DeclType(_, name, _)): Type.record =
 	{ Type.rname = name; Type.properties = [||] }
 
-let declared_type(bindings: Bind.t)(records: records)(Ast.TypeAccess(loc, name) as typ: Ast.typ): Type.t =
+let declared_type(bindings: Bind.t)(records: records)(typ: Ast.typ): Type.t =
 	match Bind.type_binding bindings typ with
 	| Binding.Builtin _ | Binding.Declared _ | Binding.Local _ | Binding.Parameter _ ->
 		raise U.TODO (*TODO: not-a-type error*)
@@ -44,8 +44,7 @@ let declared_type(bindings: Bind.t)(records: records)(Ast.TypeAccess(loc, name) 
 	| Binding.DeclaredType d ->
 		Type.Rec (Records.get records d)
 
-(*TODO: close over ctx and bindings*)
-let get_records(ctx: CompileContext.t)(bindings: Bind.t)(decls: Ast.decl array): records =
+let get_records(bindings: Bind.t)(decls: Ast.decl array): records =
 	U.returning (Records.create()) begin fun records ->
 		let record_asts = BatArray.filter_map (function | Ast.Type dt -> Some dt | _ -> None) decls in
 		ArrayU.iter record_asts begin fun r ->
@@ -62,14 +61,14 @@ let get_records(ctx: CompileContext.t)(bindings: Bind.t)(decls: Ast.decl array):
 
 (*TODO: major cleanup!*)
 
-let f(ctx: CompileContext.t)(Ast.Modul(_, decls))(bindings: Bind.t): t =
-	let records = get_records ctx bindings decls in
+let f(Ast.Modul(_, decls))(bindings: Bind.t): t =
+	let records = get_records bindings decls in
 	let declared_type = declared_type bindings records in
 
 	let types: types = Types.create() in
 	let locals: locals = Locals.create() in
 
-	let fn_type(Ast.Fn(Ast.Signature(_, return_type_ast, params), body)): Type.fn =
+	let fn_type(Ast.Fn(Ast.Signature(_, return_type_ast, params), _)): Type.fn =
 		let param_types = ArrayU.map params begin fun (Ast.Parameter(_, _, typ)) ->
 			declared_type typ
 		end in

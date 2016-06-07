@@ -11,10 +11,10 @@ type t = {
 	types: type_bindings
 }
 
-let value_binding {values} access = Bindings.get values access
-let type_binding {types} access = TypeBindings.get types access
+let value_binding {values; _} access = Bindings.get values access
+let type_binding {types; _} access = TypeBindings.get types access
 
-module SymMapU = U.MapU(Symbol.SymMap)
+module SymMapU = MapU.Make(Symbol.SymMap)
 
 type scope = Binding.t Symbol.SymMap.t
 
@@ -101,7 +101,7 @@ let bind(ctx: CompileContext.t)(modul: Ast.modul): t =
 			add_expr_bindings scope a;
 			add_expr_bindings scope b in
 
-	let add_fn_bindings(Ast.Fn(Ast.Signature(loc, (Ast.TypeAccess(return_loc, return_name) as return_type), params), body)): unit =
+	let add_fn_bindings(Ast.Fn(Ast.Signature(_, (Ast.TypeAccess(return_loc, return_name) as return_type), params), body)): unit =
 		write_type_binding base_scope return_type return_loc return_name;
 		ArrayU.iter params (bind_param_type base_scope);
 		add_expr_bindings (augment_scope_many base_scope params) body in
@@ -112,7 +112,7 @@ let bind(ctx: CompileContext.t)(modul: Ast.modul): t =
 		end in
 
 	each_decl modul begin function
-		| Ast.Val (Ast.DeclVal(loc, sym, kind)) ->
+		| Ast.Val (Ast.DeclVal(_, _, kind)) ->
 			begin match kind with
 			| Ast.Fn(_, _) as f ->
 				add_fn_bindings f

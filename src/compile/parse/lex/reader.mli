@@ -4,11 +4,8 @@ val make: BatIO.input -> t
 
 val pos: t -> Loc.pos
 
-val undo_read_newline: t -> unit
-
 val peek: t -> char
 
-(*TODO: rename to `next`*)
 val next: t -> char
 
 val try_eat_if: t -> (char -> bool) -> bool

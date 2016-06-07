@@ -7,15 +7,19 @@ let start_pos = { line = 1; column = 1 }
 (* let pos_column_shift p n =
 	{ p with column = p.column + n } *)
 
+let pos(line: int)(column: int): pos =
+	{ line; column }
+let line(pos: pos): int =
+	pos.line
+let column(pos: pos): int =
+	pos.column
+
+
 let make(start: pos)(rear: pos): t =
 	{ start = start; rear = rear }
 
 let single(p: pos): t =
 	make p p
-
-
-let line(p: pos): int =
-	p.line
 
 let next_line(p: pos): pos =
 	{ line = p.line + 1; column = start_pos.column }

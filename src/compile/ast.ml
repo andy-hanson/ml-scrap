@@ -45,11 +45,11 @@ let output_parameter(out: 'a OutputU.t)(Parameter(_, name, typ)): unit =
 let output_local_declare(out: 'a OutputU.t)(LocalDeclare(_, name)): unit =
 	OutputU.out out "%a" Symbol.output name
 
-let output_decl_val_kind(out: 'a OutputU.t)(Fn(signature, expr)): unit =
-	OutputU.out out "Fn..."
-let output_decl_val(out: 'a OutputU.t)(DeclVal(_, name, kind)): unit =
-	OutputU.out out "DeclVal(%a, %a)" Symbol.output name output_decl_val_kind kind
+(* let output_decl_val_kind(out: 'a OutputU.t)(Fn(_, _)): unit =
+	OutputU.out out "Fn..." *)
 
+(* let output_decl_val(out: 'a OutputU.t)(DeclVal(_, name, kind)): unit =
+	OutputU.out out "DeclVal(%a, %a)" Symbol.output name output_decl_val_kind kind *)
 
 let rec output_expr(out: 'a OutputU.t)(Expr(_, kind)): unit =
 	match kind with

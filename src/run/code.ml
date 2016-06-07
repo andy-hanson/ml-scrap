@@ -27,11 +27,11 @@ and func = {
 }
 
 (*TODO: hide somehow *)
-let empty_func_from_ast(Ast.DeclVal(_, name, Ast.Fn(Ast.Signature(_, _, params), expr))): func =
+let empty_func_from_ast(Ast.DeclVal(_, name, Ast.Fn(Ast.Signature(_, _, params), _))): func =
 	{
 		fname = name;
 		params = begin
-			let to_param(Ast.Parameter(_, name, typ)): parameter =
+			let to_param(Ast.Parameter(_, name, _)): parameter =
 				{ name = name } in
 			(*TODO:ArrayU.map*)
 			Array.map to_param params
@@ -40,7 +40,7 @@ let empty_func_from_ast(Ast.DeclVal(_, name, Ast.Fn(Ast.Signature(_, _, params),
 		code = [| |]
 	}
 
-let func_arity({params}: func): int =
+let func_arity({params; _}: func): int =
 	Array.length params
 
 

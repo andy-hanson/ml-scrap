@@ -2,10 +2,10 @@ Printexc.record_backtrace true
 
 let print_tokens(source: BatIO.input): unit =
 	let ctx = CompileContext.make() in
-	let lexer = Lexer.make source in
+	let lexer = Lexer.make ctx source in
 	let break = ref false in
 	while not !break do
-		let token = Lexer.next lexer ctx in
+		let token = Lexer.next lexer in
 		match token with
 		| Token.End ->
 			break := true
@@ -13,15 +13,18 @@ let print_tokens(source: BatIO.input): unit =
 			OutputU.printf "%a\n" Token.output token
 	done
 
+(*TODO: just use get_fn_named everywhere*)
 let get_only_fn(Ast.Modul(_, decls)): Ast.decl_val =
 	match Array.get decls 0 with
 	| Ast.Val fn -> fn
 	| _ -> failwith "boo"
 
-let print_ast(source: BatIO.input): unit =
+let print_ast(m: Ast.modul): unit =
+	OutputU.printf "%a\n" Ast.output_decl_val (get_only_fn m)
+
+let get_ast(source: BatIO.input): Ast.modul =
 	let ctx = CompileContext.make() in
-	let modul = Parse.parse ctx source in
-	OutputU.printf "%a\n" Ast.output_decl_val (get_only_fn modul)
+	Parse.f ctx source
 
 let print_modul(m: Ast.modul): unit =
 	OutputU.printf "%a\n" Ast.output_modul m
@@ -31,9 +34,9 @@ let print_fun(f: Ast.decl_val): unit =
 
 (*TODO:RENAME*)
 let do_stuff(ctx: CompileContext.t)(source: BatIO.input) =
-	let modul = Parse.parse ctx source in
+	let modul = Parse.f ctx source in
 	let bindings = Bind.bind ctx modul in
-	let types = TypeCheck.f ctx modul bindings in
+	let types = TypeCheck.f modul bindings in
 	modul, bindings, types
 
 let compile(ctx: CompileContext.t)(source: BatIO.input): Modul.t =
@@ -69,6 +72,24 @@ fn factorial Int x Int
 	cond (< x 2) 1: * x: factorial: decr x
 "
 
+let time(f: unit -> 'a) =
+	let t1 = Sys.time() in
+	let arr = BatDynArray.create() in
+	for _ = 1 to 10000 do
+		let res = f() in
+		BatDynArray.add arr res
+	done;
+	let t2 = Sys.time() in
+	Printf.printf "Execution time: %fs\n" (t2 -. t1);
+	BatDynArray.get arr 0
+
+(* testing just the parser *)
+(* let () =
+	let ast = time (fun () -> get_ast (BatIO.input_string src)) in
+	print_ast ast *)
+
+(*TODO: change pos/loc representation, see perf impact*)
+
 (*
 TODOS:
 
@@ -94,7 +115,8 @@ let src =
 
 fn zero Point a Int
 	Point a 2
-" *)
+"
+*)
 
 (* let x = BatFile.with_file_in "test.nz" use_file
 let () = OutputU.printf "%s\n" x *)

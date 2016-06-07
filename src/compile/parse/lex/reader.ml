@@ -1,16 +1,10 @@
 (*TODO: join with lexer?*)
 
-(* type t = {
-	source: string;
-	mutable idx: int;
-	(* TODO: rename to pos *)
-	mutable p: Loc.pos
-} *)
-
 type t = {
 	source: BatIO.input;
-	mutable peek: char option; (* '\x00' if no more input *)
-	mutable p: Loc.pos (*TODO: rename to pos*)
+	mutable peek: char; (* '\x00' if no more input *)
+	mutable line: int;
+	mutable column: int
 }
 
 (*TODO: declaration order in this file could use cleanup*)
@@ -23,37 +17,23 @@ let safe_read(input: BatIO.input): char =
 
 (*Advance without affecting pos*)
 let advance(r: t): char =
-	match r.peek with
-	| Some p ->
-		r.peek <- None;
-		p
-	| None ->
-		safe_read r.source
+	U.returning r.peek (fun _ -> r.peek <- safe_read r.source)
 
 let pos(r: t): Loc.pos =
-	r.p
+	Loc.pos r.line r.column
 
-let undo_read_newline(r: t): unit =
-	r.peek <- Some '\n';
-	r.p <- Loc.prev_line r.p
-
-(*TODO: use less*)
 let peek(r: t): char =
-	match r.peek with
-	| Some p ->
-		p
-	| None ->
-		U.returning (safe_read r.source) begin fun ch ->
-			r.peek <- Some ch
-		end
+	r.peek
 
 let skip(r: t): unit =
 	ignore (advance r);
-	r.p <- Loc.next_column r.p
+	r.column <- r.column + 1
 
 let next(r: t): char =
-	advance r
-	(* U.returning (peek r) (fun _ -> skip r) *)
+	U.returning (advance r) begin fun _ ->
+		r.column <- r.column + 1
+		(* If it was a newline, lexer should tell us to skip_newlines, so pos will be set then *)
+	end
 
 let try_eat_if(r: t)(pred: char -> bool): bool =
 	U.returning (pred (peek r)) (fun a -> if a then skip r)
@@ -61,10 +41,10 @@ let try_eat_if(r: t)(pred: char -> bool): bool =
 let try_eat(r: t)(char_to_eat: char): bool =
 	try_eat_if r (fun ch -> ch == char_to_eat)
 
-let skip_while(r: t)(cond: char -> bool): unit =
+(* let skip_while(r: t)(cond: char -> bool): unit =
 	while cond (peek r) do
 		skip r
-	done
+	done *)
 
 let buffer_while(b: BatBuffer.t)(r: t)(cond: char -> bool): unit =
 	while cond (peek r) do
@@ -108,18 +88,20 @@ let count_while(r: t)(cond: char -> bool): int =
 	done;
 	!count
 
-let skip_rest_of_line(r: t): unit =
+let skip_rest_of_line(_: t): unit =
 	raise U.TODO
-let take_rest_of_line(r: t): string =
+
+let take_rest_of_line(_: t): string =
 	raise U.TODO
 
 let skip_newlines(r: t): unit =
-	let incr_line() = r.p <- Loc.next_line r.p in
+	let incr_line() = r.line <- r.line + 1 in
 	incr_line();
 	while (peek r) = '\n' do
 		ignore (advance r);
 		incr_line()
-	done
+	done;
+	r.column <- Loc.column Loc.start_pos
 
 let skip_tabs(r: t): int =
 	count_while r (fun ch -> ch = '\t')
@@ -127,7 +109,8 @@ let skip_tabs(r: t): int =
 let make(source: BatIO.input): t =
 	let r = {
 		source;
-		peek = None;
-		p = Loc.start_pos
+		peek = safe_read source;
+		line = Loc.line Loc.start_pos;
+		column = Loc.column Loc.start_pos
 	} in
 	U.returning r skip_newlines

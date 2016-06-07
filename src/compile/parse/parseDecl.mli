@@ -1,1 +1,1 @@
-val try_parse_decl: Parser.t -> Ast.decl option
+val try_parse_decl: Lexer.t -> Ast.decl option
