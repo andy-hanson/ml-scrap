@@ -46,17 +46,9 @@ let keyword_to_string(keyword: t): string =
 
 let output(out: 'a OutputU.t)(token: t) =
 	match token with
-	| Name s ->
-		OutputU.out out "'%s'" s.Symbol.name
-	| TypeName s ->
-		OutputU.out out "'%s'" s.Symbol.name
+	| Name s | TypeName s ->
+		OutputU.out out "'%a'" Symbol.output s
 	| Literal value ->
-		begin match value with
-		| Val.Int i ->
-			OutputU.out out "%d" i
-		| Val.Float f ->
-			OutputU.out out "%f" f
-		| _ -> failwith "not a literal"
-		end
+		Val.output out value
 	| k ->
 		OutputU.str out (keyword_to_string k)

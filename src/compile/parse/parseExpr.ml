@@ -5,7 +5,7 @@ let parse_single(l: Lexer.t)(start: Loc.pos)(t: Token.t): Ast.expr =
 		| Token.Literal value ->
 			Ast.Literal value
 		| _ ->
-			ParseU.unexpected l t in
+			ParseU.unexpected start l t in
 	Ast.Expr(Lexer.loc_from l start, expr)
 
 let rec parse_expr_parts(l: Lexer.t)(next: Token.t)(in_paren: bool): Ast.expr list * bool =

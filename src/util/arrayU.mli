@@ -9,7 +9,5 @@ val fold: 'b -> 'a array -> ('b -> 'a -> 'b) -> 'b
 val triple_of_array: 'a array -> 'a * 'a * 'a
 
 val build_array_0: (('a -> unit) -> unit) -> 'a array
-
 val build_array: (unit -> 'a option) -> 'a array
-
 val build_array_2: (unit -> 'a * bool) -> 'a array

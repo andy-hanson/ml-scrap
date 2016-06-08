@@ -3,7 +3,7 @@ type t =
 	| Declared of Ast.decl_val
 	| Local of Ast.local_declare
 	| Parameter of Ast.parameter
-	| BuiltinType of Type.builtin
+	| BuiltinType of Type.t
 	| DeclaredType of Ast.decl_type
 
 (* boilerplate*)
@@ -19,6 +19,6 @@ let output(out: 'a OutputU.t)(b: t): unit =
 	| Parameter p ->
 		OutputU.out out "Parameter(%a)" Ast.output_parameter p
 	| BuiltinType b ->
-		OutputU.out out "Builtin(%a)" Type.output_builtin b
+		OutputU.out out "BuiltinType(%a)" Type.output b
 	| DeclaredType d ->
 		OutputU.out out "Declared(%a)" Ast.output_decl_type d

@@ -15,6 +15,7 @@ val push: 'a t -> 'a -> unit
 val peek: 'a t -> 'a
 
 val pop: 'a t -> 'a
+val pop_n: 'a t -> int -> 'a array
 
 val try_pop: 'a t -> 'a option
 

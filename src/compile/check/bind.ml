@@ -19,6 +19,7 @@ module SymMapU = MapU.Make(Symbol.SymMap)
 type scope = Binding.t Symbol.SymMap.t
 
 let builtins_scope(ctx: CompileContext.t): scope =
+	(*TODO: move allocation of the maps here to Symbols.t*)
 	let m1 = SymMapU.make Builtins.all begin fun b ->
 		let name = CompileContext.symbol ctx (Builtins.name b) in
 		(name, Binding.Builtin b)

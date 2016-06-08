@@ -3,10 +3,14 @@ type t = { name: string }
 let make(name: string): t =
 	{ name = name }
 
-let output(out: 'a OutputU.t)(symbol: t) =
+let string_of({name}: t): string =
+	name
+
+let output(out: 'a OutputU.t)(symbol: t): unit =
 	OutputU.str out symbol.name
 
-let eq(a: t)(b: t) =
+let eq(a: t)(b: t): bool =
+	(*TODO: memory-moving gc may ruin this*)
 	a == b
 
 (*TODO: Just use Lookup, and move MapU stuff to lookup!!!*)

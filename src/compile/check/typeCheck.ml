@@ -40,7 +40,7 @@ let declared_type(bindings: Bind.t)(records: records)(typ: Ast.typ): Type.t =
 	| Binding.Builtin _ | Binding.Declared _ | Binding.Local _ | Binding.Parameter _ ->
 		raise U.TODO (*TODO: not-a-type error*)
 	| Binding.BuiltinType b ->
-		Type.Builtin b
+		b
 	| Binding.DeclaredType d ->
 		Type.Rec (Records.get records d)
 
@@ -136,7 +136,7 @@ let f(Ast.Modul(_, decls))(bindings: Bind.t): t =
 				Val.typ v
 
 			| Ast.Seq(a, b) ->
-				assert_type (Type.Builtin Type.Void) a;
+				assert_type Type.Void a;
 				check_expr b in
 		Types.set types expr expr_type;
 		expr_type in

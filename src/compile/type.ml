@@ -1,24 +1,11 @@
-(*TODO: just merge these into `t`*)
-type builtin =
+type t =
 	| Bool
 	| Float
 	| Int
 	| Void
-
-let builtins = [| Bool; Float; Int; Void |]
-
-let builtin_name = function
-	| Bool -> "Bool"
-	| Float -> "Float"
-	| Int -> "Int"
-	| Void -> "Void"
-
-type t =
-	| PendingTypeCheck
-	| Builtin of builtin
+	| PendingTypeCheck (*TODO:KILL*)
 	| Fn of fn
 	| Rec of record
-	(* | Generic of generic_parameter array * t *)
 
 and property = {
 	prop_name: Symbol.t;
@@ -36,6 +23,15 @@ and record = {
 	mutable properties: property array
 }
 
+let builtins = [| Bool; Float; Int; Void |]
+
+let builtin_name = function
+	| Bool -> "Bool"
+	| Float -> "Float"
+	| Int -> "Int"
+	| Void -> "Void"
+	| _ -> assert false
+
 (*TODO: similar function for record*)
 let fn(return_type: t)(parameters: t array): fn =
 	{ return_type; parameters }
@@ -47,9 +43,6 @@ let record_arity(r: record) =
 	Array.length r.properties
 
 (* boilerplate *)
-
-let output_builtin(out: 'a OutputU.t)(b: builtin): unit =
-	OutputU.str out (builtin_name b)
 
 let rec output_property(out: 'a OutputU.t)({prop_name; prop_type}: property): unit =
 	OutputU.out out "Property(%a, %a)" Symbol.output prop_name output prop_type
@@ -65,9 +58,9 @@ and output(out: 'a OutputU.t)(t: t): unit =
 	| PendingTypeCheck ->
 		(*TODO:replace all nwrite with str*)
 		OutputU.str out "PENDING TYPE CHECK"
-	| Builtin b ->
-		output_builtin out b
 	| Fn fn ->
 		output_fn out fn
 	| Rec r ->
 		output_record out r
+	| builtin ->
+		OutputU.str out (builtin_name builtin)

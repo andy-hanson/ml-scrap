@@ -6,11 +6,11 @@ type t =
 	| Void
 
 let typ = function
-	| Bool _ -> Type.Builtin Type.Bool
-	| Int _ -> Type.Builtin Type.Int
-	| Float _ -> Type.Builtin Type.Float
+	| Bool _ -> Type.Bool
+	| Int _ -> Type.Int
+	| Float _ -> Type.Float
 	| Record(typ, _) -> Type.Rec typ
-	| Void -> Type.Builtin Type.Void
+	| Void -> Type.Void
 
 (* If this is raised, the typechecker was wrong. *)
 exception CastFail

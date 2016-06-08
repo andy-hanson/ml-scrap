@@ -7,7 +7,7 @@ let parse_param(l: Lexer.t): Ast.parameter option =
 		 let typ = ParseType.f l in
 		 Some (Ast.Parameter(Lexer.loc_from l start, name, typ))
 	| t ->
-		ParseU.unexpected l t
+		ParseU.unexpected start l t
 
 let parse_signature(l: Lexer.t): Ast.signature =
 	let start = Lexer.pos l in
@@ -30,13 +30,14 @@ let parse_property(l: Lexer.t): Ast.property =
 let parse_properties(l: Lexer.t): Ast.property array =
 	ArrayU.build_array_2 begin fun () ->
 		let prop = parse_property l in
+		let start = Lexer.pos l in
 		match Lexer.next l with
 		| Token.Dedent ->
 			(prop, false)
 		| Token.Newline ->
 			(prop, true)
 		| x ->
-			ParseU.unexpected l x
+			ParseU.unexpected start l x
 	end
 
 let parse_rec(l: Lexer.t)(start: Loc.pos): Ast.decl =
@@ -56,4 +57,4 @@ let try_parse_decl(l: Lexer.t): Ast.decl option =
 	| Token.Rec ->
 		Some (parse_rec l start)
 	| x ->
-		ParseU.unexpected l x
+		ParseU.unexpected start l x

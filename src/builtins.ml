@@ -30,8 +30,8 @@ let name = function
 	| False -> "false"
 
 let type_of(builtin: builtin): Type.t =
-	let i = Type.Builtin Type.Int in
-	let b = Type.Builtin Type.Bool in
+	let i = Type.Int in
+	let b = Type.Bool in
 	let f r a = Type.t_fn r a in
 	match builtin with
 	| Cond ->

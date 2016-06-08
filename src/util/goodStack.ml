@@ -29,6 +29,12 @@ let pop(gs: 'a t): 'a =
 	BatDynArray.delete_last gs;
 	popped
 
+let pop_n(gs: 'a t)(n: int): 'a array =
+	let start = (size gs) - n in
+	U.returning (Array.init n (fun i -> BatDynArray.get gs (start + i))) begin fun _ ->
+		BatDynArray.delete_range gs start n
+	end
+
 let try_pop(gs: 'a t): 'a option =
 	U.op_if (not (empty gs)) (fun () -> let last = BatDynArray.last gs in BatDynArray.delete_last gs; last)
 

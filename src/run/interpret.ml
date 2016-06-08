@@ -28,8 +28,7 @@ let pop(state: interpreter_state): Val.t =
 	GoodStack.pop state.data_stack
 
 let pop_n(state: interpreter_state)(n: int): Val.t array =
-	(*TODO: ArrayU.init_reverse*)
-	BatArray.rev (Array.init n (fun _ -> pop state))
+	GoodStack.pop_n state.data_stack n
 
 let push(state: interpreter_state)(value: Val.t): unit =
 	GoodStack.push state.data_stack value

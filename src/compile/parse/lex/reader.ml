@@ -3,8 +3,7 @@
 type t = {
 	source: BatIO.input;
 	mutable peek: char; (* '\x00' if no more input *)
-	mutable line: int;
-	mutable column: int
+	mutable pos: Loc.pos
 }
 
 (*TODO: declaration order in this file could use cleanup*)
@@ -20,20 +19,20 @@ let advance(r: t): char =
 	U.returning r.peek (fun _ -> r.peek <- safe_read r.source)
 
 let pos(r: t): Loc.pos =
-	Loc.pos r.line r.column
+	r.pos
 
 let peek(r: t): char =
 	r.peek
 
-let skip(r: t): unit =
-	ignore (advance r);
-	r.column <- r.column + 1
-
 let next(r: t): char =
 	U.returning (advance r) begin fun _ ->
-		r.column <- r.column + 1
+		r.pos <- r.pos + 1
 		(* If it was a newline, lexer should tell us to skip_newlines, so pos will be set then *)
 	end
+
+let skip(r: t): unit =
+	ignore (next r);
+	r.pos <- r.pos + 1
 
 let try_eat_if(r: t)(pred: char -> bool): bool =
 	U.returning (pred (peek r)) (fun a -> if a then skip r)
@@ -95,13 +94,9 @@ let take_rest_of_line(_: t): string =
 	raise U.TODO
 
 let skip_newlines(r: t): unit =
-	let incr_line() = r.line <- r.line + 1 in
-	incr_line();
 	while (peek r) = '\n' do
-		ignore (advance r);
-		incr_line()
-	done;
-	r.column <- Loc.column Loc.start_pos
+		skip r
+	done
 
 let skip_tabs(r: t): int =
 	count_while r (fun ch -> ch = '\t')
@@ -110,7 +105,6 @@ let make(source: BatIO.input): t =
 	let r = {
 		source;
 		peek = safe_read source;
-		line = Loc.line Loc.start_pos;
-		column = Loc.column Loc.start_pos
+		pos = 0
 	} in
 	U.returning r skip_newlines
