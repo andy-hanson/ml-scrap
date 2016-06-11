@@ -1,12 +1,12 @@
 let parse_single(l: Lexer.t)(start: Loc.pos)(t: Token.t): Ast.expr =
-	let expr = match t with
+	let loc() = Lexer.loc_from l start in
+	match t with
 		| Token.Name name | Token.TypeName name ->
-			Ast.Access name
+			Ast.Access(loc(), name)
 		| Token.Literal value ->
-			Ast.Literal value
+			Ast.Literal(loc(), value)
 		| _ ->
-			ParseU.unexpected start l t in
-	Ast.Expr(Lexer.loc_from l start, expr)
+			ParseU.unexpected start l t
 
 let rec parse_expr_parts(l: Lexer.t)(next: Token.t)(in_paren: bool): Ast.expr list * bool =
 	let start = Lexer.pos l in
@@ -41,7 +41,7 @@ and parse_expr_with_next(l: Lexer.t)(next: Token.t)(in_paren: bool): Ast.expr * 
 	| [part] ->
 		part
 	| hd::tl ->
-		Ast.Expr(loc, Ast.Call(hd, Array.of_list tl)) in
+		Ast.Call(loc, hd, Array.of_list tl) in
 	expr, next_is_newline
 
 and parse_expr(l: Lexer.t)(in_paren: bool): Ast.expr * bool =
@@ -60,15 +60,15 @@ let rec parse_block(l: Lexer.t): Ast.expr =
 
 		let expr, next_is_newline = parse_expr l false in
 
-		let loc = Lexer.loc_from l start in
-		CompileError.check next_is_newline loc CompileError.BlockCantEndInDeclare;
+		CompileError.check next_is_newline (Lexer.loc_from l start) CompileError.BlockCantEndInDeclare;
 		let rest = parse_block l in
-		Ast.Expr(loc, Ast.Let(declare, expr, rest))
+		let loc = Lexer.loc_from l start in
+		Ast.Let(loc, declare, expr, rest)
 	| x ->
 		let expr, next_is_newline = parse_expr_with_next l x false in
 		if next_is_newline then
-			let loc = Lexer.loc_from l start in
 			let rest = parse_block l in
-			Ast.Expr(loc, Ast.Seq(expr, rest))
+				let loc = Lexer.loc_from l start in
+			Ast.Seq(loc, expr, rest)
 		else
 			expr

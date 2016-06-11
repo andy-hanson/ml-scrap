@@ -2,6 +2,7 @@ type message =
 	(* lexer *)
 	| LeadingSpace
 	| NegMustPrecedeNumber
+	| NumberMustHaveDigitsAfterDecimalPoint
 	| TooMuchIndent
 	| TrailingSpace
 	| UnrecognizedCharacter of char
@@ -12,9 +13,9 @@ type message =
 	(* bind *)
 	| CantBind of Symbol.t
 	| CantUseTypeAsValue
-	| NameAlreadyBound of Symbol.t
+	| NameAlreadyBound of Symbol.t * Binding.t
 	(* checkTypes *)
-	| NotCallable (*TODO:args*)
+	| NotCallable of Type.t
 	| NotExpectedType of Type.t * Type.t (* expected * actual *)
 	| NumArgs of int * int (* n_params * n_args *)
 
@@ -24,40 +25,42 @@ exception T of warning
 let raise(loc: Loc.t)(m: message): 'a =
 	raise (T (Warning(loc, m)))
 
-let output_message(out: 'a OutputU.t)(m: message): unit =
-	let str = OutputU.str out in
+let output_message(out: 'o OutputU.t)(m: message): unit =
+	let o fmt = OutputU.out out fmt in
 	match m with
 	| LeadingSpace ->
-		str "Line may not begin with a space"
+		o "Line may not begin with a space"
 	| NegMustPrecedeNumber ->
-		str "`-` must be followed by a space or a number."
+		o "`-` must be followed by a space or a number"
+	| NumberMustHaveDigitsAfterDecimalPoint ->
+		o "Number must have digits after decimal point"
 	| TooMuchIndent ->
-		str "Too much indent!"
+		o "Too much indent!"
 	| TrailingSpace ->
-		str "Trailing space"
+		o "Trailing space"
 	| UnrecognizedCharacter ch ->
-		OutputU.out out "Unrecognized character `%c`" ch
+		o "Unrecognized character `%c`" ch
 
 	| BlockCantEndInDeclare ->
-		str "Last line of block can't be a declaration"
+		o "Last line of block can't be a declaration"
 	| EmptyExpression ->
-		str "Empty expression"
+		o "Empty expression"
 	| Unexpected token ->
-		OutputU.out out "Unexpected token %a" Token.output token
+		o "Unexpected token %a" Token.output token
 
 	| CantBind name ->
-		OutputU.out out "Can't bind `%a`" Symbol.output name
+		o "Can't bind `%a`" Symbol.output name
 	| CantUseTypeAsValue ->
-		str "Attempted to use a type as a value"
-	| NameAlreadyBound name ->
-		OutputU.out out "Attempt to redeclare %a" Symbol.output name
+		o "Attempted to use a type as a value"
+	| NameAlreadyBound(name, binding) ->
+		o "Attempt to redeclare %a, defined as %a" Symbol.output name Binding.output binding
 
-	| NotCallable ->
-		str "This is not a callable type"
+	| NotCallable typ ->
+		o "Expected a function, got a %a" Type.output typ
 	| NotExpectedType(expected, actual) ->
-		OutputU.out out "Expected %a, got %a" Type.output expected Type.output actual
+		o "Expected %a, got %a" Type.output expected Type.output actual
 	| NumArgs(n_params, n_args) ->
-		OutputU.out out "Function needs %d parameters, but is given %d" n_params n_args
+		o "Function needs %d parameters, but is given %d" n_params n_args
 
 let check(cond: bool)(loc: Loc.t)(message: message): unit =
 	if not cond then

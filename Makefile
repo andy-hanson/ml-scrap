@@ -40,4 +40,7 @@ profile: clib
 debug: clib
 	$(OCB) -tag debug main.byte
 
+wc:
+	wc `find src -name '*.ml*'`
+
 .PHONY: 	all clean byte native profile debug test

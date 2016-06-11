@@ -2,7 +2,7 @@ type bytecode =
 	| Call of func
 	| CallBuiltin of Builtins.builtin
 	| Const of Val.t
-	| Construct of Type.record
+	| Construct of Type.rc
 	| Drop
 	(* Load a value from `int` entries earlier in the stack *)
 	| Load of int
@@ -18,6 +18,7 @@ and parameter = {
 	(*TODO*)
 	(* type: Type.t *)
 }
+(*TODO:fn*)
 and func = {
 	(* ast: Ast.decl_val; *)
 	(*TODO:RENAME*)
@@ -27,7 +28,7 @@ and func = {
 }
 
 (*TODO: hide somehow *)
-let empty_func_from_ast(Ast.DeclVal(_, name, Ast.Fn(Ast.Signature(_, _, params), _))): func =
+let empty_func_from_ast(Ast.Fn(_, name, Ast.Signature(_, _, params), _)): func =
 	{
 		fname = name;
 		params = begin
@@ -46,11 +47,11 @@ let func_arity({params; _}: func): int =
 
 (* boilerplate *)
 
-let output_parameter(out: 'a OutputU.t)({name}: parameter): unit =
+let output_parameter(out: 'o OutputU.t)({name}: parameter): unit =
 	OutputU.out out "{ name: %a }" Symbol.output name
-let rec output_func(out: 'a OutputU.t)({fname; params; code}: func): unit =
+let rec output_func(out: 'o OutputU.t)({fname; params; code}: func): unit =
 	OutputU.out out "{ fname: %a, params: %a, code: %a }" Symbol.output fname (OutputU.out_array output_parameter) params output code
-and output_code(out: 'a OutputU.t)(c: bytecode): unit =
+and output_code(out: 'o OutputU.t)(c: bytecode): unit =
 	let str = OutputU.str out in
 	match c with
 	| Call f ->
@@ -73,5 +74,5 @@ and output_code(out: 'a OutputU.t)(c: bytecode): unit =
 		str "Return"
 	| UnLet ->
 		str "UnLet"
-and output(out: 'a OutputU.t)(code: t): unit =
+and output(out: 'o OutputU.t)(code: t): unit =
 	OutputU.out out "Code(%a)" (OutputU.out_array output_code) code

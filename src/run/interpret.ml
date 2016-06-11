@@ -60,7 +60,7 @@ let call_builtin(state: interpreter_state)(builtin: Builtins.builtin): unit =
 		failwith "not a function, should not typecheck"
 
 let cur_code(state: interpreter_state): Code.bytecode =
-	Array.get state.cur.code state.cur.code_idx
+	state.cur.code.(state.cur.code_idx)
 
 let step(state: interpreter_state): bool =
 	let goto idx =
@@ -86,8 +86,8 @@ let step(state: interpreter_state): bool =
 		next()
 
 	| Code.Construct record ->
-		let properties = pop_n state (Type.record_arity record) in
-		push state (Val.Record(record, properties));
+		let properties = pop_n state (Type.rc_arity record) in
+		push state (Val.Rc(record, properties));
 		next()
 
 	| Code.Drop ->

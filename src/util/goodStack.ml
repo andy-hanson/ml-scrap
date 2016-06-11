@@ -38,5 +38,5 @@ let pop_n(gs: 'a t)(n: int): 'a array =
 let try_pop(gs: 'a t): 'a option =
 	U.op_if (not (empty gs)) (fun () -> let last = BatDynArray.last gs in BatDynArray.delete_last gs; last)
 
-let output(out: ('o, 'a) OutputU.printer)(o: 'o OutputU.t)(gs: 'a t) =
+let output(out: ('a, 'o) OutputU.printer)(o: 'o OutputU.t)(gs: 'a t) =
 	OutputU.out_array out o (BatDynArray.to_array gs)

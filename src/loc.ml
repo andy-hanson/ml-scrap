@@ -1,13 +1,25 @@
 type pos = int
-(* TODO: compact representation *)
-type t = { start: pos; rear: pos }
+(* Storing Loc.t as int results in fewer heap allocations during lexing. *)
+type t = int
+
+(* 1 bit of each integer is reserved, so allow 15 bits per pos. So max_pos is 2^15. *)
+let max_pos = 32768
+
+let start(loc: t): pos =
+	loc / max_pos
+let rear(loc: t): pos =
+	loc mod max_pos
 
 let make(start: pos)(rear: pos): t =
-	{ start; rear }
+	assert (start < max_pos);
+	assert (rear < max_pos);
+	start * max_pos + rear
 
-(*TODO: this is evil. Try being less evil in future*)
-let single(start: pos): t =
-	{ start; rear = start }
+let single_character(start: pos): t =
+	make start (start + 1)
+
+let hash(loc: t): int =
+	loc
 
 type lc_pos = { line: int; column: int }
 
@@ -33,61 +45,18 @@ let lc_pos(source: BatIO.input)(pos: pos): lc_pos =
 	walk_to source start_lc pos
 
 let lc_loc(source: BatIO.input)(loc: t): lc_loc =
-	let a = walk_to source start_lc loc.start in
-	let b = walk_to source a (loc.rear - loc.start) in
+	let a = walk_to source start_lc (start loc) in
+	let b = walk_to source a ((rear loc) - (start loc)) in
 	{ lc_start = a; lc_rear = b }
 
-
-let output_pos(out: 'a OutputU.t)(pos: pos): unit =
+let output_pos(out: 'o OutputU.t)(pos: pos): unit =
 	OutputU.out out "%d" pos
 
-let output(out: 'a OutputU.t)({start; rear}: t): unit =
-	OutputU.out out "%a-%a" output_pos start output_pos rear
+let output(out: 'o OutputU.t)(loc: t): unit =
+	OutputU.out out "%a-%a" output_pos (start loc) output_pos (rear loc)
 
-let output_lc_pos(out: 'a OutputU.t)({line; column}: lc_pos): unit =
+let output_lc_pos(out: 'o OutputU.t)({line; column}: lc_pos): unit =
 	OutputU.out out "%d:%d" line column
 
-let output_lc_loc(out: 'a OutputU.t)({lc_start; lc_rear}: lc_loc): unit =
+let output_lc_loc(out: 'o OutputU.t)({lc_start; lc_rear}: lc_loc): unit =
 	OutputU.out out "%a-%a" output_lc_pos lc_start output_lc_pos lc_rear
-
-(* type pos = { line: int; column: int }
-type t = { start: pos; rear: pos }
-
-let start_pos = { line = 1; column = 1 }
-
-(*TODO: KILL?*)
-(* let pos_column_shift p n =
-	{ p with column = p.column + n } *)
-
-let pos(line: int)(column: int): pos =
-	{ line; column }
-let line(pos: pos): int =
-	pos.line
-let column(pos: pos): int =
-	pos.column
-
-
-let make(start: pos)(rear: pos): t =
-	{ start = start; rear = rear }
-
-let single(p: pos): t =
-	make p p
-
-let next_line(p: pos): pos =
-	{ line = p.line + 1; column = start_pos.column }
-
-let prev_line(p: pos): pos =
-	(*TODO: find prev column*)
-	{ p with line = p.line - 1 }
-
-let next_column(p: pos): pos =
-	{ p with column = p.column - 1 }
-
-(* boilerplate *)
-
-let output_pos(out: 'a OutputU.t)({line; column}): unit =
-	OutputU.out out "%d:%d" line column
-
-let output(out: 'a OutputU.t)({start; rear}: t): unit =
-	OutputU.out out "%a-%a" output_pos start output_pos rear
-*)

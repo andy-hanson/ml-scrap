@@ -3,13 +3,18 @@ type typ =
 
 type local_declare = LocalDeclare of Loc.t * Symbol.t
 
-type expr_kind =
-	| Access of Symbol.t
-	| Call of expr * expr array
-	| Let of local_declare * expr * expr
-	| Literal of Val.t
-	| Seq of expr * expr
-and expr = Expr of Loc.t * expr_kind
+type expr =
+	| Access of Loc.t * Symbol.t
+	| Call of Loc.t * expr * expr array
+	| Let of Loc.t * local_declare * expr * expr
+	| Literal of Loc.t * Val.t
+	| Seq of Loc.t * expr * expr
+let expr_loc = function
+	| Access(loc, _) -> loc
+	| Call(loc, _, _) -> loc
+	| Let(loc, _, _, _) -> loc
+	| Literal(loc, _) -> loc
+	| Seq(loc, _, _) -> loc
 
 type property = Property of Loc.t * Symbol.t * typ
 
@@ -17,76 +22,16 @@ type parameter = Parameter of Loc.t * Symbol.t * typ
 
 type signature = Signature of Loc.t * typ * parameter array
 
-type decl_val_kind =
-	| Fn of signature * expr
-type decl_val = DeclVal of Loc.t * Symbol.t * decl_val_kind
-
-type decl_type_kind =
-	| Rec of property array
-type decl_type = DeclType of Loc.t * Symbol.t * decl_type_kind
-
+type fn = Fn of Loc.t * Symbol.t * signature * expr
+type rc = Rc of Loc.t * Symbol.t * property array
 type decl =
-	| Val of decl_val
-	| Type of decl_type
+	| DeclFn of fn
+	| DeclRc of rc
 
-type modul = Modul of Loc.t * (decl array)
+let decl_loc_name = function
+	| DeclFn(Fn(loc, name, _, _)) ->
+		loc, name
+	| DeclRc(Rc(loc, name, _)) ->
+		loc, name
 
-
-(* boilerplate *)
-
-let output_typ(out: 'a OutputU.t)(typ: typ): unit =
-	match typ with
-	| TypeAccess(_, sym) ->
-		Symbol.output out sym
-
-let output_parameter(out: 'a OutputU.t)(Parameter(_, name, typ)): unit =
-	OutputU.out out "%a %a" Symbol.output name output_typ typ
-
-let output_local_declare(out: 'a OutputU.t)(LocalDeclare(_, name)): unit =
-	OutputU.out out "%a" Symbol.output name
-
-(* let output_decl_val_kind(out: 'a OutputU.t)(Fn(_, _)): unit =
-	OutputU.out out "Fn..." *)
-
-(* let output_decl_val(out: 'a OutputU.t)(DeclVal(_, name, kind)): unit =
-	OutputU.out out "DeclVal(%a, %a)" Symbol.output name output_decl_val_kind kind *)
-
-let rec output_expr(out: 'a OutputU.t)(Expr(_, kind)): unit =
-	match kind with
-	| Access sym ->
-		Symbol.output out sym
-	| Call(fn, args) ->
-		OutputU.out out "Call %a %a" output_expr fn (OutputU.out_array output_expr) args
-	| Let(declare, value, expr) ->
-		OutputU.out out "Let(%a = %a; %a)" output_local_declare declare output_expr value output_expr expr
-	| Literal v ->
-		Val.output out v
-	| Seq(a, b) ->
-		OutputU.out out "Seq(%a; %a)" output_expr a output_expr b
-
-
-let output_decl_val_kind out kind =
-	match kind with
-	| Fn (sign, body) ->
-		let out_sig out (Signature(_, typ, params)) =
-			let out_param out (Parameter(_, sym, typ)) =
-				OutputU.out out "%a %a" Symbol.output sym output_typ typ in
-			OutputU.out out "%a %a" output_typ typ (OutputU.out_array out_param) params in
-		OutputU.out out "fn %a %a" out_sig sign output_expr body
-let output_decl_val(out: 'a OutputU.t)(DeclVal(_, symbol, kind)): unit =
-	OutputU.out out "DeclVal(%a, %a)" Symbol.output symbol output_decl_val_kind kind
-
-let output_decl_type_kind out kind =
-	match kind with
-	| Rec _ ->
-		OutputU.str out "Rec..."
-let output_decl_type(out: 'a OutputU.t)(DeclType(_, symbol, kind)): unit =
-	OutputU.out out "DeclType(%a, %a)" Symbol.output symbol output_decl_type_kind kind
-
-let output_decl(out: 'a OutputU.t)(decl: decl): unit =
-	match decl with
-	| Val v -> output_decl_val out v
-	| Type t -> output_decl_type out t
-
-let output_modul(out: 'a OutputU.t)(Modul(_, decls)): unit =
-	OutputU.out_array output_decl out decls
+type modul = Modul of decl array

@@ -1,40 +1,33 @@
-(*TODO: merge into CompileContext?*)
+module Table = Lookup.Make(struct
+	include String
+	let hash = Hashtbl.hash
+end)
+type table = Symbol.t Table.t
 
-type table = (string, Symbol.t) Hashtbl.t
+type t = { table: table; name_to_keyword: Token.t Symbol.Lookup.t; builtins_scope: Scope.t }
 
-let create_table(): table = Hashtbl.create 4096
+let get_sym(t: table)(s: string): Symbol.t =
+	Table.get_or_update t s (fun () -> Symbol.make s)
 
-let t_get(t: table)(s: string): Symbol.t =
-	try
-		Hashtbl.find t s
-	with Not_found ->
-		(*TODO:helper code for cache pattern *)
-		U.returning (Symbol.make s) (Hashtbl.add t s)
+let get t = get_sym t.table
 
-let create_name_to_keyword(table: table): (Symbol.t, Token.t) Hashtbl.t =
-	(*TODO:HashU.build*)
-	U.returning (Hashtbl.create 0) begin fun nk ->
-		ArrayU.iter Token.all_keywords begin fun keyword ->
-			let sym = t_get table (Token.keyword_to_string keyword) in
-			Hashtbl.add nk sym keyword
-		end
-	end
+let keyword(t: t) = Symbol.Lookup.try_get t.name_to_keyword
 
-type t = {
-	table: table;
-	name_to_keyword: (Symbol.t, Token.t) Hashtbl.t;
-}
-
-let get(t: t)(s: string): Symbol.t =
-	t_get t.table s
-
-let keyword(t: t)(s: Symbol.t): Token.t option =
-	(* TODO: try_get helper *)
-	try
-		Some (Hashtbl.find t.name_to_keyword s)
-	with
-		Not_found -> None
+let builtins_scope t = t.builtins_scope
 
 let create(): t =
-	let table = create_table() in
-	{ table = table; name_to_keyword = create_name_to_keyword table }
+	let table = Table.create_with_size 16384 in
+	let name_to_keyword =
+		Symbol.Lookup.build_from_values Token.all_keywords begin fun keyword ->
+			get_sym table (Token.keyword_to_string keyword)
+		end in
+	let builtins_scope =
+		let m1 = Symbol.Map.make Builtins.all begin fun b ->
+			(get_sym table (Builtins.name b), Binding.Builtin b)
+		end in
+		let m2 = Symbol.Map.make Type.builtins begin fun b ->
+			(get_sym table (Type.builtin_name b), Binding.BuiltinType b)
+		end in
+		(* There are no shared names *)
+		Symbol.Map.union (fun _ _ _ -> assert false) m1 m2 in
+	{ table; name_to_keyword; builtins_scope }

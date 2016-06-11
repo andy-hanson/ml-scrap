@@ -18,8 +18,6 @@ let op_if(cond: bool)(make_some: unit -> 'a): 'a option =
 let mod_ref(r: 'a ref)(f: 'a -> 'a): unit =
 	r := f !r
 
-let assert_equal(output: string OutputU.t -> 'a -> unit)(a: 'a)(b: 'a): unit =
-	if not (a = b) then begin
-		(* TODO: failwith (OutputU.out_to_string "Expected %a = %a" output a output b) *)
-		failwith ("Expected " ^ (OutputU.out_to_string output a) ^ " = " ^ (OutputU.out_to_string output b))
-	end
+let assert_equal(output: ('a, 'o) OutputU.printer)(a: 'a)(b: 'a): unit =
+	if not (a = b) then
+		failwith (OutputU.out_to_string "Expected %a = %a" output a output b)

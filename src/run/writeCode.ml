@@ -1,16 +1,14 @@
 (* Stores the index of GoTo bytecodes where the label is used. *)
 type label = int BatDynArray.t
 
-
 (*TODO:move inside? How? `let module` works but not `let type`*)
-module ParamIndexes = Lookup.T(struct type t = Ast.parameter end)
+module ParamIndexes = AstU.ParameterLookup
 type param_indexes = int ParamIndexes.t
-module LocalDepths = Lookup.T(struct type t = Ast.local_declare end)
+module LocalDepths = AstU.LocalDeclareLookup
 type local_depths = int LocalDepths.t
 
-
 (* Write a function body. *)
-let write_code(get_func: Ast.decl_val -> Code.func)(bindings: Bind.t)(types: TypeCheck.t)(params: Ast.parameter array)(e: Ast.expr): Code.t =
+let write_code(get_func: Ast.fn -> Code.func)(bindings: Bind.t)(types: TypeCheck.t)(params: Ast.parameter array)(e: Ast.expr): Code.t =
 	(* Params are at negative depth *)
 	let stack_depth = ref 0 in
 	let apply_fn_to_stack_depth arity =
@@ -96,58 +94,54 @@ let write_code(get_func: Ast.decl_val -> Code.func)(bindings: Bind.t)(types: Typ
 			(* Subtract parameters, add return value *)
 			apply_fn_to_stack_depth (Builtins.arity b)
 
-	and write_expr(Ast.Expr(loc, kind) as expr): unit =
-		match kind with
-		| Ast.Access _ ->
+	and write_expr(expr: Ast.expr): unit =
+		match expr with
+		| Ast.Access(loc, _) ->
 			begin match Bind.value_binding bindings expr with
 			| Binding.Builtin b ->
 				write_bc (Code.Const (Builtins.value b))
 			| Binding.Declared _ ->
 				raise U.TODO
 			| Binding.Local l ->
-				(* stack_depth points to the *next* thing on the stack, so
-					we subtract 1 from the difference.
-					e.g. If we push a value and immediately access it, diff should be 0. *)
-				(* let diff = !stack_depth - (get_local_depth l) - 1 in
-				write_bc (Code.Load diff) *)
-				(*TODO:KILL ABOVE*)
 				write_bc (Code.Load (get_local_depth l))
 			| Binding.Parameter p ->
 				write_bc (Code.Load (param_index p - Array.length params))
-			| Binding.BuiltinType _ | Binding.DeclaredType _ ->
+			| Binding.BuiltinType _ ->
 				CompileError.raise loc CompileError.CantUseTypeAsValue
 			end;
 			incr stack_depth
 
-		| Ast.Call(called, args) ->
-			let Ast.Expr(_, kind) = called in
-			begin match kind with
-			| Ast.Access _ ->
+		| Ast.Call(_, called, args) ->
+			begin match called with
+			| Ast.Access(loc, _) ->
 				begin match Bind.value_binding bindings called with
 				| Binding.Builtin b ->
 					write_builtin b args
-				| Binding.Declared f ->
-					ArrayU.iter args write_expr;
-					let fn = get_func f in
-					write_bc (Code.Call fn);
-					apply_fn_to_stack_depth (Code.func_arity fn)
+				| Binding.Declared d ->
+					begin match d with
+					| Ast.DeclFn fn_ast ->
+						ArrayU.iter args write_expr;
+						let fn = get_func fn_ast in
+						write_bc (Code.Call fn);
+						apply_fn_to_stack_depth (Code.func_arity fn)
+					| Ast.DeclRc rc_ast ->
+						ArrayU.iter args write_expr;
+						let rc = TypeCheck.rc_of_ast types rc_ast in
+						write_bc (Code.Construct rc);
+						apply_fn_to_stack_depth (Type.rc_arity rc)
+					end
 				| Binding.Local _ ->
 					raise U.TODO (* lambda *)
 				| Binding.Parameter _ ->
 					raise U.TODO (* lambda *)
 				| Binding.BuiltinType _ ->
 					CompileError.raise loc CompileError.CantUseTypeAsValue
-				| Binding.DeclaredType r ->
-					ArrayU.iter args write_expr;
-					let record = TypeCheck.type_of_type_ast types r in
-					write_bc (Code.Construct record);
-					apply_fn_to_stack_depth (Type.record_arity record)
 				end
 			| _ ->
 				raise U.TODO
 			end
 
-		| Ast.Let(declare, value, expr) ->
+		| Ast.Let(_, declare, value, expr) ->
 			(* Remember the depth of the value. *)
 			set_local_depth declare;
 			write_expr value;
@@ -155,46 +149,36 @@ let write_code(get_func: Ast.decl_val -> Code.func)(bindings: Bind.t)(types: Typ
 			write_bc Code.UnLet;
 			decr stack_depth
 
-		| Ast.Literal value ->
+		| Ast.Literal(_, value) ->
 			write_bc (Code.Const value);
 			incr stack_depth
 
-		| Ast.Seq(a, b) ->
+		| Ast.Seq(_, a, b) ->
 			write_expr a;
 			write_bc Code.Drop;
 			write_expr b in
 
-	(*TODO:KILL*)
-	(* ArrayU.iter params begin fun p ->
-		set_local_depth p;
-		incr stack_depth
-	end; *)
-
 	write_expr e;
-
-	(*TODO: dotimes*)
-	(* ArrayU.iter params begin fun _ ->
-		write_bc (Code.UnLet);
-		decr stack_depth
-	end; *)
 
 	U.assert_equal OutputU.output_int !stack_depth 1;
 	write_bc Code.Return;
 	BatDynArray.to_array code
 
-module Funcs = Lookup.T(struct type t = Ast.decl_val end)
+(*TODO:MOVE*)
+module Funcs = AstU.FnLookup
 type funcs = Code.func Funcs.t
 
-let write_modul(Ast.Modul(_, decls))(bindings: Bind.t)(types: TypeCheck.t): Modul.t =
+let write_modul(Ast.Modul(decls))(bindings: Bind.t)(types: TypeCheck.t): Modul.t =
 	(*
 	Funcs may recursively depend upon each other.
 	So, initalize them all now once, and then write to each func's code.
 	*)
 	let funcs: funcs = Funcs.create() in
 	let get_func = Funcs.get funcs in
+	(*TODO:NEATER*)
 	let get_fn = function
-	| Ast.Val dv ->
-		Some dv
+	| Ast.DeclFn f ->
+		Some f
 	| _ ->
 		None in
 	let fns = BatArray.filter_map get_fn decls in
@@ -203,9 +187,9 @@ let write_modul(Ast.Modul(_, decls))(bindings: Bind.t)(types: TypeCheck.t): Modu
 		Funcs.set funcs f (Code.empty_func_from_ast f)
 	end;
 
-	let code_fns = ArrayU.map fns begin fun (Ast.DeclVal(_, _, Ast.Fn(Ast.Signature(_, _, params), body)) as f) ->
+	let code_fns = ArrayU.map fns begin fun (Ast.Fn(_, _, Ast.Signature(_, _, params), body) as f) ->
 		let code = write_code get_func bindings types params body in
 		U.returning (get_func f) (fun func -> func.Code.code <- code)
 	end in
 
-	{ Modul.recs = TypeCheck.all_records types; Modul.fns = code_fns }
+	{ Modul.recs = TypeCheck.all_rcs types; Modul.fns = code_fns }

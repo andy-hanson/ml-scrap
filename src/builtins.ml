@@ -35,14 +35,13 @@ let type_of(builtin: builtin): Type.t =
 	let f r a = Type.t_fn r a in
 	match builtin with
 	| Cond ->
-		(*TODO: parameterized type!*)
+		(*TODO: parameterized type: fn A cond A expr Bool ifTrue A ifFalse A*)
 		f i [| b; i; i |]
 	| Not ->
 		f b [| b; b |]
 	| Less ->
 		f b [| i; i |]
 	| Add | Subtract | Times ->
-		(*TODO: interface type, so it can work on floats too*)
 		f i [| i; i |]
 	| True ->
 		b
@@ -65,5 +64,5 @@ let arity(b: builtin): int =
 	| Times -> 2
 	| b -> failwith ("not a function: " ^ (name b))
 
-let output(out: 'a OutputU.t)(b: builtin): unit =
+let output(out: 'o OutputU.t)(b: builtin): unit =
 	OutputU.str out (name b)

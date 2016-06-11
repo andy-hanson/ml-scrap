@@ -1,17 +1,16 @@
 type 'a t
-type ('o, 'a) printer = 'o t -> 'a -> unit
+type ('a, 'o) printer = 'o t -> 'a -> unit
 
-(*TODO: don't reference batteries here, be abstract*)
+val printf: ('b, 'a t, unit) format -> 'b
 
-val printf: ('b, 'a t, unit) BatPrintf.t -> 'b
+val out: 'a t -> ('b, 'a t, unit) format -> 'b
+val str: (string, 'o) printer
 
-val out: 'a t -> ('b, 'a t, unit) BatPrintf.t -> 'b
-val str: ('a, string) printer
+val out_array: ('a, 'o) printer -> 'o t -> 'a array -> unit
+val out_hashtbl: ('a, 'o) printer -> ('b, 'o) printer -> 'o t -> ('a, 'b) Hashtbl.t -> unit
+val out_option: ('a, 'o) printer -> 'o t -> 'a option -> unit
 
-val out_array: ('o, 'a) printer -> 'o t -> 'a array -> unit
-val out_hashtbl: ('o, 'a) printer -> ('o, 'b) printer -> 'o t -> ('a, 'b) Hashtbl.t -> unit
-val out_option: ('o, 'a) printer -> 'o t -> 'a option -> unit
+(* 'a should always be string *)
+val out_to_string: ('a, 'b t, unit, string) format4 -> 'a
 
-val out_to_string: (string, 'a) printer -> 'a -> string
-
-val output_int: ('o, int) printer
+val output_int: (int, 'o) printer

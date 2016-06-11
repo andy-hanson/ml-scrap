@@ -1,74 +1,54 @@
-(*TODO: lots of cleanup around here!*)
-
-(*TODO:RENAME to ExprTypes*)
-module Types = Lookup.T(struct type t = Ast.expr end)
-type types = Type.t Types.t
-
-module FnTypes = Lookup.T(struct type t = Ast.decl_val end)
+module ExprTypes = AstU.ExprLookup
+type expr_types = Type.t ExprTypes.t
+module FnTypes = AstU.FnLookup
 type fn_types = Type.fn FnTypes.t
+module Rcs = AstU.RcLookup
+type rcs = Type.rc Rcs.t
 
-module Records = Lookup.T(struct type t = Ast.decl_type end)
-type records = Type.record Records.t
+type t = { expr_types: expr_types; fn_types: fn_types; rcs: rcs }
+let type_of_expr({expr_types; _}: t) = ExprTypes.get expr_types
+let type_of_fn({fn_types; _}: t) = FnTypes.get fn_types
+let rc_of_ast({rcs; _}: t) = Rcs.get rcs
+let all_rcs({rcs; _}: t): Type.rc array = Rcs.values rcs
 
-(*TODO: these are not used as output so putting them here is misleading*)
-module Locals = Lookup.T(struct type t = Ast.local_declare end)
-type locals = Type.t Locals.t
+module LocalTypes = AstU.LocalDeclareLookup
+type local_types = Type.t LocalTypes.t
 
-
-type t = {
-	types: types;
-	fn_types: fn_types;
-	records: records
-}
-
-let type_of_expr({types; _}: t)(expr: Ast.expr): Type.t =
-	Types.get types expr
-let type_of_fn({fn_types; _}: t)(fn: Ast.decl_val): Type.fn =
-	FnTypes.get fn_types fn
-let type_of_type_ast({records; _}: t)(type_ast: Ast.decl_type): Type.record =
-	Records.get records type_ast
-let all_records({records; _}: t): Type.record array =
-	Records.values records
-
-
-(*TODO:MOVE?*)
-let empty_rec_from_ast(Ast.DeclType(_, name, _)): Type.record =
-	{ Type.rname = name; Type.properties = [||] }
-
-let declared_type(bindings: Bind.t)(records: records)(typ: Ast.typ): Type.t =
+let declared_type(bindings: Bind.t)(rcs: rcs)(typ: Ast.typ): Type.t =
 	match Bind.type_binding bindings typ with
-	| Binding.Builtin _ | Binding.Declared _ | Binding.Local _ | Binding.Parameter _ ->
+	| Binding.Builtin _ | Binding.Local _ | Binding.Parameter _ ->
 		raise U.TODO (*TODO: not-a-type error*)
 	| Binding.BuiltinType b ->
 		b
-	| Binding.DeclaredType d ->
-		Type.Rec (Records.get records d)
-
-let get_records(bindings: Bind.t)(decls: Ast.decl array): records =
-	U.returning (Records.create()) begin fun records ->
-		let record_asts = BatArray.filter_map (function | Ast.Type dt -> Some dt | _ -> None) decls in
-		ArrayU.iter record_asts begin fun r ->
-			Records.set records r (empty_rec_from_ast r)
-		end;
-
-		ArrayU.iter record_asts begin fun (Ast.DeclType(_, _, Ast.Rec(properties)) as record_ast) ->
-			let record = Records.get records record_ast in
-			record.Type.properties <- ArrayU.map properties begin fun (Ast.Property(_, name, typ)) ->
-				{ Type.prop_name = name; Type.prop_type = declared_type bindings records typ }
-			end
+	| Binding.Declared d ->
+		begin match d with
+		| Ast.DeclRc r ->
+			Type.Rc (Rcs.get rcs r)
+		| _ ->
+			raise U.TODO (*TODO: not-a-type error*)
 		end
-	end
 
-(*TODO: major cleanup!*)
+let build_rcs(bindings: Bind.t)(decls: Ast.decl array): rcs =
+	let rc_asts = AstU.modul_rcs decls in
+	let rcs = Rcs.build_from_keys rc_asts begin fun (Ast.Rc(_, name, _)) ->
+		{ Type.rname = name; Type.properties = [||] }
+	end in
+	ArrayU.iter rc_asts begin fun (Ast.Rc(_, _, properties) as rc_ast) ->
+		let rc = Rcs.get rcs rc_ast in
+		rc.Type.properties <- ArrayU.map properties begin fun (Ast.Property(_, name, typ)) ->
+			{ Type.prop_name = name; Type.prop_type = declared_type bindings rcs typ }
+		end
+	end;
+	rcs
 
-let f(Ast.Modul(_, decls))(bindings: Bind.t): t =
-	let records = get_records bindings decls in
-	let declared_type = declared_type bindings records in
+let f(Ast.Modul(decls))(bindings: Bind.t): t =
+	let rcs = build_rcs bindings decls in
+	let declared_type = declared_type bindings rcs in
 
-	let types: types = Types.create() in
-	let locals: locals = Locals.create() in
+	let expr_types: expr_types = ExprTypes.create() in
+	let local_types: local_types = LocalTypes.create() in
 
-	let fn_type(Ast.Fn(Ast.Signature(_, return_type_ast, params), _)): Type.fn =
+	let fn_type(Ast.Fn(_, _, Ast.Signature(_, return_type_ast, params), _)): Type.fn =
 		let param_types = ArrayU.map params begin fun (Ast.Parameter(_, _, typ)) ->
 			declared_type typ
 		end in
@@ -78,47 +58,48 @@ let f(Ast.Modul(_, decls))(bindings: Bind.t): t =
 	let fn_types = FnTypes.create() in
 	(*TODO:neater*)
 	ArrayU.iter decls begin function
-		| Ast.Val(Ast.DeclVal(_, _, fn) as decl) ->
-			FnTypes.set fn_types decl (fn_type fn)
-		| Ast.Type _ -> ()
+		| Ast.DeclFn f ->
+			FnTypes.set fn_types f (fn_type f)
+		| Ast.DeclRc _ -> ()
 	end;
 
 	let assert_assignable(a: Type.t)(b: Type.t)(loc: Loc.t): unit =
-		(*TODO: supertypes, generics, and whatnot*)
 		CompileError.check (a = b) loc (CompileError.NotExpectedType(a, b)) in
 
-
-	let rec assert_type(expected: Type.t)(Ast.Expr(loc, _) as expr): unit =
+	let rec assert_type(expected: Type.t)(expr: Ast.expr): unit =
 		let actual = check_expr expr in
-		assert_assignable expected actual loc
+		assert_assignable expected actual (Ast.expr_loc expr)
 
-	and check_expr(Ast.Expr(loc, kind) as expr) =
-		let expr_type = match kind with
-			| Ast.Access _ ->
+	and check_expr(expr: Ast.expr): Type.t =
+		let expr_type = match expr with
+			| Ast.Access(_, _) ->
 				begin match Bind.value_binding bindings expr  with
 				| Binding.Builtin b ->
 					Builtins.type_of b
 				| Binding.Declared d ->
-					Type.Fn (FnTypes.get fn_types d)
+					begin match d with
+					| Ast.DeclFn f ->
+						Type.Fn (FnTypes.get fn_types f)
+					| Ast.DeclRc rc_ast ->
+						let rc = Rcs.get rcs rc_ast in
+						let params = ArrayU.map rc.Type.properties (fun p -> p.Type.prop_type) in
+						Type.t_fn (Type.Rc rc) params
+					end
 				| Binding.Local(declare) ->
-					Locals.get locals declare
+					LocalTypes.get local_types declare
 				| Binding.Parameter(Ast.Parameter(_, _, typ)) ->
 					declared_type typ
 				| Binding.BuiltinType _ ->
 					raise U.TODO (*TODO: some appropriate error*)
-				| Binding.DeclaredType d ->
-					let r = Records.get records d in
-					let params = ArrayU.map r.Type.properties (fun p -> p.Type.prop_type) in
-					Type.t_fn (Type.Rec r) params
 				end
 
-			| Ast.Call(called, args) ->
+			| Ast.Call(loc, called, args) ->
 				let called_type = check_expr called in
 				let return_type, param_types = match called_type with
 					| Type.Fn {Type.return_type; Type.parameters} ->
 						return_type, parameters
 					| _ ->
-						CompileError.raise loc CompileError.NotCallable in
+						CompileError.raise loc (CompileError.NotCallable called_type) in
 				let n_params = Array.length param_types in
 				let n_args = Array.length args in
 				CompileError.check (n_params = n_args) loc (CompileError.NumArgs(n_params, n_args));
@@ -127,30 +108,31 @@ let f(Ast.Modul(_, decls))(bindings: Bind.t): t =
 				end;
 				return_type
 
-			| Ast.Let(declare, value, expr) ->
+			| Ast.Let(_, declare, value, expr) ->
 				let typ = check_expr value in
-				Locals.set locals declare typ;
+				LocalTypes.set local_types declare typ;
 				check_expr expr
 
-			| Ast.Literal v ->
+			| Ast.Literal(_, v) ->
 				Val.typ v
 
-			| Ast.Seq(a, b) ->
+			| Ast.Seq(_, a, b) ->
 				assert_type Type.Void a;
 				check_expr b in
-		Types.set types expr expr_type;
+
+		ExprTypes.set expr_types expr expr_type;
 		expr_type in
 
-	(* type context stuff here *)
+	(*TODO: we iterate too many times!*)
 	ArrayU.iter decls begin function
-		| Ast.Val(Ast.DeclVal(_, _, Ast.Fn(_, body)) as decl) ->
-			let foo: Type.fn = FnTypes.get fn_types decl in
+		| Ast.DeclFn(Ast.Fn(_, _, _, body) as fn) ->
+			(*TODO:NAME*)
+			let foo: Type.fn = FnTypes.get fn_types fn in
 			let t: Type.t = foo.Type.return_type in
 			assert_type t body
-		| Ast.Type _ ->
-			(* Done in get_records *)
+		| Ast.DeclRc _ ->
 			(*TODO: only iterate over module once, and split*)
 			()
 	end;
 
-	{ types; fn_types; records }
+	{ expr_types; fn_types; rcs }

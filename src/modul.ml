@@ -1,6 +1,6 @@
 type t = {
 	fns: Code.func array;
-	recs: Type.record array
+	recs: Type.rc array
 }
 
 let func_named(m: t)(name: Symbol.t): Code.func =

@@ -7,32 +7,24 @@ fn factorial Int x Int
 	cond (< x 2) 1: * x: factorial: decr x
 " *)
 
-let src =
-"rec Point
-	x Int
-	y Int
-
-fn zero Point a Int
-	Point a 2
-"
-(*
-let compiler = TestU.test_compiler
-let () =
+(*let () =
 	let _ = TestU.time begin fun () ->
-		TestU.parse src
+		TestU.parse "test.nz"
 	end in
-	()
-*)
+	()*)
 
-let modul = TestU.compile src
+let modul = TestU.compile "test.nz"
 let result = Modul.call_fn modul (TestU.symbol "zero") [| Val.Int 1 |]
 let () = OutputU.printf "%a\n" Val.output result
+
 
 (* let x = BatFile.with_file_in "test.nz" use_file
 let () = OutputU.printf "%s\n" x *)
 
 (*
 TODOS:
+
+Use arr.(idx) instead of Array.get arr idx and arr.(idx) <- value instead of Array.set arr idx value
 
 `func` -> `fn` in many places
 

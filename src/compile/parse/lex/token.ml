@@ -9,7 +9,7 @@ type t =
 	| Equals
 	| Fn
 	| Ifc
-	| Rec
+	| Rc
 	(* Grouping *)
 	| Indent
 	| Dedent
@@ -22,7 +22,7 @@ type t =
 
 (* Just the keywords with text names *)
 let all_keywords: t array =
-	[| Case; Fn; Ifc; Rec |]
+	[| Case; Fn; Ifc; Rc |]
 
 let keyword_to_string(keyword: t): string =
 	match keyword with
@@ -32,7 +32,7 @@ let keyword_to_string(keyword: t): string =
 	| Equals -> "="
 	| Fn -> "fn"
 	| Ifc -> "ifc"
-	| Rec -> "rec"
+	| Rc -> "rc"
 	| Indent -> "indent"
 	| Dedent -> "dedent"
 	| Newline -> "newline"
@@ -44,7 +44,7 @@ let keyword_to_string(keyword: t): string =
 
 (* boilerplate *)
 
-let output(out: 'a OutputU.t)(token: t) =
+let output(out: 'o OutputU.t)(token: t) =
 	match token with
 	| Name s | TypeName s ->
 		OutputU.out out "'%a'" Symbol.output s

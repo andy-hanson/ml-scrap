@@ -1,12 +1,6 @@
 Printexc.record_backtrace true
 
-let myFileIO: FileIO.t = object
-	method read(file_name: string): BatIO.input =
-		(*cheat: file_name is actually the contents*)
-		BatIO.input_string file_name
-end
-
-let test_compiler = Noze.create myFileIO
+let test_compiler = Noze.create FileIO.file_system
 
 let print_tokens(src: string): unit =
 	let tokens = Noze.lex test_compiler src in

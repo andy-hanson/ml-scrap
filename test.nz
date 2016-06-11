@@ -1,2 +1,6 @@
-fn foo Int x Int y Int
-	+ 1 2: case if unless
+rc Point
+	x Int
+	y Int
+
+fn zero Point a Int
+	Point a 2

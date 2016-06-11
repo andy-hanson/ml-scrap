@@ -19,4 +19,4 @@ val pop_n: 'a t -> int -> 'a array
 
 val try_pop: 'a t -> 'a option
 
-val output: ('o, 'a) OutputU.printer -> 'o OutputU.t -> 'a t -> unit
+val output: ('a, 'o) OutputU.printer -> 'o OutputU.t -> 'a t -> unit
