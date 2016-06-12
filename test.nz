@@ -1,6 +1,18 @@
-rc Point
-	x Int
-	y Int
+fn main Bool x (Or Int Float)
+	case x
+		:i Int
+			|| + i 1
+			true
+		:f Float
+			|| float->int f
+			false
 
-fn zero Point a Int
-	Point a 2
+|| fn incr Int x Int
+|| + x 1
+
+|| rc Point
+||	x Int
+||	y Int
+
+|| fn main Point x Int y Int
+||	Point (incr x): incr y

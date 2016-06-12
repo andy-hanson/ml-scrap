@@ -1,9 +1,4 @@
-module type Key = sig
-	(*TODO: this is just Hashtbl.Hashable*)
-	type t
-	val equal: t -> t -> bool
-	val hash: t -> int
-end
+module type Key = Hashtbl.HashedType
 
 module type S = sig
 	type key
@@ -13,6 +8,7 @@ module type S = sig
 	val create_with_size: int -> 'v t
 	val build: ((key -> 'v -> unit) -> unit) -> 'v t
 	val build_from_keys: key array -> (key -> 'v) -> 'v t
+	val build_from_keys_with_index: key array -> (int -> key -> 'v) -> 'v t
 	val build_from_values: 'v array -> ('v -> key) -> 'v t
 
 	val set: 'v t -> key -> 'v -> unit
@@ -20,9 +16,9 @@ module type S = sig
 	val get_or_update: 'v t -> key -> (unit -> 'v) -> 'v
 	val try_get: 'v t -> key -> 'v option
 
+	val iter: 'v t -> (key -> 'v -> unit) -> unit
 	val keys: 'v t -> key array
 	val values: 'v t -> 'v array
-	val iter: 'v t -> (key -> 'v -> unit) -> unit
 	val output: ((key, 'o) OutputU.printer) -> (('v, 'o) OutputU.printer) -> ('o OutputU.t) -> 'v t -> unit
 end
 
@@ -39,12 +35,15 @@ module Make(K: Key): S with type key = K.t = struct
 	let build(builder: (key -> 'v -> unit) -> unit): 'v t =
 		U.returning (create()) (fun m -> builder (H.add m))
 
-	let build_from_keys(keys: key array)(get_value: key -> 'v): 'v t =
+	let build_from_keys_with_index(keys: key array)(get_value: int -> key -> 'v): 'v t =
 		U.returning (create_with_size (Array.length keys)) begin fun m ->
-			ArrayU.iter keys begin fun key ->
-				H.add m key (get_value key)
+			ArrayU.iteri keys begin fun i key ->
+				H.add m key (get_value i key)
 			end
 		end
+
+	let build_from_keys keys get_value =
+		build_from_keys_with_index keys (fun _ key -> get_value key)
 
 	let build_from_values(values: 'v array)(get_key: 'v -> key): 'v t =
 		U.returning (create_with_size (Array.length values)) begin fun m ->
@@ -54,7 +53,6 @@ module Make(K: Key): S with type key = K.t = struct
 		end
 
 	let set = H.add
-	(*TODO: return an option*)
 	let get = H.find
 	let get_or_update(t: 'v t)(key: key)(get_value: unit -> 'v): 'v =
 		try
@@ -67,10 +65,13 @@ module Make(K: Key): S with type key = K.t = struct
 		with
 			Not_found -> None
 
+
+	let iter(tbl: 'v t)(f: ('k -> 'v -> unit)): unit =
+		H.iter f tbl
+
 	let keys m =
 		ArrayU.build begin fun build ->
-			(*TODO: hashU.iter*)
-			H.iter (fun k _ -> build k) m
+			iter m (fun k _ -> build k)
 		end
 
 	let values m =
@@ -78,11 +79,7 @@ module Make(K: Key): S with type key = K.t = struct
 			H.iter (fun _ v -> build v) m
 		end
 
-	let iter(tbl: 'v t)(f: ('k -> 'v -> unit)): unit =
-		H.iter f tbl
-
 	let output out_key out_val out m =
-		(*TODO: copied from out_hashtbl*)
 		OutputU.str out "{ ";
 		iter m begin fun key value ->
 			out_key out key;

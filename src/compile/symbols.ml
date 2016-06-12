@@ -22,11 +22,11 @@ let create(): t =
 			get_sym table (Token.keyword_to_string keyword)
 		end in
 	let builtins_scope =
-		let m1 = Symbol.Map.make Builtins.all begin fun b ->
-			(get_sym table (Builtins.name b), Binding.Builtin b)
+		let m1 = Symbol.Map.make Builtin.all begin fun b ->
+			get_sym table (BuiltinU.name b), Binding.Builtin b
 		end in
 		let m2 = Symbol.Map.make Type.builtins begin fun b ->
-			(get_sym table (Type.builtin_name b), Binding.BuiltinType b)
+			get_sym table (TypeU.builtin_name b), Binding.BuiltinType b
 		end in
 		(* There are no shared names *)
 		Symbol.Map.union (fun _ _ _ -> assert false) m1 m2 in

@@ -1,20 +1,22 @@
+type access = Access of Loc.t * Symbol.t
+
 type typ =
-	| TypeAccess of Loc.t * Symbol.t
+	| TypeAccess of access
+	| Or of Loc.t * typ array
 
 type local_declare = LocalDeclare of Loc.t * Symbol.t
 
-type expr =
-	| Access of Loc.t * Symbol.t
+type case_test =
+	(* :foo Foo *)
+	| AsTest of Loc.t * local_declare * typ
+type case_part = CasePart of Loc.t * case_test * expr
+and expr =
+	| ExprAccess of access
 	| Call of Loc.t * expr * expr array
+	| Case of Loc.t * expr * case_part array
 	| Let of Loc.t * local_declare * expr * expr
 	| Literal of Loc.t * Val.t
 	| Seq of Loc.t * expr * expr
-let expr_loc = function
-	| Access(loc, _) -> loc
-	| Call(loc, _, _) -> loc
-	| Let(loc, _, _, _) -> loc
-	| Literal(loc, _) -> loc
-	| Seq(loc, _, _) -> loc
 
 type property = Property of Loc.t * Symbol.t * typ
 
@@ -27,11 +29,5 @@ type rc = Rc of Loc.t * Symbol.t * property array
 type decl =
 	| DeclFn of fn
 	| DeclRc of rc
-
-let decl_loc_name = function
-	| DeclFn(Fn(loc, name, _, _)) ->
-		loc, name
-	| DeclRc(Rc(loc, name, _)) ->
-		loc, name
 
 type modul = Modul of decl array

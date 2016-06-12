@@ -1,6 +1,6 @@
 let parse_param(l: Lexer.t): Ast.parameter option =
-	let start = Lexer.pos l in
-	match Lexer.next l with
+	let start, next = Lexer.pos_next l in
+	match next with
 	| Token.Indent ->
 		None
 	| Token.Name name ->
@@ -18,7 +18,7 @@ let parse_signature(l: Lexer.t): Ast.signature =
 let parse_fn(l: Lexer.t)(start: Loc.pos): Ast.decl =
 	let name = ParseU.parse_name l in
 	let signature = parse_signature l in
-	let value = ParseExpr.parse_block l in
+	let value = ParseBlock.f l in
 	Ast.DeclFn(Ast.Fn(Lexer.loc_from l start, name, signature, value))
 
 let parse_property(l: Lexer.t): Ast.property =
@@ -30,8 +30,8 @@ let parse_property(l: Lexer.t): Ast.property =
 let parse_properties(l: Lexer.t): Ast.property array =
 	ArrayU.build_loop begin fun () ->
 		let prop = parse_property l in
-		let start = Lexer.pos l in
-		match Lexer.next l with
+		let start, next = Lexer.pos_next l in
+		match next with
 		| Token.Dedent ->
 			(prop, false)
 		| Token.Newline ->
@@ -48,8 +48,8 @@ let parse_rec(l: Lexer.t)(start: Loc.pos): Ast.decl =
 
 (* parse module declaration or End *)
 let try_parse_decl(l: Lexer.t): Ast.decl option =
-	let start = Lexer.pos l in
-	match Lexer.next l with
+	let start, next = Lexer.pos_next l in
+	match next with
 	| Token.End ->
 		None
 	| Token.Fn ->

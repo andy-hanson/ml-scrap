@@ -1,15 +1,13 @@
-(*TODO:lots of cleanup*)
-
 type call_stack_entry = {
-	fn: Code.func;
-	(* The function's code *)
+	fn: Code.fn;
+	(* The fn's code *)
 	code: Code.bytecode array;
 	(* Index of the first local on the stack. Parameters come before this. *)
 	stack_start_index: int;
-	(* Index where we were in this function before entering another one *)
+	(* Index where we were in this fn before entering another one *)
 	mutable code_idx: int
 }
-let entry_of(fn: Code.func)(cur_stack_index: int): call_stack_entry = {
+let entry_of(fn: Code.fn)(cur_stack_index: int): call_stack_entry = {
 	fn = fn;
 	code = fn.Code.code;
 	stack_start_index = cur_stack_index;
@@ -18,11 +16,13 @@ let entry_of(fn: Code.func)(cur_stack_index: int): call_stack_entry = {
 
 type interpreter_state = {
 	data_stack: Val.t GoodStack.t;
-	(* TODO: this needs to store previous functions' code_idx_es too! *)
 	call_stack: call_stack_entry GoodStack.t;
-	(* Currently executing function *)
+	(* Currently executing fn *)
 	mutable cur: call_stack_entry;
 }
+
+let peek(state: interpreter_state): Val.t =
+	GoodStack.peek state.data_stack
 
 let pop(state: interpreter_state): Val.t =
 	GoodStack.pop state.data_stack
@@ -33,7 +33,7 @@ let pop_n(state: interpreter_state)(n: int): Val.t array =
 let push(state: interpreter_state)(value: Val.t): unit =
 	GoodStack.push state.data_stack value
 
-let call_builtin(state: interpreter_state)(builtin: Builtins.builtin): unit =
+let call_builtin(state: interpreter_state)(builtin: Builtin.t): unit =
 	let unary f =
 		let a = pop state in
 		push state (f a) in
@@ -42,22 +42,24 @@ let call_builtin(state: interpreter_state)(builtin: Builtins.builtin): unit =
 		let a = pop state in
 		push state (f a b) in
 	let binary_int f =
-		binary (fun a b -> Val.Int (f (Val.cast_as_int a) (Val.cast_as_int b))) in
+		binary (fun a b -> Val.Int (f (ValU.int_of a) (ValU.int_of b))) in
 	let binary_int_bool f =
-		binary (fun a b -> Val.Bool (f (Val.cast_as_int a) (Val.cast_as_int b))) in
+		binary (fun a b -> Val.Bool (f (ValU.int_of a) (ValU.int_of b))) in
 	match builtin with
-	| Builtins.Not ->
-		unary (fun a -> Val.Bool (not (Val.cast_as_bool a)))
-	| Builtins.Less ->
+	| Builtin.Not ->
+		unary (fun a -> Val.Bool (not (ValU.bool_of a)))
+	| Builtin.Less ->
 		binary_int_bool (<)
-	| Builtins.Add ->
+	| Builtin.Add ->
 		binary_int (+)
-	| Builtins.Subtract ->
+	| Builtin.Subtract ->
 		binary_int (-)
-	| Builtins.Times ->
+	| Builtin.Times ->
 		binary_int ( * )
+	| Builtin.FloatToInt ->
+		unary (fun f -> Val.Int (int_of_float (ValU.float_of f)))
 	| _ ->
-		failwith "not a function, should not typecheck"
+		failwith "not a fn, should not typecheck"
 
 let cur_code(state: interpreter_state): Code.bytecode =
 	state.cur.code.(state.cur.code_idx)
@@ -81,12 +83,19 @@ let step(state: interpreter_state): bool =
 		call_builtin state b;
 		next()
 
+	| Code.Case parts ->
+		let cased = peek state in
+		let matching_case = ArrayU.find_map parts begin fun (typ, idx) ->
+			OpU.op_if (TypeU.subsumes typ cased) (fun () -> idx)
+		end in
+		goto matching_case
+
 	| Code.Const value ->
 		push state value;
 		next()
 
 	| Code.Construct record ->
-		let properties = pop_n state (Type.rc_arity record) in
+		let properties = pop_n state (TypeU.rc_arity record) in
 		push state (Val.Rc(record, properties));
 		next()
 
@@ -99,7 +108,7 @@ let step(state: interpreter_state): bool =
 
 	| Code.GotoIfFalse new_idx ->
 		let cond = pop state in
-		if Val.cast_as_bool cond then next() else goto new_idx
+		if ValU.bool_of cond then next() else goto new_idx
 
 	| Code.Load stack_index ->
 		let index = state.cur.stack_start_index + stack_index in
@@ -111,14 +120,15 @@ let step(state: interpreter_state): bool =
 	| Code.Return ->
 		(* Remove args from the stack, but leave return value. *)
 		let return_value = pop state in
-		U.do_times (Code.func_arity state.cur.fn) begin fun () ->
+		Assert.equal (GoodStack.size state.data_stack) state.cur.stack_start_index OutputU.output_int;
+		U.do_times (CodeU.fn_arity state.cur.fn) begin fun () ->
 			ignore (pop state)
 		end;
 		push state return_value;
 
 		begin match GoodStack.try_pop state.call_stack with
 		| None ->
-			(* Main function exited, we're done *)
+			(* Main fn exited, we're done *)
 			true
 		| Some entry ->
 			state.cur <- entry;
@@ -135,17 +145,19 @@ let step(state: interpreter_state): bool =
 (*TODO: use somewhere*)
 let debug_step(state: interpreter_state): bool =
 	let stack = state.data_stack in
-	OutputU.printf "Stack: %a (start: %d)\n" (GoodStack.output Val.output) stack state.cur.stack_start_index;
-	OutputU.printf "Executing: %a\n" Code.output_code (cur_code state);
+	OutputU.printf "Stack: %a (start: %d)\n" (GoodStack.output ValU.output) stack state.cur.stack_start_index;
+	OutputU.printf "Executing: %a\n" CodeU.output_bytecode (cur_code state);
 	step state
 
-let call_fn(fn: Code.func)(args: Val.t array): Val.t =
-	(* TODO: typecheck args *)
+let call_fn({Code.return_type; Code.params; _} as fn: Code.fn)(args: Val.t array): Val.t =
+	ArrayU.iter_zip params args begin fun {Code.param_type; _} arg ->
+		TypeU.assert_subsumes param_type arg
+	end;
 	let state = {
 		data_stack = GoodStack.create();
 		call_stack = GoodStack.create();
-		cur = entry_of fn (Code.func_arity fn)
+		cur = entry_of fn (CodeU.fn_arity fn)
 	} in
 	ArrayU.iter args (push state);
 	while not (debug_step state) do () done;
-	(GoodStack.peek state.data_stack)
+	U.returning (GoodStack.peek state.data_stack) (TypeU.assert_subsumes return_type)

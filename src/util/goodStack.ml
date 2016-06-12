@@ -6,7 +6,6 @@ let create(): 'a t =
 	BatDynArray.create()
 
 let get(gs: 'a t)(n: int): 'a =
-	(*TODO:proper error*)
 	BatDynArray.get gs n
 
 let size(gs: 'a t): int =
@@ -36,7 +35,7 @@ let pop_n(gs: 'a t)(n: int): 'a array =
 	end
 
 let try_pop(gs: 'a t): 'a option =
-	U.op_if (not (empty gs)) (fun () -> let last = BatDynArray.last gs in BatDynArray.delete_last gs; last)
+	OpU.op_if (not (empty gs)) (fun () -> let last = BatDynArray.last gs in BatDynArray.delete_last gs; last)
 
 let output(out: ('a, 'o) OutputU.printer)(o: 'o OutputU.t)(gs: 'a t) =
 	OutputU.out_array out o (BatDynArray.to_array gs)

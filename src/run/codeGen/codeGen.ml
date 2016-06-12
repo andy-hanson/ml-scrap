@@ -1,26 +1,22 @@
-(* Stores the index of GoTo bytecodes where the label is used. *)
-type label = int BatDynArray.t
+type code_idx = int
+type stack_depth = int
 
-(*TODO:move inside? How? `let module` works but not `let type`*)
+(* Stores the indexes of GoTo bytecodes where the label is used. *)
+type label = code_idx BatDynArray.t
+
 module ParamIndexes = AstU.ParameterLookup
-type param_indexes = int ParamIndexes.t
 module LocalDepths = AstU.LocalDeclareLookup
-type local_depths = int LocalDepths.t
+type local_depths = stack_depth LocalDepths.t
 
-(* Write a function body. *)
-let write_code(get_func: Ast.fn -> Code.func)(bindings: Bind.t)(types: TypeCheck.t)(params: Ast.parameter array)(e: Ast.expr): Code.t =
+let write_code(get_fn: Ast.fn -> Code.fn)(bindings: Bind.t)(types: TypeCheck.t)(params: Ast.parameter array)(body: Ast.expr): Code.t =
 	(* Params are at negative depth *)
 	let stack_depth = ref 0 in
 	let apply_fn_to_stack_depth arity =
 		(* Take off args, push return value *)
-		U.mod_ref stack_depth (fun s -> s - arity + 1) in
+		stack_depth := !stack_depth - arity + 1 in
 
-	let param_indexes: param_indexes = ParamIndexes.create() in
-	ArrayU.iteri params begin fun i param ->
-		ParamIndexes.set param_indexes param i
-	end;
-	let param_index = ParamIndexes.get param_indexes in
-
+	let param_index: Ast.parameter -> int =
+		ParamIndexes.get (ParamIndexes.build_from_keys_with_index params (fun i _ -> i)) in
 
 	let code: Code.bytecode BatDynArray.t = BatDynArray.create() in
 	let next_code_idx() = BatDynArray.length code in
@@ -30,9 +26,7 @@ let write_code(get_func: Ast.fn -> Code.func)(bindings: Bind.t)(types: TypeCheck
 	let local_depths: local_depths = LocalDepths.create() in
 	let set_local_depth(declare: Ast.local_declare): unit =
 		LocalDepths.set local_depths declare !stack_depth in
-	let get_local_depth(declare: Ast.local_declare): int =
-		LocalDepths.get local_depths declare in
-
+	let get_local_depth = LocalDepths.get local_depths in
 
 	let new_label(): label = BatDynArray.create() in
 	let use_label(l: label): unit =
@@ -41,13 +35,14 @@ let write_code(get_func: Ast.fn -> Code.func)(bindings: Bind.t)(types: TypeCheck
 		use_label l;
 		(* We don't know where to goto yet, filled in during resolve_label *)
 		write_bc (Code.Goto (-1)) in
+	(*TODO: rename to Cond and inline*)
 	let goto_if_false(l: label): unit =
 		use_label l;
 		write_bc (Code.GotoIfFalse (-1));
 		decr stack_depth in
 	let resolve_label(l: label): unit =
 		let idx = next_code_idx() in
-		let write_jump_target use =
+		DynArrayU.iter l begin fun use ->
 			let placeholder = BatDynArray.get code use in
 			(* Write over it with the correct index. *)
 			BatDynArray.set code use begin match placeholder with
@@ -55,14 +50,14 @@ let write_code(get_func: Ast.fn -> Code.func)(bindings: Bind.t)(types: TypeCheck
 				Code.Goto idx
 			| Code.GotoIfFalse -1 ->
 				Code.GotoIfFalse idx
-			| _ -> failwith "Unrecognized jump code"
-			end in
-		(*TODO:use custom iter so fn is last arg*)
-		BatDynArray.iter write_jump_target l in
+			| _ ->
+				assert false
+			end
+		end in
 
-	let rec write_builtin(b: Builtins.builtin)(args: Ast.expr array): unit =
+	let rec write_builtin(b: Builtin.t)(args: Ast.expr array): unit =
 		match b with
-		| Builtins.Cond ->
+		| Builtin.Cond ->
 			let condition, if_true, if_false = ArrayU.triple_of_array args in
 			(* First, eagerly push cond *)
 			write_expr condition;
@@ -88,18 +83,18 @@ let write_code(get_func: Ast.fn -> Code.func)(bindings: Bind.t)(types: TypeCheck
 			resolve_label bottom
 
 		| _ ->
-			(* Standard, eager function call *)
+			(* Standard, eager fn call *)
 			ArrayU.iter args write_expr;
 			write_bc (Code.CallBuiltin b);
 			(* Subtract parameters, add return value *)
-			apply_fn_to_stack_depth (Builtins.arity b)
+			apply_fn_to_stack_depth (BuiltinU.arity b)
 
 	and write_expr(expr: Ast.expr): unit =
 		match expr with
-		| Ast.Access(loc, _) ->
-			begin match Bind.value_binding bindings expr with
+		| Ast.ExprAccess(Ast.Access(loc, _) as access) ->
+			begin match Bind.binding bindings access with
 			| Binding.Builtin b ->
-				write_bc (Code.Const (Builtins.value b))
+				write_bc (Code.Const (BuiltinU.value b))
 			| Binding.Declared _ ->
 				raise U.TODO
 			| Binding.Local l ->
@@ -107,39 +102,68 @@ let write_code(get_func: Ast.fn -> Code.func)(bindings: Bind.t)(types: TypeCheck
 			| Binding.Parameter p ->
 				write_bc (Code.Load (param_index p - Array.length params))
 			| Binding.BuiltinType _ ->
-				CompileError.raise loc CompileError.CantUseTypeAsValue
+				CompileErrorU.raise loc CompileError.CantUseTypeAsValue
 			end;
 			incr stack_depth
 
 		| Ast.Call(_, called, args) ->
 			begin match called with
-			| Ast.Access(loc, _) ->
-				begin match Bind.value_binding bindings called with
+			| Ast.ExprAccess(Ast.Access(loc, _) as access) ->
+				(*TODO: `binding` helper close over bindings*)
+				begin match Bind.binding bindings access with
 				| Binding.Builtin b ->
 					write_builtin b args
 				| Binding.Declared d ->
 					begin match d with
 					| Ast.DeclFn fn_ast ->
 						ArrayU.iter args write_expr;
-						let fn = get_func fn_ast in
+						let fn = get_fn fn_ast in
 						write_bc (Code.Call fn);
-						apply_fn_to_stack_depth (Code.func_arity fn)
+						apply_fn_to_stack_depth (CodeU.fn_arity fn)
 					| Ast.DeclRc rc_ast ->
 						ArrayU.iter args write_expr;
 						let rc = TypeCheck.rc_of_ast types rc_ast in
 						write_bc (Code.Construct rc);
-						apply_fn_to_stack_depth (Type.rc_arity rc)
+						apply_fn_to_stack_depth (TypeU.rc_arity rc)
 					end
 				| Binding.Local _ ->
 					raise U.TODO (* lambda *)
 				| Binding.Parameter _ ->
 					raise U.TODO (* lambda *)
 				| Binding.BuiltinType _ ->
-					CompileError.raise loc CompileError.CantUseTypeAsValue
+					CompileErrorU.raise loc CompileError.CantUseTypeAsValue
 				end
 			| _ ->
 				raise U.TODO
 			end
+
+		| Ast.Case(_, cased, parts) ->
+			write_expr cased;
+
+			(* TODO: this seems neater than use_label, let's just do this all the time! *)
+			let case_idx = next_code_idx() in
+			let bottom = new_label() in
+			write_bc (Code.Case [| |]); (* dummy *)
+
+			let code_parts = ArrayU.map parts begin fun (Ast.CasePart(_, test, result)) ->
+				let Ast.AsTest(_, local, _) = test in
+				let typ = TypeCheck.type_of_local types local in
+				let part_start_idx = next_code_idx() in
+				(* Code.Case does not pop anything from the stack, so that becomes the new local! *)
+				set_local_depth local;
+				write_expr result;
+				(*TODO: if this is the last part, we should already be there.*)
+				goto bottom;
+				(* We don't want the stack depth increased for every individual case, just once for the whole thing. *)
+				decr stack_depth;
+				typ, part_start_idx
+			end in
+
+			BatDynArray.set code case_idx (Code.Case code_parts);
+			(* The Case replaces its input with its result, so no stack_depth effect. *)
+			resolve_label bottom;
+			(* Pop the cased value out from under the result *)
+			write_bc Code.UnLet
 
 		| Ast.Let(_, declare, value, expr) ->
 			(* Remember the depth of the value. *)
@@ -158,38 +182,28 @@ let write_code(get_func: Ast.fn -> Code.func)(bindings: Bind.t)(types: TypeCheck
 			write_bc Code.Drop;
 			write_expr b in
 
-	write_expr e;
+	write_expr body;
 
-	U.assert_equal OutputU.output_int !stack_depth 1;
+	Assert.equal !stack_depth 1 OutputU.output_int;
 	write_bc Code.Return;
 	BatDynArray.to_array code
 
-(*TODO:MOVE*)
-module Funcs = AstU.FnLookup
-type funcs = Code.func Funcs.t
+module Fns = AstU.FnLookup
+type fns = Code.fn Fns.t
 
-let write_modul(Ast.Modul(decls))(bindings: Bind.t)(types: TypeCheck.t): Modul.t =
-	(*
-	Funcs may recursively depend upon each other.
-	So, initalize them all now once, and then write to each func's code.
-	*)
-	let funcs: funcs = Funcs.create() in
-	let get_func = Funcs.get funcs in
-	(*TODO:NEATER*)
-	let get_fn = function
-	| Ast.DeclFn f ->
-		Some f
-	| _ ->
-		None in
-	let fns = BatArray.filter_map get_fn decls in
-
-	ArrayU.iter fns begin fun f ->
-		Funcs.set funcs f (Code.empty_func_from_ast f)
-	end;
-
-	let code_fns = ArrayU.map fns begin fun (Ast.Fn(_, _, Ast.Signature(_, _, params), body) as f) ->
-		let code = write_code get_func bindings types params body in
-		U.returning (get_func f) (fun func -> func.Code.code <- code)
+let f(Ast.Modul(decls))(bindings: Bind.t)(types: TypeCheck.t): Modul.t =
+	let fns: fns = Fns.build_from_keys (AstU.modul_fns decls) begin fun (Ast.Fn(_, name, Ast.Signature(_, _, params), _) as fn) ->
+		let { Type.return_type; Type.parameters = param_types } = TypeCheck.type_of_fn types fn in
+		{
+			Code.fname = name;
+			Code.return_type;
+			Code.params = ArrayU.map_zip params param_types begin fun (Ast.Parameter(_, name, _)) typ ->
+				{ Code.param_name = name; Code.param_type = typ }
+			end;
+			Code.code = [| |]
+		}
 	end in
-
-	{ Modul.recs = TypeCheck.all_rcs types; Modul.fns = code_fns }
+	Fns.iter fns begin fun (Ast.Fn(_, _, Ast.Signature(_, _, params), body)) fn_code ->
+		fn_code.Code.code <- write_code (Fns.get fns) bindings types params body
+	end;
+	{ Modul.recs = TypeCheck.all_rcs types; Modul.fns = Fns.values fns }

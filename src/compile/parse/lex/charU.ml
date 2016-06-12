@@ -8,7 +8,7 @@ let is_name_char(ch: char): bool =
 	in_range ch 'a' 'z' ||
 	in_range ch 'A' 'Z' ||
 	match ch with
-	| '+' | '*' | '/' | '^' | '?' | '<' | '>' ->
+	| '+' | '-' | '*' | '/' | '^' | '?' | '<' | '>' ->
 		true
 	| _ ->
 		false

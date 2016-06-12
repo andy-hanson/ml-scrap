@@ -8,6 +8,9 @@ let print_tokens(src: string): unit =
 		OutputU.printf "%a @ %a\n" Token.output token Loc.output loc
 	end
 
+let lex(src: string): Token.t array =
+	ArrayU.map (Noze.lex test_compiler src) (fun (token, _) -> token)
+
 let parse(src: string): Ast.modul =
 	Noze.parse test_compiler src
 

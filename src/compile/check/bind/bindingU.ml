@@ -1,16 +1,9 @@
-type t =
-	| Builtin of Builtins.builtin
-	| Declared of Ast.decl
-	| Local of Ast.local_declare
-	| Parameter of Ast.parameter
-	| BuiltinType of Type.t
-
-(* boilerplate*)
+open Binding
 
 let output(out: 'o OutputU.t)(b: t): unit =
 	match b with
 	| Builtin b ->
-		OutputU.out out "Builtin(%a)" Builtins.output b
+		OutputU.out out "Builtin(%a)" BuiltinU.output b
 	| Declared d ->
 		OutputU.out out "Declared(%a)" AstU.output_decl d
 	| Local l ->
@@ -18,4 +11,4 @@ let output(out: 'o OutputU.t)(b: t): unit =
 	| Parameter p ->
 		OutputU.out out "Parameter(%a)" AstU.output_parameter p
 	| BuiltinType b ->
-		OutputU.out out "BuiltinType(%a)" Type.output b
+		OutputU.out out "BuiltinType(%a)" TypeU.output b

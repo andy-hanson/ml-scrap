@@ -1,6 +1,5 @@
 type 'o t = 'o BatIO.output
 
-(*TODO: just use BatIO.printer (is backwards from this...)*)
 type ('a, 'o) printer = ('a, 'o) BatIO.printer
 
 let printf = Batteries.Printf.printf
@@ -11,21 +10,12 @@ let str = BatIO.nwrite
 
 let out_array(output: ('a, 'o) printer)(out: 'o t)(arr: 'a array): unit =
 	str out "[| ";
-	ArrayU.iter arr begin fun em ->
+	ArrayU.iteri arr begin fun idx em ->
 		output out em;
-		str out "; "
+		if idx != Array.length arr - 1 then
+			str out "; "
 	end;
-	str out "|]"
-
-let out_hashtbl(out_key: ('k, 'o) printer)(out_val: ('v, 'o) printer)(out: 'o t)(tbl: ('k, 'v) Hashtbl.t): unit =
-	str out "{ ";
-	HashU.iter tbl begin fun key value ->
-		out_key out key;
-		str out ": ";
-		out_val out value;
-		str out ", "
-	end;
-	str out "}"
+	str out " |]"
 
 let out_option(output: ('a, 'o) printer)(o: 'o t)(op: 'a option): unit =
 	match op with
@@ -33,6 +23,9 @@ let out_option(output: ('a, 'o) printer)(o: 'o t)(op: 'a option): unit =
 		out o "Some(%a)" output value
 	| None ->
 		str o "None"
+
+let out_pair(output_a: ('a, 'o) printer)(output_b: ('b, 'o) printer)(o: 'o t)((a, b): 'a * 'b): unit =
+	out o "(%a, %a)" output_a a output_b b
 
 let out_to_string = Batteries.Printf.sprintf2
 

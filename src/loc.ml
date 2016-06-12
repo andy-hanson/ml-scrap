@@ -39,7 +39,7 @@ let walk_to(source: BatIO.input)({line; column}: lc_pos)(distance_to_walk: int) 
 	end;
 	{ line = !line; column = !column }
 
-let start_lc = { line = 0; column = 0 }
+let start_lc = { line = 1; column = 1 }
 
 let lc_pos(source: BatIO.input)(pos: pos): lc_pos =
 	walk_to source start_lc pos
