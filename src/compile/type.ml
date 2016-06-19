@@ -1,26 +1,32 @@
 type t =
+	| Any
 	| Bool
 	| Float
 	| Int
 	| Void
-	| Or of t array
-	| Fn of fn
+	| Ft of ft
 	| Rc of rc
+	| Un of un
 
+and parameter = Sym.t * t
+and ft = {
+	fname: Sym.t;
+	mutable return_type: t;
+	mutable parameters: parameter array
+}
+
+(*TODO: Sym.t * t*)
 and property = {
-	prop_name: Symbol.t;
+	prop_name: Sym.t;
 	prop_type: t
 }
-
-and fn = {
-	return_type: t;
-	parameters: t array
-}
-
 and rc = {
-	rname: Symbol.t;
+	rname: Sym.t;
 	(* Mutable for sake of rec-creating algorithm *)
 	mutable properties: property array
 }
 
-let builtins = [| Bool; Float; Int; Void |]
+and un = {
+	uname: Sym.t;
+	mutable types: t array
+}

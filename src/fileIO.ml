@@ -1,5 +1,7 @@
+type file_name = string
+
 class type t = object
-	method read: 'a. string -> (BatIO.input -> 'a) -> 'a
+	method read: 'a. file_name -> (BatIO.input -> 'a) -> 'a
 end
 
 let file_system: t = object (_: t)

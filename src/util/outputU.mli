@@ -7,6 +7,7 @@ val out: 'a t -> ('b, 'a t, unit) format -> 'b
 val str: (string, 'o) printer
 
 val out_array: ('a, 'o) printer -> ('a array, 'o) printer
+val out_array_elements: ?delimeter:string -> ('a, 'o) printer -> ('a array, 'o) printer
 val out_option: ('a, 'o) printer -> ('a option, 'o) printer
 val out_pair: ('a, 'o) printer -> ('b, 'o) printer -> ('a * 'b, 'o) printer
 

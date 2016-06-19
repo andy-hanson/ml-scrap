@@ -11,6 +11,8 @@ module type S = sig
 	val build_from_keys_with_index: key array -> (int -> key -> 'v) -> 'v t
 	val build_from_values: 'v array -> ('v -> key) -> 'v t
 
+	val size: 'v t -> int
+
 	val set: 'v t -> key -> 'v -> unit
 	val get: 'v t -> key -> 'v
 	val get_or_update: 'v t -> key -> (unit -> 'v) -> 'v
@@ -52,6 +54,8 @@ module Make(K: Key): S with type key = K.t = struct
 			end
 		end
 
+	let size = H.length
+
 	let set = H.add
 	let get = H.find
 	let get_or_update(t: 'v t)(key: key)(get_value: unit -> 'v): 'v =
@@ -69,6 +73,13 @@ module Make(K: Key): S with type key = K.t = struct
 	let iter(tbl: 'v t)(f: ('k -> 'v -> unit)): unit =
 		H.iter f tbl
 
+	let iteri(tbl: 'v t)(f: (int -> 'k -> 'v -> unit)): unit =
+		let i = ref 0 in
+		iter tbl begin fun k v ->
+			f !i k v;
+			incr i
+		end
+
 	let keys m =
 		ArrayU.build begin fun build ->
 			iter m (fun k _ -> build k)
@@ -80,12 +91,14 @@ module Make(K: Key): S with type key = K.t = struct
 		end
 
 	let output out_key out_val out m =
-		OutputU.str out "{ ";
-		iter m begin fun key value ->
+		let last_i = size m - 1 in
+		OutputU.str out "{";
+		iteri m begin fun i key value ->
 			out_key out key;
 			OutputU.str out ": ";
 			out_val out value;
-			OutputU.str out ", "
+			if i != last_i then
+				OutputU.str out ", "
 		end;
 		OutputU.str out "}"
 end

@@ -1,1 +1,1 @@
-type t = Binding.t Symbol.Map.t
+type t = Binding.t Sym.Map.t

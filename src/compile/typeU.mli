@@ -1,15 +1,18 @@
-val builtin_name: Type.t -> string
+open Type
 
-val fn: Type.t -> Type.t array -> Type.fn
-val t_fn: Type.t -> Type.t array -> Type.t
+val name: t -> Sym.t
 
-val rc_arity: Type.rc -> int
+val is_subtype: t -> t -> bool
 
-val subsumes: Type.t -> Val.t -> bool
-val check_subsumes: Type.t -> Val.t -> unit (* This is for when you're not sure *)
-val assert_subsumes: Type.t -> Val.t -> unit (* This is for when you are *)
+val ft: Sym.t -> t -> parameter array -> ft
+val t_ft: Sym.t -> t -> parameter array -> t
+val property: Sym.t -> t -> property
+val t_rc: Sym.t -> property array -> t
 
-val output_property: (Type.property, 'o) OutputU.printer
-val output_fn: (Type.fn, 'o) OutputU.printer
-val output_rc: (Type.rc, 'o) OutputU.printer
-val output: (Type.t, 'o) OutputU.printer
+val ft_arity: ft -> int
+val rc_arity: rc -> int
+
+val output_property: (property, 'o) OutputU.printer
+val output_ft: (ft, 'o) OutputU.printer
+val output_rc: (rc, 'o) OutputU.printer
+val output: (t, 'o) OutputU.printer

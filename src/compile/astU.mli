@@ -2,16 +2,18 @@ open Ast
 
 val typ_loc: typ -> Loc.t
 val expr_loc: expr -> Loc.t
-val decl_loc_name: decl -> Loc.t * Symbol.t
+val decl_loc_name: decl -> Loc.t * Sym.t
 
 module AccessLookup: Lookup.S with type key = access
 module ExprLookup: Lookup.S with type key = expr
 module FnLookup: Lookup.S with type key = fn
 module RcLookup: Lookup.S with type key = rc
+module UnLookup: Lookup.S with type key = un
+module FtLookup: Lookup.S with type key = ft
 module LocalDeclareLookup: Lookup.S with type key = local_declare
 module ParameterLookup: Lookup.S with type key = parameter
 
-val modul_split: decl array -> fn array * rc array
+val modul_split: decl array -> fn array * rc array * un array * ft array
 val modul_fns: decl array -> fn array
 
 val output_access: (access, 'o) OutputU.printer

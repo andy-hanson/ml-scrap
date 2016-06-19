@@ -1,41 +1,46 @@
 exception EmptyStack
 
-type 'a t = 'a BatDynArray.t
+type 'a t = 'a MutArray.t
 
 let create(): 'a t =
-	BatDynArray.create()
+	MutArray.create()
 
 let get(gs: 'a t)(n: int): 'a =
-	BatDynArray.get gs n
+	MutArray.get gs n
 
 let size(gs: 'a t): int =
-	BatDynArray.length gs
+	MutArray.length gs
 
 let empty(gs: 'a t): bool =
-	BatDynArray.empty gs
+	MutArray.empty gs
 
 let push(gs: 'a t)(value: 'a): unit =
-	BatDynArray.add gs value
+	MutArray.add gs value
 
 let peek(gs: 'a t): 'a =
-	if BatDynArray.empty gs then
+	if MutArray.empty gs then
 		raise EmptyStack
 	else
-		BatDynArray.last gs
+		MutArray.last gs
 
 let pop(gs: 'a t): 'a =
-	let popped = peek gs in
-	BatDynArray.delete_last gs;
-	popped
+	U.returning (peek gs) (fun _ -> MutArray.delete_last gs)
 
 let pop_n(gs: 'a t)(n: int): 'a array =
 	let start = (size gs) - n in
-	U.returning (Array.init n (fun i -> BatDynArray.get gs (start + i))) begin fun _ ->
-		BatDynArray.delete_range gs start n
+	U.returning (MutArray.slice gs start n) begin fun _ ->
+		MutArray.delete_range gs start n
 	end
 
-let try_pop(gs: 'a t): 'a option =
-	OpU.op_if (not (empty gs)) (fun () -> let last = BatDynArray.last gs in BatDynArray.delete_last gs; last)
+let un_let(gs: 'a t): unit =
+	let l = MutArray.length gs in
+	MutArray.set gs (l - 2) (MutArray.get gs (l - 1));
+	MutArray.delete_last gs
 
-let output(out: ('a, 'o) OutputU.printer)(o: 'o OutputU.t)(gs: 'a t) =
-	OutputU.out_array out o (BatDynArray.to_array gs)
+let output_with_max(max: int)(output_element: ('a, 'o) OutputU.printer)(out: 'o OutputU.t)(gs: 'a t) =
+	let n = size gs in
+	if n <= max then
+		OutputU.out_array output_element out (MutArray.to_array gs)
+	else
+		let tail = MutArray.slice gs (n - max - 1) max in
+		OutputU.out out "[... %a]" (OutputU.out_array output_element) tail

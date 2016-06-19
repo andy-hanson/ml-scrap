@@ -10,3 +10,10 @@ let may(op: 'a option)(f: 'a -> unit): unit =
 		f value
 	| None ->
 		()
+
+let or_else(op: 'a option)(default: unit -> 'a): 'a =
+	match op with
+	| Some value ->
+		value
+	| None ->
+		default()

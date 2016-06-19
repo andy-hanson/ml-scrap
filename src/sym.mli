@@ -1,6 +1,6 @@
 type t
 
-val make: string -> t
+val of_string: string -> t
 val string_of: t -> string
 
 val output: 'o OutputU.t -> t -> unit

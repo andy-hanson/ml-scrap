@@ -1,5 +1,5 @@
 type t = {
-	ctx: CompileContext.t;
+	warn: Loc.t -> CompileError.message -> unit;
 	source: BatIO.input;
 	mutable peek: char;
 	mutable pos: Loc.pos;
@@ -37,20 +37,18 @@ let skip_while(l: t)(pred: char -> bool): unit =
 let skip_newlines(l: t): unit =
 	skip_while l ((=) '\n')
 
-let make(ctx: CompileContext.t)(source: BatIO.input): t =
+let make(warn: Loc.t -> CompileError.message -> unit)(source: BatIO.input): t =
 	let l = {
-		ctx;
-
+		warn;
 		source;
 		peek = safe_read source;
 		pos = 0;
-
 		indent = 0;
 		dedenting = 0
 	} in
 	U.returning l skip_newlines
 
-let rec next({ctx; _} as l: t): Token.t =
+let rec next({warn; _} as l: t): Token.t =
 	let loc_from = loc_from l in
 	let read_char() = read_char l in
 	let skip() = skip l in
@@ -82,11 +80,16 @@ let rec next({ctx; _} as l: t): Token.t =
 				Val.Int i in
 		Token.Literal value in
 
-	let take_name_like(fst: char): string =
+	let take_symbol(fst: char)(pred: char -> bool)(make_token: Sym.t -> Token.t): Token.t =
 		let b = BatBuffer.create 8 in
 		BatBuffer.add_char b fst;
-		buffer_while b CharU.is_name_char;
-		BatBuffer.contents b in
+		buffer_while b pred;
+		let str = BatBuffer.contents b in
+		let name = Sym.of_string str in
+		OpU.or_else (TokenU.keyword name) (fun () -> make_token name) in
+
+	let take_operator(ch: char): Token.t =
+		take_symbol ch CharU.is_operator_char (fun s -> Token.Operator s) in
 
 	let count_while(pred: char -> bool): int =
 		let count = ref 0 in
@@ -131,7 +134,7 @@ let rec next({ctx; _} as l: t): Token.t =
 
 	| ' ' ->
 		if l.peek = '\n' then
-			CompileContext.warn ctx (Loc.single_character l.pos) CompileError.TrailingSpace;
+			warn (Loc.single_character l.pos) CompileError.TrailingSpace;
 		next l
 
 	| '\n' ->
@@ -150,27 +153,24 @@ let rec next({ctx; _} as l: t): Token.t =
 
 	| '-' ->
 		let next = read_char() in
-		if next = ' ' then
-			Token.Name (CompileContext.symbol ctx "-")
-		else begin
-			CompileErrorU.check (CharU.is_digit next) (Loc.single_character l.pos) CompileError.NegMustPrecedeNumber;
+		if CharU.is_digit next then
 			take_number true next
-		end
+		else
+			take_operator ch
 
 	| '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' ->
 		take_number false ch
 
 	| 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm'
-	| 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z'
-	| '+' | '*' | '/' | '^' | '?' | '<' | '>' ->
-		(*TODO: take_symbol*)
-		let name = CompileContext.symbol ctx (take_name_like ch) in
-		BatOption.((CompileContext.keyword ctx name) |? (Token.Name name))
+	| 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' ->
+		take_symbol ch CharU.is_name_char (fun s -> Token.Name s)
 
 	| 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'
 	| 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z' ->
-		let name = CompileContext.symbol ctx (take_name_like ch) in
-		BatOption.((CompileContext.keyword ctx name) |? (Token.TypeName name))
+		take_symbol ch CharU.is_name_char (fun s -> Token.TypeName s)
+
+	| '+' | '*' | '/' | '^' | '?' | '<' | '>' | '=' ->
+		take_operator ch
 
 	| ch ->
 		CompileErrorU.raise (Loc.single_character l.pos) (CompileError.UnrecognizedCharacter ch)

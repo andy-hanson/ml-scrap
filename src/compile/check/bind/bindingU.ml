@@ -2,8 +2,8 @@ open Binding
 
 let output(out: 'o OutputU.t)(b: t): unit =
 	match b with
-	| Builtin b ->
-		OutputU.out out "Builtin(%a)" BuiltinU.output b
+	| Builtin _ ->
+		raise U.TODO (*OutputU.out out "Builtin(%a)" BuiltinU.output b*)
 	| Declared d ->
 		OutputU.out out "Declared(%a)" AstU.output_decl d
 	| Local l ->

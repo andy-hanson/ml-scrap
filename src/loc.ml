@@ -2,8 +2,11 @@ type pos = int
 (* Storing Loc.t as int results in fewer heap allocations during lexing. *)
 type t = int
 
-(* 1 bit of each integer is reserved, so allow 15 bits per pos. So max_pos is 2^15. *)
-let max_pos = 32768
+(* 1 bit of each integer is reserved, so allow 30 bits per pos. So max_pos is 2^30. *)
+let max_pos = 1024 * 1024 * 1024
+
+(* Can't support 32 bit machines. *)
+let () = assert ((max_pos * max_pos) / max_pos = max_pos)
 
 let start(loc: t): pos =
 	loc / max_pos
@@ -21,9 +24,9 @@ let single_character(start: pos): t =
 let hash(loc: t): int =
 	loc
 
-type lc_pos = { line: int; column: int }
+type lc_pos = {line: int; column: int}
 
-type lc_loc = { lc_start: lc_pos; lc_rear: lc_pos }
+type lc_loc = {lc_start: lc_pos; lc_rear: lc_pos}
 
 let walk_to(source: BatIO.input)({line; column}: lc_pos)(distance_to_walk: int) =
 	let line = ref line in
@@ -37,9 +40,9 @@ let walk_to(source: BatIO.input)({line; column}: lc_pos)(distance_to_walk: int) 
 		| _ ->
 			incr column
 	end;
-	{ line = !line; column = !column }
+	{line = !line; column = !column}
 
-let start_lc = { line = 1; column = 1 }
+let start_lc = {line = 1; column = 1}
 
 let lc_pos(source: BatIO.input)(pos: pos): lc_pos =
 	walk_to source start_lc pos
@@ -47,7 +50,7 @@ let lc_pos(source: BatIO.input)(pos: pos): lc_pos =
 let lc_loc(source: BatIO.input)(loc: t): lc_loc =
 	let a = walk_to source start_lc (start loc) in
 	let b = walk_to source a ((rear loc) - (start loc)) in
-	{ lc_start = a; lc_rear = b }
+	{lc_start = a; lc_rear = b}
 
 let output_pos(out: 'o OutputU.t)(pos: pos): unit =
 	OutputU.out out "%d" pos

@@ -1,7 +1,7 @@
 open Ast
 
 let typ_loc = function
-	| TypeAccess(Access(loc, _)) | Or(loc, _) ->
+	| TypeAccess(Access(loc, _)) | TypeFn(loc, _, _) ->
 		loc
 
 let expr_loc = function
@@ -12,6 +12,10 @@ let decl_loc_name = function
 	| DeclFn(Fn(loc, name, _, _)) ->
 		loc, name
 	| DeclRc(Rc(loc, name, _)) ->
+		loc, name
+	| DeclUn(Un(loc, name, _)) ->
+		loc, name
+	| DeclFt(Ft(loc, name, _)) ->
 		loc, name
 
 module type SimpleKey = sig
@@ -40,6 +44,14 @@ module RcLookup = AstLookup(struct
 	type t = rc
 	let loc(Rc(loc, _, _)) = loc
 end)
+module UnLookup = AstLookup(struct
+	type t = un
+	let loc(Un(loc, _, _)) = loc
+end)
+module FtLookup = AstLookup(struct
+	type t = ft
+	let loc(Ft(loc, _, _)) = loc
+end)
 module LocalDeclareLookup = AstLookup(struct
 	type t = local_declare
 	let loc(LocalDeclare(loc, _)) = loc
@@ -49,36 +61,46 @@ module ParameterLookup = AstLookup(struct
 	let loc(Parameter(loc, _, _)) = loc
 end)
 
-let modul_split(decls: decl array): fn array * rc array =
-	let fns = BatDynArray.create() in
-	let rcs = BatDynArray.create() in
+let modul_split(decls: decl array): fn array * rc array * un array * ft array =
+	(*TODO: ArrayU.split helper*)
+	let fns = MutArray.create() in
+	let rcs = MutArray.create() in
+	let uns = MutArray.create() in
+	let fts = MutArray.create() in
 	ArrayU.iter decls begin function
 		| DeclFn fn ->
-			BatDynArray.add fns fn
+			MutArray.add fns fn
 		| DeclRc rc ->
-			BatDynArray.add rcs rc
+			MutArray.add rcs rc
+		| DeclUn un ->
+			MutArray.add uns un
+		| DeclFt ft ->
+			MutArray.add fts ft
 	end;
-	BatDynArray.to_array fns, BatDynArray.to_array rcs
+	MutArray.to_array fns, MutArray.to_array rcs, MutArray.to_array uns, MutArray.to_array fts
 
 let modul_fns(decls: decl array): fn array =
-	fst (modul_split decls)
+	let fns, _, _, _ = modul_split decls in
+	fns
 
 (*TODO: ordering in this file (and in mli)*)
 let output_access(out: 'o OutputU.t)(Access(_, name)): unit =
-	Symbol.output out name
+	Sym.output out name
 
 let rec output_typ(out: 'o OutputU.t)(typ: typ): unit =
 	match typ with
 	| TypeAccess(access) ->
 		output_access out access
-	| Or(_, types) ->
-		OutputU.out out "Or(%a)" (OutputU.out_array output_typ) types
+	| TypeFn(_, return_type, parameter_types) ->
+		OutputU.out out "TypeFn(%a, %a)"
+			output_typ return_type
+			(OutputU.out_array output_typ) parameter_types
 
 let output_parameter(out: 'o OutputU.t)(Parameter(_, name, typ)): unit =
-	OutputU.out out "%a %a" Symbol.output name output_typ typ
+	OutputU.out out "%a %a" Sym.output name output_typ typ
 
 let output_local_declare(out: 'o OutputU.t)(LocalDeclare(_, name)): unit =
-	OutputU.out out "%a" Symbol.output name
+	OutputU.out out "%a" Sym.output name
 
 let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 	match expr with
@@ -99,40 +121,21 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 	| Seq(_, a, b) ->
 		OutputU.out out "Seq(%a; %a)" output_expr a output_expr b
 
-(*TODO
-let output_decl_val_kind out kind =
-	match kind with
-	| Fn (sign, body) ->
-		let out_sig out (Signature(_, typ, params)) =
-			let out_param out (Parameter(_, sym, typ)) =
-				OutputU.out out "%a %a" Symbol.output sym output_typ typ in
-			OutputU.out out "%a %a" output_typ typ (OutputU.out_array out_param) params in
-		OutputU.out out "fn %a %a" out_sig sign output_expr body
-let output_decl_val(out: 'o OutputU.t)(DeclVal(_, symbol, kind)): unit =
-	OutputU.out out "DeclVal(%a, %a)" Symbol.output symbol output_decl_val_kind kind
-
-let output_decl_type_kind out kind =
-	match kind with
-	| Rc _ ->
-		OutputU.str out "Rc..."
-let output_decl_type(out: 'o OutputU.t)(DeclType(_, symbol, kind)): unit =
-	OutputU.out out "DeclType(%a, %a)" Symbol.output symbol output_decl_type_kind kind
-
-let output_decl(out: 'o OutputU.t)(decl: decl): unit =
-	match decl with
-	| Val v -> output_decl_val out v
-	| Type t -> output_decl_type out t
-*)
-
 let output_fn(out: 'o OutputU.t)(Fn(_, name, sign, body)): unit =
 	let out_sig out (Signature(_, typ, params)) =
 		let out_param out (Parameter(_, sym, typ)) =
-			OutputU.out out "%a %a" Symbol.output sym output_typ typ in
+			OutputU.out out "%a %a" Sym.output sym output_typ typ in
 		OutputU.out out "%a %a" output_typ typ (OutputU.out_array out_param) params in
-	OutputU.out out "fn %a %a %a" Symbol.output name out_sig sign output_expr body
+	OutputU.out out "fn %a %a %a" Sym.output name out_sig sign output_expr body
 
-let output_rc(out: 'o OutputU.t)(Rc(_, _, _)): unit =
-	OutputU.str out "Rc..."
+let output_rc(_out: 'o OutputU.t)(Rc(_, _, _)): unit =
+	raise U.TODO
+
+let output_un(_out: 'o OutputU.t)(Un(_, _, _)): unit =
+	raise U.TODO
+
+let output_ft(_out: 'o OutputU.t)(Ft(_, _, _)): unit =
+	raise U.TODO
 
 let output_decl(out: 'o OutputU.t)(decl: decl): unit =
 	match decl with
@@ -140,6 +143,10 @@ let output_decl(out: 'o OutputU.t)(decl: decl): unit =
 		output_fn out fn
 	| DeclRc rc ->
 		output_rc out rc
+	| DeclUn un ->
+		output_un out un
+	| DeclFt ft ->
+		output_ft out ft
 
 let output_modul(out: 'o OutputU.t)(Modul(decls)): unit =
 	OutputU.out_array output_decl out decls

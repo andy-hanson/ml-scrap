@@ -8,14 +8,15 @@ let out = Batteries.Printf.fprintf
 
 let str = BatIO.nwrite
 
-let out_array(output: ('a, 'o) printer)(out: 'o t)(arr: 'a array): unit =
-	str out "[| ";
+let out_array_elements ?(delimeter=", ")(output: ('a, 'o) printer)(out: 'o t)(arr: 'a array): unit =
 	ArrayU.iteri arr begin fun idx em ->
 		output out em;
 		if idx != Array.length arr - 1 then
-			str out "; "
-	end;
-	str out " |]"
+			str out delimeter
+	end
+
+let out_array(output: ('a, 'o) printer)(out_channel: 'o t)(arr: 'a array): unit =
+	out out_channel "[%a]" (out_array_elements output) arr
 
 let out_option(output: ('a, 'o) printer)(o: 'o t)(op: 'a option): unit =
 	match op with

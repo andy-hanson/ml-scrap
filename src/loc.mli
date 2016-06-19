@@ -13,8 +13,8 @@ val hash: t -> int
 
 (* We store locs compactly as index pairs and need the source file to recover line/column. *)
 
-type lc_pos = { line: int; column: int }
-type lc_loc = { lc_start: lc_pos; lc_rear: lc_pos }
+type lc_pos = {line: int; column: int}
+type lc_loc = {lc_start: lc_pos; lc_rear: lc_pos}
 
 val lc_pos: BatIO.input -> pos -> lc_pos
 val lc_loc: BatIO.input -> t -> lc_loc

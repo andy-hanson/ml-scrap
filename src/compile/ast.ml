@@ -1,10 +1,11 @@
-type access = Access of Loc.t * Symbol.t
+type access = Access of Loc.t * Sym.t
 
 type typ =
 	| TypeAccess of access
-	| Or of Loc.t * typ array
+	(*TODO:KILL!!!!*)
+	| TypeFn of Loc.t * typ * typ array
 
-type local_declare = LocalDeclare of Loc.t * Symbol.t
+type local_declare = LocalDeclare of Loc.t * Sym.t
 
 type case_test =
 	(* :foo Foo *)
@@ -18,16 +19,20 @@ and expr =
 	| Literal of Loc.t * Val.t
 	| Seq of Loc.t * expr * expr
 
-type property = Property of Loc.t * Symbol.t * typ
+type property = Property of Loc.t * Sym.t * typ
 
-type parameter = Parameter of Loc.t * Symbol.t * typ
+type parameter = Parameter of Loc.t * Sym.t * typ
 
 type signature = Signature of Loc.t * typ * parameter array
 
-type fn = Fn of Loc.t * Symbol.t * signature * expr
-type rc = Rc of Loc.t * Symbol.t * property array
+type fn = Fn of Loc.t * Sym.t * signature * expr
+type rc = Rc of Loc.t * Sym.t * property array
+type un = Un of Loc.t * Sym.t * typ array
+type ft = Ft of Loc.t * Sym.t * signature
 type decl =
 	| DeclFn of fn
 	| DeclRc of rc
+	| DeclUn of un
+	| DeclFt of ft
 
 type modul = Modul of decl array

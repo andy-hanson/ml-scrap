@@ -1,7 +1,6 @@
 type message =
 	(* lexer *)
 	| LeadingSpace
-	| NegMustPrecedeNumber
 	| NumberMustHaveDigitsAfterDecimalPoint
 	| TooMuchIndent
 	| TrailingSpace
@@ -10,15 +9,19 @@ type message =
 	| BlockCantEndInDeclare
 	| CaseMustBeInLineContext
 	| EmptyExpression
+	| EqualsInExpression
+	| FnNeedsParts
+	| OrNeedsParts
+	| PrecedingEquals
 	| Unexpected of Token.t
 	(* bind *)
-	| CantBind of Symbol.t
+	| CantBind of Sym.t
 	| CantUseTypeAsValue
-	| NameAlreadyBound of Symbol.t * Binding.t
+	| NameAlreadyBound of Sym.t * Binding.t
 	(* checkTypes *)
 	| CanOnlyCaseUnion of Type.t
-	| CaseLength of Type.t array * int
-	| CasePartType of Type.t * Type.t
+	| CasePartType of Type.t array * Type.t
+	| CasesUnhandled of Type.t array
 	| CombineTypes of Type.t * Type.t
 	| NotCallable of Type.t
 	| NotExpectedType of Type.t * Type.t (* expected * actual *)

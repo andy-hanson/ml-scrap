@@ -1,21 +1,19 @@
 type t = {
-	io: FileIO.t;
-	symbols: Symbols.t
+	io: FileIO.t
 }
 
 let create(io: FileIO.t): t =
-	{ io; symbols = Symbols.create() }
-
+	{io}
 
 (* This reads the file again every time!*)
-let translate_loc({io; _}: t)(file_name: string)(loc: Loc.t): Loc.lc_loc =
+let translate_loc({io; _}: t)(file_name: FileIO.file_name)(loc: Loc.t): Loc.lc_loc =
 	io#read file_name (fun source -> Loc.lc_loc source loc)
 
 let catch_errors = true
 
-let do_work({symbols; _} as noze: t)(file_name: string)(f: CompileContext.t -> 'a): 'a =
+let do_work(noze: t)(file_name: FileIO.file_name)(f: CompileContext.t -> 'a): 'a =
 	let emit_warning w = raise (CompileError.T w) in
-	let ctx = CompileContext.make symbols emit_warning in
+	let ctx = CompileContext.make emit_warning in
 	if catch_errors then
 		try
 			f ctx
@@ -29,36 +27,16 @@ let do_work({symbols; _} as noze: t)(file_name: string)(f: CompileContext.t -> '
 	else
 		f ctx
 
-let lex({io; _} as noze: t)(file_name: string): (Token.t * Loc.t) array =
-	do_work noze file_name begin fun ctx ->
-		io#read file_name begin fun source ->
-			let l = Lexer.make ctx source in
-			ArrayU.build begin fun build ->
-				let rec recur = fun () ->
-					let start, next = Lexer.pos_next l in
-					match next with
-					| Token.End ->
-						()
-					| token ->
-						build (token, Lexer.loc_from l start);
-						recur() in
-				recur()
-			end
-		end
-	end
+let lex({io; _} as noze: t)(file_name: FileIO.file_name): (Token.t * Loc.t) array =
+	do_work noze file_name (Compile.lex io file_name)
 
-let parse({io; _} as noze: t)(file_name: string): Ast.modul =
+let parse({io; _} as noze: t)(file_name: FileIO.file_name): Ast.modul =
 	do_work noze file_name begin fun ctx ->
 		io#read file_name (Parse.f ctx)
 	end
 
-let compile({io; _} as noze: t)(file_name: string): Modul.t =
-	do_work noze file_name begin fun ctx ->
-		let modul = io#read file_name (Parse.f ctx) in
-		let bindings = Bind.bind ctx modul in
-		let types = TypeCheck.f modul bindings in
-		CodeGen.f modul bindings types
-	end
+let compile({io; _} as noze: t)(file_name: FileIO.file_name): Val.modul =
+	do_work noze file_name (Compile.f io file_name)
 
-let symbol({symbols; _}: t)(string: string): Symbol.t =
-	Symbols.get symbols string
+let lc_loc({io; _}: t)(file_name: FileIO.file_name)(loc: Loc.t): Loc.lc_loc =
+	io#read file_name (fun source -> Loc.lc_loc source loc)

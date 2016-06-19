@@ -1,11 +1,21 @@
-fn main Bool x (Or Int Float)
-	case x
-		:i Int
-			|| + i 1
-			true
-		:f Float
-			|| float->int f
-			false
+ft Printer
+	Void printed Int
+
+fn print-factorials Void printer Printer
+	print-factorials-recur 0 printer
+
+fn print-factorials-recur Void n Int printer Printer
+	cond (n == 10) (printer n)
+		printer n
+		print-factorials-recur (n + 1) printer
+
+|| Problem: `cond` must be typed as Void <- Bool Void Void, so can't write factorial too...
+|| Generic types can't come soon enough!
+
+|| fn factorial Int x Int
+||	less = x < 2
+||	cond less 1: x * factorial: x - 1
+
 
 || fn incr Int x Int
 || + x 1
@@ -16,3 +26,16 @@ fn main Bool x (Or Int Float)
 
 || fn main Point x Int y Int
 ||	Point (incr x): incr y
+
+|| un IntOrFloat
+||	Int
+||	Float
+
+|| fn is-int? Bool x IntOrFloat
+||	case x
+||		i Int
+||			|| + i 1
+||			true
+||		f Float
+||			|| float->int f
+||			false

@@ -1,6 +1,6 @@
 type t
 
-val make: CompileContext.t -> BatIO.input -> t
+val make: (Loc.t -> CompileError.message -> unit) -> BatIO.input -> t
 
 val pos: t -> Loc.pos
 val pos_next: t -> Loc.pos * Token.t

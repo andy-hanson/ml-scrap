@@ -12,8 +12,6 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 	match m with
 	| LeadingSpace ->
 		o "Line may not begin with a space"
-	| NegMustPrecedeNumber ->
-		o "`-` must be followed by a space or a number"
 	| NumberMustHaveDigitsAfterDecimalPoint ->
 		o "Number must have digits after decimal point"
 	| TooMuchIndent ->
@@ -29,31 +27,38 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 		o "`case` can't appear in a sub-expression"
 	| EmptyExpression ->
 		o "Empty expression"
+	| EqualsInExpression ->
+		o "`=` can not appear inside an expression"
+	| FnNeedsParts ->
+		o "`Fn` type needs at least 2 arguments"
+	| OrNeedsParts ->
+		o "`Or` type needs at least 2 arguments"
+	| PrecedingEquals ->
+		o "`=` must be preceded by a name"
 	| Unexpected token ->
 		o "Unexpected token %a"
-			Token.output token
+			TokenU.output token
 
 	| CantBind name ->
 		o "Can't bind `%a`"
-			Symbol.output name
+			Sym.output name
 	| CantUseTypeAsValue ->
 		o "Attempted to use a type as a value"
 	| NameAlreadyBound(name, binding) ->
 		o "Attempt to redeclare %a, defined as %a"
-			Symbol.output name
+			Sym.output name
 			BindingU.output binding
 
 	| CanOnlyCaseUnion typ ->
 		o "Expected a union type, got a %a"
 			TypeU.output typ
-	| CaseLength(types, n) ->
-		o "Expected a case for each of %a, got only %d cases"
-			(OutputU.out_array TypeU.output)
-			types n
-	| CasePartType(expected_type, actual_type) ->
-		o "Case should handle %a, but handles %a instead"
-			TypeU.output expected_type
-			TypeU.output actual_type
+	| CasePartType(possible_types, handled_type) ->
+		o "Case should handle one of %a, but handles %a instead"
+			(OutputU.out_array TypeU.output) possible_types
+			TypeU.output handled_type
+	| CasesUnhandled unhandled_types ->
+		o "The following cases are not handled: %a"
+			(OutputU.out_array TypeU.output) unhandled_types
 	| CombineTypes(a, b) ->
 		o "Can't combine types %a and %a because they are not exactly equal and we don't infer unions yet"
 			TypeU.output a

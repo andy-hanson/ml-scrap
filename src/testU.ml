@@ -1,32 +1,28 @@
 Printexc.record_backtrace true
 
-let test_compiler = Noze.create FileIO.file_system
+let test_noze = Noze.create FileIO.file_system
 
 let print_tokens(src: string): unit =
-	let tokens = Noze.lex test_compiler src in
+	let tokens = Noze.lex test_noze src in
 	ArrayU.iter tokens begin fun (token, loc) ->
-		OutputU.printf "%a @ %a\n" Token.output token Loc.output loc
+		OutputU.printf "%a @ %a\n" TokenU.output token Loc.output loc
 	end
 
 let lex(src: string): Token.t array =
-	ArrayU.map (Noze.lex test_compiler src) (fun (token, _) -> token)
+	ArrayU.map (Noze.lex test_noze src) (fun (token, _) -> token)
 
 let parse(src: string): Ast.modul =
-	Noze.parse test_compiler src
+	Noze.parse test_noze src
 
-let compile(src: string): Modul.t =
-	Noze.compile test_compiler src
+let compile(src: string): Val.modul =
+	Noze.compile test_noze src
 
 let time(f: unit -> 'a): 'a =
 	let t1 = Sys.time() in
-	let arr = BatDynArray.create() in
+	let arr = MutArray.create() in
 	for _ = 1 to 10000 do
-		let res = f() in
-		BatDynArray.add arr res
+		MutArray.add arr (f())
 	done;
 	let t2 = Sys.time() in
 	Printf.printf "Execution time: %fs\n" (t2 -. t1);
-	BatDynArray.get arr 0
-
-let symbol(s: string): Symbol.t =
-	Noze.symbol test_compiler s
+	MutArray.get arr 0
