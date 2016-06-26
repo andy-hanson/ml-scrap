@@ -17,6 +17,7 @@ val zip: 'a array -> 'b array -> ('a * 'b) array
 val fold_map: 'b -> 'a array -> ('b -> 'a -> 'b * 'c) -> 'b * 'c array
 
 val filter: 'a array -> ('a -> bool) -> 'a array
+val filter_map: 'a array -> ('a -> 'b option) -> 'b array
 
 val find: 'a array -> ('a -> bool) -> 'a option
 val find_map: 'a array -> ('a -> 'b option) -> 'b
@@ -25,10 +26,13 @@ val for_all_zip: 'a array -> 'b array -> ('a -> 'b -> bool) -> bool
 
 val fold: 'b -> 'a array -> ('b -> 'a -> 'b) -> 'b
 
-val triple_of_array: 'a array -> 'a * 'a * 'a
+val single_of: 'a array -> 'a
+val pair_of: 'a array -> 'a * 'a
+val triple_of: 'a array -> 'a * 'a * 'a
 
 val build: (('a -> unit) -> unit) -> 'a array
 val build_loop: (unit -> 'a * bool) -> 'a array
 val build_until_none: (unit -> 'a option) -> 'a array
 
 val try_remove: 'a array -> 'a -> 'a array option
+val try_remove_where: 'a array -> ('a -> bool) -> ('a * 'a array) option

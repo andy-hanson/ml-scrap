@@ -19,6 +19,8 @@ module type S = sig
 	val try_get: 'v t -> key -> 'v option
 
 	val iter: 'v t -> (key -> 'v -> unit) -> unit
+	val iter_keys: 'v t -> (key -> unit) -> unit
+	val iter_values: 'v t -> ('v -> unit) -> unit
 	val keys: 'v t -> key array
 	val values: 'v t -> 'v array
 	val output: ((key, 'o) OutputU.printer) -> (('v, 'o) OutputU.printer) -> ('o OutputU.t) -> 'v t -> unit
@@ -35,20 +37,20 @@ module Make(K: Key): S with type key = K.t = struct
 	let create_with_size = H.create
 
 	let build(builder: (key -> 'v -> unit) -> unit): 'v t =
-		U.returning (create()) (fun m -> builder (H.add m))
+		U.returning (create()) @@ fun m -> builder @@ H.add m
 
 	let build_from_keys_with_index(keys: key array)(get_value: int -> key -> 'v): 'v t =
-		U.returning (create_with_size (Array.length keys)) begin fun m ->
+		U.returning (create_with_size @@ Array.length keys) begin fun m ->
 			ArrayU.iteri keys begin fun i key ->
-				H.add m key (get_value i key)
+				H.add m key @@ get_value i key
 			end
 		end
 
 	let build_from_keys keys get_value =
-		build_from_keys_with_index keys (fun _ key -> get_value key)
+		build_from_keys_with_index keys @@ fun _ key -> get_value key
 
 	let build_from_values(values: 'v array)(get_key: 'v -> key): 'v t =
-		U.returning (create_with_size (Array.length values)) begin fun m ->
+		U.returning (create_with_size @@ Array.length values) begin fun m ->
 			ArrayU.iter values begin fun v ->
 				H.add m (get_key v) v
 			end
@@ -62,7 +64,7 @@ module Make(K: Key): S with type key = K.t = struct
 		try
 			get t key
 		with Not_found ->
-			U.returning (get_value()) (set t key)
+			U.returning (get_value()) @@ set t key
 	let try_get m key =
 		try
 			Some (get m key)
@@ -70,8 +72,14 @@ module Make(K: Key): S with type key = K.t = struct
 			Not_found -> None
 
 
-	let iter(tbl: 'v t)(f: ('k -> 'v -> unit)): unit =
+	let iter(tbl: 'v t)(f: key -> 'v -> unit): unit =
 		H.iter f tbl
+
+	let iter_keys(tbl: 'v t)(f: key -> unit): unit =
+		iter tbl @@ fun k _ -> f k
+
+	let iter_values(tbl: 'v t)(f: 'v -> unit): unit =
+		iter tbl @@ fun _ v -> f v
 
 	let iteri(tbl: 'v t)(f: (int -> 'k -> 'v -> unit)): unit =
 		let i = ref 0 in
@@ -81,14 +89,10 @@ module Make(K: Key): S with type key = K.t = struct
 		end
 
 	let keys m =
-		ArrayU.build begin fun build ->
-			iter m (fun k _ -> build k)
-		end
+		ArrayU.build (iter_keys m)
 
 	let values m =
-		ArrayU.build begin fun build ->
-			H.iter (fun _ v -> build v) m
-		end
+		ArrayU.build (iter_values m)
 
 	let output out_key out_val out m =
 		let last_i = size m - 1 in

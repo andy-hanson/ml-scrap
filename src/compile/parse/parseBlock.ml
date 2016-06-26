@@ -14,7 +14,7 @@ let parse_single(l: Lexer.t)(start: Loc.pos)(t: Token.t): Ast.expr =
 	let loc = Lexer.loc_from l start in
 	match t with
 		| Token.Name name | Token.TypeName name ->
-			Ast.ExprAccess(Ast.Access(loc, name))
+			Ast.ExprAccess(loc, name)
 		| Token.Literal value ->
 			Ast.Literal(loc, value)
 		| _ ->
@@ -56,8 +56,8 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			| 1 ->
 				let x = MutArray.get parts 0 in
 				begin match x with
-				| Ast.ExprAccess(Ast.Access(loc, name)) ->
-					let declare = Ast.LocalDeclare(loc, name) in
+				| Ast.ExprAccess(loc, name) ->
+					let declare = loc, name in
 					let expr, next = parse_expr l ExprOnly in
 					CompileErrorU.check (next != CtxEnded) (Lexer.loc_from l start) CompileError.BlockCantEndInDeclare;
 					assert (next = NewlineAfterStatement);
@@ -71,7 +71,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 
 		| Token.Operator name ->
 			let left = finish_regular() in
-			let op = Ast.ExprAccess(Ast.Access(Lexer.loc_from l start, name)) in
+			let op = Ast.ExprAccess(Lexer.loc_from l start, name) in
 			let right, next = parse_expr l ctx in
 			Ast.Call(Lexer.loc_from l expr_start, op, [|left; right|]), next
 
@@ -108,7 +108,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			end
 
 		| x ->
-			add_part (parse_single l start x);
+			add_part @@ parse_single l start x;
 			let start, next = Lexer.pos_next l in
 			recur start next in
 
@@ -118,25 +118,27 @@ and parse_expr(l: Lexer.t)(ctx: ctx): Ast.expr * next =
 	let start, next = Lexer.pos_next l in
 	parse_expr_with_next l start next ctx
 
-and parse_case(l: Lexer.t)(start: Loc.pos): Ast.expr =
-	let cased, next = parse_expr l CaseHead in
-	assert (next = CtxEnded);
-	let try_parse_part() =
+and parse_case_parts(l: Lexer.t): Ast.case_part array =
+	ArrayU.build_until_none begin fun () ->
 		let start, next = Lexer.pos_next l in
 		match next with
 		| Token.Dedent ->
 			None
 		| Token.Name name ->
-			let declare = Ast.LocalDeclare(Lexer.loc_from l start, name) in
+			let declare = Lexer.loc_from l start, name in
 			let typ = ParseType.f l in
 			let test = Ast.AsTest(Lexer.loc_from l start, declare, typ) in
 			ParseU.must_skip l Token.Indent;
 			let result = f l in
-			Some(Ast.CasePart(Lexer.loc_from l start, test, result))
+			Some(Lexer.loc_from l start, test, result)
 		| x ->
-			ParseU.unexpected start l x in
-	let parts = ArrayU.build_until_none try_parse_part in
-	Ast.Case((Lexer.loc_from l start), cased, parts)
+			ParseU.unexpected start l x
+	end
+
+and parse_case(l: Lexer.t)(start: Loc.pos): Ast.expr =
+	let cased, next = parse_expr l CaseHead in
+	assert (next = CtxEnded);
+	Ast.Case((Lexer.loc_from l start), cased, parse_case_parts l)
 
 and parse_block(l: Lexer.t)(start: Loc.pos)(first: Token.t): Ast.expr =
 	let expr, next = parse_expr_with_next l start first Line in

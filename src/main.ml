@@ -3,9 +3,9 @@
 (* let () = OutputU.printf "%a\n" AstU.output_modul (TestU.parse "test.nz") *)
 
 let modul = TestU.compile "test.nz"
-let result = ModulU.call_fn TestU.test_noze modul
-	(Sym.of_string "print-factorials")
-	[| Builtin.print.Builtin.value |]
+let result = TestU.call_fn TestU.test_noze modul
+	(Sym.of_string "my-cnv")
+	[| N.Int 1 (*N.World*) |]
 let () = OutputU.printf "%a\n" ValU.output result
 
 (*let () =

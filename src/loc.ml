@@ -49,7 +49,7 @@ let lc_pos(source: BatIO.input)(pos: pos): lc_pos =
 
 let lc_loc(source: BatIO.input)(loc: t): lc_loc =
 	let a = walk_to source start_lc (start loc) in
-	let b = walk_to source a ((rear loc) - (start loc)) in
+	let b = walk_to source a (rear loc - start loc) in
 	{lc_start = a; lc_rear = b}
 
 let output_pos(out: 'o OutputU.t)(pos: pos): unit =

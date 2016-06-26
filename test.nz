@@ -1,13 +1,40 @@
-ft Printer
-	Void printed Int
+ct Converter
+	Float Int
+	Int Float
+cn my-cnv Converter
+	i Int
+		1.0
+	f Float
+		1
 
-fn print-factorials Void printer Printer
-	print-factorials-recur 0 printer
+fn my-cnv-b Float i Int
+	1.0
 
-fn print-factorials-recur Void n Int printer Printer
-	cond (n == 10) (printer n)
-		printer n
-		print-factorials-recur (n + 1) printer
+|| un IntOrFloat
+|| 	Int
+|| 	Float
+
+|| fn is-int? Bool x IntOrFloat
+|| 	case x
+|| 		i Int
+|| 			|| + i 1
+|| 			true
+|| 		f Float
+|| 			|| float->int f
+|| 			false
+
+|| fn print-factorials Void world World
+||	print-factorials-recur 0 world
+|| fn print-factorials-recur Void n Int world World
+||	cond (n == 10) (world: Print n)
+||		world: Print n
+||		print-factorials-recur (n + 1) world
+
+
+
+|| fn foo Float cnv Converter
+||	cnv 0
+
 
 || Problem: `cond` must be typed as Void <- Bool Void Void, so can't write factorial too...
 || Generic types can't come soon enough!
@@ -26,16 +53,3 @@ fn print-factorials-recur Void n Int printer Printer
 
 || fn main Point x Int y Int
 ||	Point (incr x): incr y
-
-|| un IntOrFloat
-||	Int
-||	Float
-
-|| fn is-int? Bool x IntOrFloat
-||	case x
-||		i Int
-||			|| + i 1
-||			true
-||		f Float
-||			|| float->int f
-||			false

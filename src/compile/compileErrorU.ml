@@ -1,7 +1,7 @@
 open CompileError
 
 let raise(loc: Loc.t)(m: message): 'a =
-	raise (T (Warning(loc, m)))
+	raise @@ T(Warning(loc, m))
 
 let check(cond: bool)(loc: Loc.t)(message: message): unit =
 	if not cond then
@@ -63,9 +63,12 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 		o "Can't combine types %a and %a because they are not exactly equal and we don't infer unions yet"
 			TypeU.output a
 			TypeU.output b
-	| NotCallable typ ->
+	| NotAFunction typ ->
 		o "Expected a function, got a %a"
 			TypeU.output typ
+	| NotAValue(_, name) ->
+		o "Not a vaule: %a"
+			Sym.output name
 	| NotExpectedType(expected, actual) ->
 		o "Expected %a, got %a"
 			TypeU.output expected

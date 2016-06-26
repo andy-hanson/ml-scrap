@@ -1,2 +1,3 @@
-val f: Type.t -> Val.t -> bool
-val check: Type.t -> Val.t -> unit
+open N
+val f: ty -> v -> bool
+val check: ty -> v -> unit

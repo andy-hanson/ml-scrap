@@ -2,7 +2,7 @@ type t =
 	| Name of Sym.t
 	| TypeName of Sym.t
 	| Operator of Sym.t
-	| Literal of Val.t
+	| Literal of N.v
 	(* Keywords *)
 	| Equals
 	(* Expression keywords *)
@@ -10,10 +10,11 @@ type t =
 	| Colon
 	(* Declaration keywords *)
 	| Fn
-	| Ifc
-	| Rc
-	| Un
+	| Cn
+	| Rt
+	| Un (*TODO:UT*)
 	| Ft
+	| Ct
 	(* Grouping *)
 	| Indent
 	| Dedent
@@ -26,4 +27,4 @@ type t =
 
 (* Just the keywords with text names *)
 let all_keywords: t array =
-	[| Equals; Case; Fn; Ifc; Rc; Un; Ft |]
+	[| Equals; Case; Fn; Cn; Rt; Un; Ft; Ct |]

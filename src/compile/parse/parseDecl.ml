@@ -11,20 +11,27 @@ let parse_signature(l: Lexer.t): Ast.signature * Token.t =
 			None
 		| Token.Name name ->
 			let typ = ParseType.f l in
-			Some (Ast.Parameter(Lexer.loc_from l start, name, typ))
+			Some (Lexer.loc_from l start, name, typ)
 		| t ->
 			ParseU.unexpected start l t
 	end in
-	Ast.Signature(Lexer.loc_from l start, return_type, params), !next_token
+	(Lexer.loc_from l start, return_type, params), !next_token
 
-let parse_fn(l: Lexer.t)(start: Loc.pos): Ast.decl =
+let parse_fn(l: Lexer.t)(start: Loc.pos): Ast.fn =
 	let name = ParseU.parse_name l in
 	let signature, next = parse_signature l in
 	ParseU.expect start l Token.Indent next;
 	let value = ParseBlock.f l in
-	Ast.DeclFn(Ast.Fn(Lexer.loc_from l start, name, signature, value))
+	Lexer.loc_from l start, name, signature, value
 
-let parse_rec(l: Lexer.t)(start: Loc.pos): Ast.decl =
+let parse_cn(l: Lexer.t)(start: Loc.pos): Ast.cn =
+	let name = ParseU.parse_name l in
+	let typ = ParseType.f l in
+	ParseU.must_skip l Token.Indent;
+	let parts = ParseBlock.parse_case_parts l in
+	Lexer.loc_from l start, name, typ, parts
+
+let parse_rt(l: Lexer.t)(start: Loc.pos): Ast.rt =
 	let name = ParseU.parse_type_name l in
 	ParseU.must_skip l Token.Indent;
 	let props = ArrayU.build_loop begin fun () ->
@@ -32,7 +39,7 @@ let parse_rec(l: Lexer.t)(start: Loc.pos): Ast.decl =
 			let start = Lexer.pos l in
 			let name = ParseU.parse_name l in
 			let typ = ParseType.f l in
-			Ast.Property(Lexer.loc_from l start, name, typ) in
+			Lexer.loc_from l start, name, typ in
 		let start, next = Lexer.pos_next l in
 		prop, match next with
 		| Token.Dedent ->
@@ -42,9 +49,9 @@ let parse_rec(l: Lexer.t)(start: Loc.pos): Ast.decl =
 		| x ->
 			ParseU.unexpected start l x
 	end in
-	Ast.DeclRc(Ast.Rc(Lexer.loc_from l start, name, props))
+	Lexer.loc_from l start, name, props
 
-let parse_un(l: Lexer.t)(start: Loc.pos): Ast.decl =
+let parse_un(l: Lexer.t)(start: Loc.pos): Ast.un =
 	let name = ParseU.parse_type_name l in
 	ParseU.must_skip l Token.Indent;
 	let types = ArrayU.build_loop begin fun () ->
@@ -58,9 +65,9 @@ let parse_un(l: Lexer.t)(start: Loc.pos): Ast.decl =
 		| x ->
 			ParseU.unexpected start l x
 	end in
-	Ast.DeclUn(Ast.Un(Lexer.loc_from l start, name, types))
+	Lexer.loc_from l start, name, types
 
-let parse_ft(l: Lexer.t)(start: Loc.pos): Ast.decl =
+let parse_ft(l: Lexer.t)(start: Loc.pos): Ast.ft =
 	let name = ParseU.parse_type_name l in
 	ParseU.must_skip l Token.Indent;
 	let signature, next = parse_signature l in
@@ -72,8 +79,26 @@ let parse_ft(l: Lexer.t)(start: Loc.pos): Ast.decl =
 	| _ ->
 		assert false
 	end;
-	Ast.DeclFt(Ast.Ft(Lexer.loc_from l start, name, signature))
+	Lexer.loc_from l start, name, signature
 	(*TDOO: parse_signature helper?*)
+
+let parse_ct(l: Lexer.t)(start: Loc.pos): Ast.ct =
+	(*TODO: most decls start this way, so I guess it's duplicate code*)
+	let name = ParseU.parse_type_name l in
+	ParseU.must_skip l Token.Indent;
+	let cases = ArrayU.build_loop begin fun () ->
+		let return = ParseType.f l in
+		let input = ParseType.f l in
+		let start, next = Lexer.pos_next l in
+		(return, input), match next with
+		| Token.Dedent ->
+			false
+		| Token.Newline ->
+			true
+		| x ->
+			ParseU.unexpected start l x
+	end in
+	Lexer.loc_from l start, name, cases
 
 (* parse module declaration or End *)
 let try_parse_decl(l: Lexer.t): Ast.decl option =
@@ -82,12 +107,16 @@ let try_parse_decl(l: Lexer.t): Ast.decl option =
 	| Token.End ->
 		None
 	| Token.Fn ->
-		Some (parse_fn l start)
-	| Token.Rc ->
-		Some (parse_rec l start)
+		Some(Ast.DeclFn(parse_fn l start))
+	| Token.Cn ->
+		Some (Ast.DeclCn(parse_cn l start))
+	| Token.Rt ->
+		Some(Ast.DeclRt(parse_rt l start))
 	| Token.Un ->
-		Some (parse_un l start)
+		Some(Ast.DeclUn(parse_un l start))
 	| Token.Ft ->
-		Some (parse_ft l start)
+		Some(Ast.DeclFt(parse_ft l start))
+	| Token.Ct ->
+		Some(Ast.DeclCt(parse_ct l start))
 	| x ->
 		ParseU.unexpected start l x

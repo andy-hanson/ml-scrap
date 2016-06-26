@@ -1,21 +1,25 @@
 open Ast
 
 let typ_loc = function
-	| TypeAccess(Access(loc, _)) | TypeFn(loc, _, _) ->
+	| TypeAccess(loc, _) ->
 		loc
 
 let expr_loc = function
-	| ExprAccess(Access(loc, _)) | Call(loc, _, _) | Case(loc, _, _) | Let(loc, _, _, _) | Literal(loc, _) | Seq(loc, _, _) ->
+	| ExprAccess(loc, _) | Call(loc, _, _) | Case(loc, _, _) | Let(loc, _, _, _) | Literal(loc, _) | Seq(loc, _, _) ->
 		loc
 
 let decl_loc_name = function
-	| DeclFn(Fn(loc, name, _, _)) ->
+	| DeclFn((loc, name, _, _)) ->
 		loc, name
-	| DeclRc(Rc(loc, name, _)) ->
+	| DeclCn((loc, name, _, _)) ->
 		loc, name
-	| DeclUn(Un(loc, name, _)) ->
+	| DeclRt((loc, name, _)) ->
 		loc, name
-	| DeclFt(Ft(loc, name, _)) ->
+	| DeclUn((loc, name, _)) ->
+		loc, name
+	| DeclFt((loc, name, _)) ->
+		loc, name
+	| DeclCt((loc, name, _)) ->
 		loc, name
 
 module type SimpleKey = sig
@@ -25,12 +29,12 @@ end
 module AstLookup(K: SimpleKey): Lookup.S with type key = K.t = Lookup.Make(struct
 	type t = K.t
 	let equal = (==)
-	let hash ast = Loc.hash (K.loc ast)
+	let hash ast = Loc.hash @@ K.loc ast
 end)
 
 module AccessLookup = AstLookup(struct
 	type t = access
-	let loc(Access(loc, _)) = loc
+	let loc(loc, _) = loc
 end)
 module ExprLookup = AstLookup(struct
 	type t = expr
@@ -38,68 +42,71 @@ module ExprLookup = AstLookup(struct
 end)
 module FnLookup = AstLookup(struct
 	type t = fn
-	let loc(Fn(loc, _, _, _)) = loc
+	let loc(loc, _, _, _) = loc
 end)
-module RcLookup = AstLookup(struct
-	type t = rc
-	let loc(Rc(loc, _, _)) = loc
+module CnLookup = AstLookup(struct
+	type t = cn
+	let loc(loc, _, _, _) = loc
+end)
+module RtLookup = AstLookup(struct
+	type t = rt
+	let loc(loc, _, _) = loc
 end)
 module UnLookup = AstLookup(struct
 	type t = un
-	let loc(Un(loc, _, _)) = loc
+	let loc(loc, _, _) = loc
 end)
 module FtLookup = AstLookup(struct
 	type t = ft
-	let loc(Ft(loc, _, _)) = loc
+	let loc(loc, _, _) = loc
+end)
+module CtLookup = AstLookup(struct
+	type t = ct
+	let loc(loc, _, _) = loc
 end)
 module LocalDeclareLookup = AstLookup(struct
 	type t = local_declare
-	let loc(LocalDeclare(loc, _)) = loc
+	let loc(loc, _) = loc
 end)
 module ParameterLookup = AstLookup(struct
 	type t = parameter
-	let loc(Parameter(loc, _, _)) = loc
+	let loc(loc, _, _) = loc
 end)
 
-let modul_split(decls: decl array): fn array * rc array * un array * ft array =
+(*TODO:KILL!KILL!KILL!*)
+let modul_split(decls: decl array): Ast.decl array * Ast.decl array =
 	(*TODO: ArrayU.split helper*)
-	let fns = MutArray.create() in
-	let rcs = MutArray.create() in
-	let uns = MutArray.create() in
-	let fts = MutArray.create() in
-	ArrayU.iter decls begin function
-		| DeclFn fn ->
-			MutArray.add fns fn
-		| DeclRc rc ->
-			MutArray.add rcs rc
-		| DeclUn un ->
-			MutArray.add uns un
-		| DeclFt ft ->
-			MutArray.add fts ft
+	let values = MutArray.create() in
+	let types = MutArray.create() in
+	ArrayU.iter decls begin fun decl ->
+		match decl with
+		| DeclFn _ | DeclCn _ ->
+			MutArray.add values decl
+		| DeclRt _ | DeclUn _ | DeclFt _ | DeclCt _ ->
+			MutArray.add types decl
 	end;
-	MutArray.to_array fns, MutArray.to_array rcs, MutArray.to_array uns, MutArray.to_array fts
+	MutArray.to_array values, MutArray.to_array types
 
+(*TODO:KILL!KILL!KILL!*)
 let modul_fns(decls: decl array): fn array =
-	let fns, _, _, _ = modul_split decls in
-	fns
+	ArrayU.filter_map decls begin function
+		| Ast.DeclFn f -> Some f
+		| _ -> None
+	end
 
 (*TODO: ordering in this file (and in mli)*)
-let output_access(out: 'o OutputU.t)(Access(_, name)): unit =
+let output_access(out: 'o OutputU.t)((_, name): Ast.access): unit =
 	Sym.output out name
 
-let rec output_typ(out: 'o OutputU.t)(typ: typ): unit =
+let output_typ(out: 'o OutputU.t)(typ: typ): unit =
 	match typ with
 	| TypeAccess(access) ->
 		output_access out access
-	| TypeFn(_, return_type, parameter_types) ->
-		OutputU.out out "TypeFn(%a, %a)"
-			output_typ return_type
-			(OutputU.out_array output_typ) parameter_types
 
-let output_parameter(out: 'o OutputU.t)(Parameter(_, name, typ)): unit =
+let output_parameter(out: 'o OutputU.t)((_, name, typ): Ast.parameter): unit =
 	OutputU.out out "%a %a" Sym.output name output_typ typ
 
-let output_local_declare(out: 'o OutputU.t)(LocalDeclare(_, name)): unit =
+let output_local_declare(out: 'o OutputU.t)((_, name): Ast.local_declare): unit =
 	OutputU.out out "%a" Sym.output name
 
 let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
@@ -109,7 +116,7 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 	| Call(_, fn, args) ->
 		OutputU.out out "Call %a %a" output_expr fn (OutputU.out_array output_expr) args
 	| Case(_, cased, parts) ->
-		let output_part out (CasePart(_, test, expr)) =
+		let output_part out (_, test, expr) =
 			let out_test out (AsTest(_, declare, typ)) =
 				OutputU.out out "AsTest(%a, %a)" output_local_declare declare output_typ typ in
 			OutputU.out out "CasePart(%a, %a)" out_test test output_expr expr in
@@ -121,32 +128,36 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 	| Seq(_, a, b) ->
 		OutputU.out out "Seq(%a; %a)" output_expr a output_expr b
 
-let output_fn(out: 'o OutputU.t)(Fn(_, name, sign, body)): unit =
-	let out_sig out (Signature(_, typ, params)) =
-		let out_param out (Parameter(_, sym, typ)) =
+let output_fn(out: 'o OutputU.t)((_, name, sign, body): Ast.fn): unit =
+	let out_sig out (_, typ, params) =
+		let out_param out (_, sym, typ) =
 			OutputU.out out "%a %a" Sym.output sym output_typ typ in
 		OutputU.out out "%a %a" output_typ typ (OutputU.out_array out_param) params in
 	OutputU.out out "fn %a %a %a" Sym.output name out_sig sign output_expr body
 
-let output_rc(_out: 'o OutputU.t)(Rc(_, _, _)): unit =
+let output_cn(_out: 'o OutputU.t)((_, _, _, _): Ast.cn): unit =
 	raise U.TODO
 
-let output_un(_out: 'o OutputU.t)(Un(_, _, _)): unit =
+let output_rt(_out: 'o OutputU.t)((_, _, _): Ast.rt): unit =
 	raise U.TODO
 
-let output_ft(_out: 'o OutputU.t)(Ft(_, _, _)): unit =
+let output_un(_out: 'o OutputU.t)((_, _, _): Ast.un): unit =
+	raise U.TODO
+
+let output_ft(_out: 'o OutputU.t)((_, _, _): Ast.ft): unit =
+	raise U.TODO
+
+let output_ct(_out: 'o OutputU.t)((_, _, _): Ast.ct): unit =
 	raise U.TODO
 
 let output_decl(out: 'o OutputU.t)(decl: decl): unit =
 	match decl with
-	| DeclFn fn ->
-		output_fn out fn
-	| DeclRc rc ->
-		output_rc out rc
-	| DeclUn un ->
-		output_un out un
-	| DeclFt ft ->
-		output_ft out ft
+	| DeclFn fn -> output_fn out fn
+	| DeclCn cn -> output_cn out cn
+	| DeclRt rt -> output_rt out rt
+	| DeclUn un -> output_un out un
+	| DeclFt ft -> output_ft out ft
+	| DeclCt ct -> output_ct out ct
 
 let output_modul(out: 'o OutputU.t)(Modul(decls)): unit =
 	OutputU.out_array output_decl out decls

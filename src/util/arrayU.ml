@@ -30,10 +30,10 @@ let mapi(a: 'a array)(f: int -> 'a -> 'b): 'b array =
 let map_zip(a: 'a array)(b: 'b array)(f: 'a -> 'b -> 'c): 'c array =
 	assert (Array.length a = Array.length b);
 	a |> Array.mapi begin fun i a_em ->
-		f a_em (Array.get b i)
+		f a_em @@ Array.get b i
 	end
 let zip(a: 'a array)(b: 'b array): 'c array =
-	map_zip a b (fun x y -> x, y)
+	map_zip a b @@ fun x y -> x, y
 
 let fold_map(start: 'b)(a: 'a array)(f: 'b -> 'a -> 'b * 'c): 'b * 'c array =
 	let acc = ref start in
@@ -46,6 +46,9 @@ let fold_map(start: 'b)(a: 'a array)(f: 'b -> 'a -> 'b * 'c): 'b * 'c array =
 
 let filter(a: 'a array)(f: 'a -> bool): 'a array =
 	BatArray.filter f a
+
+let filter_map(a: 'a array)(f: 'a -> 'b option): 'b array =
+	BatArray.filter_map f a
 
 let find(a: 'a array)(pred: 'a -> bool): 'a option =
 	try Some (BatArray.find pred a) with Not_found -> None
@@ -76,8 +79,16 @@ let for_all_zip(a: 'a array)(b: 'b array)(pred: 'a -> 'b -> bool): bool =
 let fold(start: 'b)(a: 'a array)(f: 'b -> 'a -> 'b): 'b =
 	Array.fold_left f start a
 
-let triple_of_array(arr: 'a array): 'a * 'a * 'a =
-	assert ((Array.length arr) = 3);
+let single_of(arr: 'a array): 'a =
+	assert (Array.length arr = 1);
+	arr.(0)
+
+let pair_of(arr: 'a array): 'a * 'a =
+	assert (Array.length arr = 2);
+	arr.(0), arr.(1)
+
+let triple_of(arr: 'a array): 'a * 'a * 'a =
+	assert (Array.length arr = 3);
 	arr.(0), arr.(1), arr.(2)
 
 let build(f: ('a -> unit) -> unit): 'a array =
@@ -105,6 +116,23 @@ let build_until_none(f: unit -> 'a option): 'a array =
 		recur();
 	end
 
+(*TODO: We only want to remove one! So don't filter!*)
 let try_remove(a: 'a array)(element: 'a): 'a array option =
 	let res = filter a ((!=) element) in
 	if (Array.length res = Array.length a) then None else Some res
+
+let try_remove_where(a: 'a array)(pred: 'a -> bool): ('a * 'a array) option =
+	let out: 'a array = Array.make (Array.length a - 1) a.(0) in
+	let rec recur(i: int) =
+		if i = Array.length a then
+			None
+		else if pred a.(i) then begin
+			for i2 = i to Array.length a - 2 do
+				out.(i2) <- a.(i2 + 1)
+			done;
+			Some(a.(i), out)
+		end else begin
+			out.(i) <- a.(i);
+			recur (i + 1)
+		end in
+	recur 0;

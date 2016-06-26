@@ -1,5 +1,5 @@
 let unexpected(start: Loc.pos)(l: Lexer.t)(token: Token.t): 'a =
-	CompileErrorU.raise (Lexer.loc_from l start) (CompileError.Unexpected token)
+	CompileErrorU.raise (Lexer.loc_from l start) @@ CompileError.Unexpected token
 
 let expect(start: Loc.pos)(l: Lexer.t)(expected: Token.t)(actual: Token.t): unit =
 	if (expected != actual) then
@@ -7,7 +7,7 @@ let expect(start: Loc.pos)(l: Lexer.t)(expected: Token.t)(actual: Token.t): unit
 
 let must_skip(l: Lexer.t)(expected: Token.t): unit =
 	let start, actual = Lexer.pos_next l in
-	if actual != expected then raise (unexpected start l expected)
+	expect start l expected actual
 
 let parse_name(l: Lexer.t): Sym.t =
 	let start, next = Lexer.pos_next l in
@@ -15,7 +15,7 @@ let parse_name(l: Lexer.t): Sym.t =
 	| Token.Name name ->
 		name
 	| x ->
-		raise (unexpected start l x)
+		raise @@ unexpected start l x
 
 let parse_type_name(l: Lexer.t): Sym.t =
 	let start, next = Lexer.pos_next l in
@@ -23,4 +23,4 @@ let parse_type_name(l: Lexer.t): Sym.t =
 	| Token.TypeName name ->
 		name
 	| x ->
-		raise (unexpected start l x)
+		raise @@ unexpected start l x

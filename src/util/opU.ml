@@ -1,6 +1,6 @@
 let op_if(cond: bool)(make: unit -> 'a): 'a option =
 	if cond then
-		Some (make())
+		Some(make())
 	else
 		None
 

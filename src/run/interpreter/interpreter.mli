@@ -1,1 +1,1 @@
-val call_fn: Noze.t -> Val.fn -> Val.t array -> Val.t
+val call_fn: Noze.t -> N.fn -> N.v array -> N.v

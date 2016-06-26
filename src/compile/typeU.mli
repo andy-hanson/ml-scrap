@@ -1,18 +1,21 @@
-open Type
+open N
 
-val name: t -> Sym.t
+val name: ty -> Sym.t
 
-val is_subtype: t -> t -> bool
+val is_subtype: ty -> ty -> bool
 
-val ft: Sym.t -> t -> parameter array -> ft
-val t_ft: Sym.t -> t -> parameter array -> t
-val property: Sym.t -> t -> property
-val t_rc: Sym.t -> property array -> t
+val ft: Sym.t -> ty -> parameter array -> ft
+val t_ft: Sym.t -> ty -> parameter array -> ty
+val t_rc: Sym.t -> property array -> ty
 
+val arity: ty -> int
 val ft_arity: ft -> int
-val rc_arity: rc -> int
+val rt_arity: rt -> int
 
+(*TODO: NOut module*)
 val output_property: (property, 'o) OutputU.printer
 val output_ft: (ft, 'o) OutputU.printer
-val output_rc: (rc, 'o) OutputU.printer
-val output: (t, 'o) OutputU.printer
+val output_ct: (ct, 'o) OutputU.printer
+val output_fn_type: (fn_type, 'o) OutputU.printer
+val output_rc: (rt, 'o) OutputU.printer
+val output: (ty, 'o) OutputU.printer

@@ -1,44 +1,57 @@
-let rec f(t: Type.t)(v: Val.t): bool =
+open N
+
+let rec f(t: ty)(v: v): bool =
 	match t with
-	| Type.Any ->
+	| Any ->
 		true
-	| Type.Bool ->
+	| TBool ->
 		begin match v with
-		| Val.Bool _ -> true
+		| Bool _ -> true
 		| _ -> false
 		end
-	| Type.Float ->
+	| TFloat ->
 		begin match v with
-		| Val.Float _ -> true
+		| Float _ -> true
 		| _ -> false
 		end
-	| Type.Int ->
+	| TInt ->
 		begin match v with
-		| Val.Int _ -> true
+		| Int _ -> true
 		| _ -> false
 		end
-	| Type.Void ->
+	| TVoid ->
+		v = Void
+	| N.Ft _ ->
 		begin match v with
-		| Val.Void -> true
-		| _ -> false
-		end
-	| Type.Ft _ ->
-		begin match v with
-		| Val.Fn _->
+		| Fn _ ->
 			TypeU.is_subtype t (ValU.type_of v)
-		| Val.BuiltinFn {Val.typ; _} ->
-			TypeU.is_subtype t (Type.Ft typ)
-		| _ ->
+		| BuiltinFn {builtin_ft; _} ->
+			TypeU.is_subtype t @@ Ft builtin_ft
+		| World ->
+			raise U.TODO
+		| Bool _ | Int _ | Float _ | Void | Rc _ ->
 			false
 		end
-	| Type.Rc rc ->
+	| Rt rc ->
 		begin match v with
-		| Val.Rc(val_rc, _) -> rc == val_rc
+		| Rc(val_rc, _) -> rc == val_rc
 		| _ -> false
 		end
-	| Type.Un {Type.types; _} ->
-		ArrayU.exists types (fun t -> f t v)
+	| Un {utypes; _} ->
+		ArrayU.exists utypes @@ fun t -> f t v
+	| Ct {ct_cases = _; _} as ct ->
+		(*TODO: v must be a Fn or BuiltinFn whose type is_subtype, much like the Ft case (so share code!)*)
+		begin match v with
+		| Fn _ ->
+			raise U.TODO
+		| BuiltinFn _ ->
+			raise U.TODO
+		| World ->
+			TypeU.is_subtype ct BuiltinType.world
+		| Bool _ | Int _ | Float _ | Void | Rc _ ->
+			false
+		end
 
-let check(t: Type.t)(v: Val.t): unit =
+let check(t: ty)(v: v): unit =
 	if not (f t v) then
-		failwith (OutputU.out_to_string "Expected a %a, got %a" TypeU.output t ValU.output v)
+		failwith @@ OutputU.out_to_string "Expected a %a, got %a" TypeU.output t ValU.output v

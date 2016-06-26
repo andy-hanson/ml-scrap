@@ -27,7 +27,7 @@ let read_char(l: t): char =
 	end
 
 let skip(l: t): unit =
-	ignore (read_char l)
+	ignore @@ read_char l
 
 let skip_while(l: t)(pred: char -> bool): unit =
 	while pred l.peek do
@@ -35,7 +35,7 @@ let skip_while(l: t)(pred: char -> bool): unit =
 	done
 
 let skip_newlines(l: t): unit =
-	skip_while l ((=) '\n')
+	skip_while l @@ (=) '\n'
 
 let make(warn: Loc.t -> CompileError.message -> unit)(source: BatIO.input): t =
 	let l = {
@@ -56,7 +56,7 @@ let rec next({warn; _} as l: t): Token.t =
 
 	let buffer_while(b: BatBuffer.t)(cond: char -> bool): unit =
 		while cond l.peek do
-			BatBuffer.add_char b (read_char())
+			BatBuffer.add_char b @@ read_char()
 		done in
 
 	let take_number(negate: bool)(fst: char): Token.t =
@@ -72,12 +72,12 @@ let rec next({warn; _} as l: t): Token.t =
 				let s = BatBuffer.contents b in
 				let f = float_of_string s in
 				let f = if negate then -.f else f in
-				Val.Float f
+				N.Float f
 			end else
 				let s = BatBuffer.contents b in
 				let i = int_of_string s in
 				let i = if negate then -i else i in
-				Val.Int i in
+				N.Int i in
 		Token.Literal value in
 
 	let take_symbol(fst: char)(pred: char -> bool)(make_token: Sym.t -> Token.t): Token.t =
@@ -163,17 +163,17 @@ let rec next({warn; _} as l: t): Token.t =
 
 	| 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm'
 	| 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' ->
-		take_symbol ch CharU.is_name_char (fun s -> Token.Name s)
+		take_symbol ch CharU.is_name_char @@ fun s -> Token.Name s
 
 	| 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'
 	| 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z' ->
-		take_symbol ch CharU.is_name_char (fun s -> Token.TypeName s)
+		take_symbol ch CharU.is_name_char @@ fun s -> Token.TypeName s
 
 	| '+' | '*' | '/' | '^' | '?' | '<' | '>' | '=' ->
 		take_operator ch
 
 	| ch ->
-		CompileErrorU.raise (Loc.single_character l.pos) (CompileError.UnrecognizedCharacter ch)
+		CompileErrorU.raise (Loc.single_character l.pos) @@ CompileError.UnrecognizedCharacter ch
 
 let pos_next l =
 	let p = pos l in

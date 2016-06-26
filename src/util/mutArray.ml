@@ -2,6 +2,7 @@ type 'a t = 'a BatDynArray.t
 
 let create(): 'a t =
 	BatDynArray.create()
+let of_array = BatDynArray.of_array
 
 let get = BatDynArray.get
 let last = BatDynArray.last
@@ -20,7 +21,7 @@ let iter(a: 'a t)(f: 'a -> unit): unit =
 
 
 let slice(a: 'a t)(start: int)(length: int): 'a array =
-	Array.init length (fun i -> get a (start + i))
+	Array.init length @@ fun i -> get a (start + i)
 
 let tail(a: 'a t): 'a array =
-	slice a 1 (length a - 1)
+	slice a 1 @@ length a - 1

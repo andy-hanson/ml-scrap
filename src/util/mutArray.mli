@@ -1,6 +1,7 @@
 type 'a t
 
 val create: unit -> 'a t
+val of_array: 'a array -> 'a t
 
 val get: 'a t -> int -> 'a
 val last: 'a t -> 'a

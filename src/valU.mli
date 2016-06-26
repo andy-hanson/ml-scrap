@@ -1,21 +1,21 @@
-open Val
+open N
 
-val equal: t -> t -> bool
+val equal: v -> v -> bool
 
-val type_of: t -> Type.t
+val type_of: v -> ty
 
 exception CastFail
 
-val bool_of: t -> bool
-val int_of: t -> int
-val float_of: t -> float
+val bool_of: v -> bool
+val int_of: v -> int
+val float_of: v -> float
 
-val fn_info_name: fn_info -> Sym.t
 val fn_name: fn -> Sym.t
 val builtin_fn_name: builtin_fn -> Sym.t
 val fn_arity: fn -> int
+(*val cn_name: cn -> Sym.t*)
 
-val output: (t, 'o) OutputU.printer
+val output: (v, 'o) OutputU.printer
 
 val output_fn: (fn, 'o) OutputU.printer
 val output_bytecode: (bytecode, 'o) OutputU.printer

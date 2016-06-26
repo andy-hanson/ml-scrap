@@ -1,25 +1,25 @@
 type t
 
-val create: Val.fn -> t
+val create: N.fn -> N.v array -> t
 
-val peek: t -> Val.t
-val pop: t -> Val.t
-val pop_n: t -> int -> Val.t array
-val push: t -> Val.t -> unit
+val peek: t -> N.v
+val pop: t -> N.v
+val pop_n: t -> int -> N.v array
+val push: t -> N.v -> unit
 val un_let: t -> unit
 
-val cur_fn: t -> Val.fn
-val cur_code: t -> Val.bytecode
+val cur_fn: t -> N.fn
+val cur_code: t -> N.bytecode
 
 val goto: t -> int -> unit
 val goto_next: t -> unit
 
-val push_fn: t -> Val.fn -> unit
+val push_fn: t -> N.fn -> unit
 (* Returns true iff there is nothing left.*)
 val pop_fn: t -> bool
 
 (*Takes *relative* index*)
-val load: t -> int -> Val.t
+val load: t -> int -> N.v
 
 val assert_data_stack_back_to_function_start: t -> unit
 

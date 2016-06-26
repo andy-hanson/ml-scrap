@@ -1,2 +1,3 @@
-val print: Type.t
-val all: Type.t array
+val world: N.ty
+val print: N.ty
+val all: N.ty array

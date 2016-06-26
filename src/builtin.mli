@@ -1,4 +1,3 @@
-type t = { name: Sym.t; value: Val.t }
+type t = { name: Sym.t; value: N.v }
 val cond: t
-val print: t
 val all: t array

@@ -1,1 +1,1 @@
-val f: FileIO.file_name -> Bind.t -> TypeOfAst.t -> TypeCheck.t -> Ast.modul -> Val.modul
+val f: Bind.t -> TypeOfAst.t -> TypeCheck.t -> Ast.modul -> unit

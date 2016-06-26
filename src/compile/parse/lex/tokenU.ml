@@ -2,14 +2,15 @@ open Token
 
 let keyword_to_string(keyword: t): string =
 	match keyword with
+	| Equals -> "="
 	| Case -> "case"
 	| Colon -> ":"
 	| Fn -> "fn"
-	| Equals -> "="
-	| Ifc -> "ifc"
-	| Rc -> "rc"
+	| Cn -> "cn"
+	| Rt -> "rt"
 	| Un -> "un"
 	| Ft -> "ft"
+	| Ct -> "ct"
 	| Indent -> "indent"
 	| Dedent -> "dedent"
 	| Newline -> "newline"
@@ -29,4 +30,4 @@ let output(out: 'o OutputU.t)(token: t) =
 	| Literal value ->
 		ValU.output out value
 	| k ->
-		OutputU.str out (keyword_to_string k)
+		OutputU.str out @@ keyword_to_string k
