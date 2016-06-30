@@ -1,26 +1,28 @@
-type t
+open N
 
-val create: N.fn -> N.v array -> t
+val create: declared_fn -> v array -> interpreter_state
 
-val peek: t -> N.v
-val pop: t -> N.v
-val pop_n: t -> int -> N.v array
-val push: t -> N.v -> unit
-val un_let: t -> unit
+val peek: interpreter_state -> v
+val pop: interpreter_state -> v
+val pop_n: interpreter_state -> int -> v array
+val push: interpreter_state -> v -> unit
+val un_let: interpreter_state -> unit
 
-val cur_fn: t -> N.fn
-val cur_code: t -> N.bytecode
+val cur_fn: interpreter_state -> declared_fn
+val cur_code: interpreter_state -> bytecode
+val cur_loc: interpreter_state -> Loc.t
 
-val goto: t -> int -> unit
-val goto_next: t -> unit
+val goto: interpreter_state -> int -> unit
+val goto_next: interpreter_state -> unit
 
-val push_fn: t -> N.fn -> unit
+val push_fn: interpreter_state -> declared_fn -> unit
 (* Returns true iff there is nothing left.*)
-val pop_fn: t -> bool
+val pop_fn: interpreter_state -> bool
 
 (*Takes *relative* index*)
-val load: t -> int -> N.v
+val load: interpreter_state -> int -> v
 
-val assert_data_stack_back_to_function_start: t -> unit
+val call_builtin: interpreter_state -> builtin_fn -> unit
+val call_lambda: interpreter_state -> v -> unit
 
-val debug_print: Noze.t -> FileIO.file_name -> t -> unit
+val assert_data_stack_back_to_function_start: interpreter_state -> unit

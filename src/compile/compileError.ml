@@ -28,5 +28,5 @@ type message =
 	| NotExpectedType of N.ty * N.ty (* expected * actual *)
 	| NumArgs of int * int (* n_params * n_args *)
 
-type warning = Warning of Loc.t * message
-exception T of warning
+type t = Loc.t * message
+exception Exn of t

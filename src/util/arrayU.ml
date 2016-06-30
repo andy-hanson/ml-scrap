@@ -50,30 +50,25 @@ let filter(a: 'a array)(f: 'a -> bool): 'a array =
 let filter_map(a: 'a array)(f: 'a -> 'b option): 'b array =
 	BatArray.filter_map f a
 
+(*let find_idx(a: 'a array)(pred: 'a -> bool): int option =
+	try
+		Some(BatArray.findi pred a)
+	with Not_found ->
+		None*)
+
 let find(a: 'a array)(pred: 'a -> bool): 'a option =
 	try Some (BatArray.find pred a) with Not_found -> None
 
-let find_map(a: 'a array)(f: 'a -> 'b option): 'b =
-	let len = Array.length a in
-	let rec recur idx =
-		if idx = len then
-			raise Not_found
+let find_map(a: 'a array)(f: 'a -> 'b option): 'b option =
+	let rec recur(idx: int): 'b option =
+		if idx = Array.length a then
+			None
 		else
-			match f (Array.get a idx) with
-			| Some b ->
-				b
-			| None ->
-				recur (idx + 1) in
+			OpU.or_try (f a.(idx)) @@ fun () -> recur @@ idx + 1 in
 	recur 0
 
 let exists(a: 'a array)(f: 'a -> bool): bool =
 	Array.exists f a
-
-let for_all_zip(a: 'a array)(b: 'b array)(pred: 'a -> 'b -> bool): bool =
-	assert (Array.length a = Array.length b);
-	let rec recur(i: int) =
-		i = Array.length a || (pred (Array.get a i) (Array.get b i)) && recur (i + 1) in
-	recur 0
 
 
 let fold(start: 'b)(a: 'a array)(f: 'b -> 'a -> 'b): 'b =
@@ -116,11 +111,6 @@ let build_until_none(f: unit -> 'a option): 'a array =
 		recur();
 	end
 
-(*TODO: We only want to remove one! So don't filter!*)
-let try_remove(a: 'a array)(element: 'a): 'a array option =
-	let res = filter a ((!=) element) in
-	if (Array.length res = Array.length a) then None else Some res
-
 let try_remove_where(a: 'a array)(pred: 'a -> bool): ('a * 'a array) option =
 	let out: 'a array = Array.make (Array.length a - 1) a.(0) in
 	let rec recur(i: int) =
@@ -135,4 +125,15 @@ let try_remove_where(a: 'a array)(pred: 'a -> bool): ('a * 'a array) option =
 			out.(i) <- a.(i);
 			recur (i + 1)
 		end in
-	recur 0;
+	recur 0
+
+let try_remove(a: 'a array)(element: 'a): 'a array option =
+	OpU.map (try_remove_where a @@ (=) element) @@ fun (_, remaining) -> remaining
+
+let partial(a: 'a array)(b: 'b array)(iter: 'a -> 'b -> unit): 'a array =
+	let n_remaining = Array.length a - Array.length b in
+	assert (n_remaining >= 0);
+	for i = 0 to Array.length b - 1 do
+		iter a.(n_remaining + i) b.(i)
+	done;
+	Array.sub a 0 n_remaining

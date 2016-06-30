@@ -1,6 +1,7 @@
 type t
 
 val of_string: string -> t
+val of_buffer: BatBuffer.t -> t
 val string_of: t -> string
 
 val output: 'o OutputU.t -> t -> unit

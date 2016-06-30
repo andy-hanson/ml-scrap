@@ -6,37 +6,37 @@ let create(io: FileIO.t): t =
 	{io}
 
 (* This reads the file again every time!*)
-let translate_loc({io; _}: t)(file_name: FileIO.file_name)(loc: Loc.t): Loc.lc_loc =
-	io#read file_name @@ fun source -> Loc.lc_loc source loc
+let translate_loc({io; _}: t)(path: FileIO.path)(loc: Loc.t): Loc.lc_loc =
+	io#read path @@ fun source -> Loc.lc_loc source loc
 
 let catch_errors = true
 
-let do_work(noze: t)(file_name: FileIO.file_name)(f: CompileContext.t -> 'a): 'a =
-	let emit_warning w = raise @@ CompileError.T w in
+let do_work(noze: t)(path: FileIO.path)(f: CompileContext.t -> 'a): 'a =
+	let emit_warning w = raise @@ CompileError.Exn w in
 	let ctx = CompileContext.make emit_warning in
 	if catch_errors then
 		try
 			f ctx
-		with CompileError.T CompileError.Warning(loc, message) ->
-			let lc_loc = translate_loc noze file_name loc in
+		with CompileError.Exn(loc, message) ->
+			let lc_loc = translate_loc noze path loc in
 			OutputU.printf "Compile error at %s %a:\n%a\n"
-				file_name
+				path
 				Loc.output_lc_loc lc_loc
 				CompileErrorU.output_message message;
 			exit 1
 	else
 		f ctx
 
-let lex({io; _} as noze: t)(file_name: FileIO.file_name): (Token.t * Loc.t) array =
-	do_work noze file_name @@ Compile.lex io file_name
+let lex({io; _} as noze: t)(path: FileIO.path): (Token.t * Loc.t) array =
+	do_work noze path @@ Compile.lex io path
 
-let parse({io; _} as noze: t)(file_name: FileIO.file_name): Ast.modul =
-	do_work noze file_name begin fun ctx ->
-		io#read file_name @@ Parse.f ctx
+let parse({io; _} as noze: t)(path: FileIO.path): Ast.modul =
+	do_work noze path begin fun ctx ->
+		io#read path @@ Parse.f ctx
 	end
 
-let compile({io; _} as noze: t)(file_name: FileIO.file_name): N.modul =
-	do_work noze file_name @@ Compile.f io file_name
+let compile({io; _} as noze: t)(path: FileIO.path): N.modul =
+	do_work noze path @@ Compile.f io path
 
-let lc_loc({io; _}: t)(file_name: FileIO.file_name)(loc: Loc.t): Loc.lc_loc =
-	io#read file_name @@ fun source -> Loc.lc_loc source loc
+let lc_loc({io; _}: t)(path: FileIO.path)(loc: Loc.t): Loc.lc_loc =
+	io#read path @@ fun source -> Loc.lc_loc source loc

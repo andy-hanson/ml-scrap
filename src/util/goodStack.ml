@@ -20,6 +20,9 @@ let empty(gs: 'a t): bool =
 let push(gs: 'a t)(value: 'a): unit =
 	MutArray.add gs value
 
+let push_many(gs: 'a t)(values: 'a array): unit =
+	ArrayU.iter values @@ push gs
+
 let peek(gs: 'a t): 'a =
 	if MutArray.empty gs then
 		raise EmptyStack

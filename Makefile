@@ -34,6 +34,12 @@ native: clib
 native-fast: clib
 	$(OCB) $(OCB_NATIVE_FLAGS) $(OCB_NATIVE_FAST_FLAGS) main.native
 
+test: build-test run-test
+build-test: clib
+	$(OCB) $(OCB_BYTE_FLAGS) test.byte
+run-test: clib
+	./test.byte
+
 profile: clib
 	$(OCB) -tag profile main.native
 

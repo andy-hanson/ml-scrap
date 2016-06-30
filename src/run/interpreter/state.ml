@@ -1,94 +1,85 @@
-(*TODO: clean up this file*)
+open N
 
-type call_stack_entry = {
-	fn: N.fn;
-	(* The fn's code *)
-	code: N.bytecode array;
-	locs: CodeLocs.t;
-	(* Index of the first local on the stack. Parameters come before this. *)
-	stack_start_index: int;
-	(* Index where we were in this fn before entering another one *)
-	mutable code_idx: int
-}
-let entry_of({N.code; _} as fn: N.fn)(cur_stack_index: int): call_stack_entry =
+let entry_of({code; _} as cse_fn: declared_fn)(cur_stack_index: int): call_stack_entry =
 	{
-		fn;
-		code = code.N.bytecodes;
-		locs = code.N.locs;
+		cse_fn;
+		cse_code = code.bytecodes;
+		cse_locs = code.locs;
 		stack_start_index = cur_stack_index;
 		code_idx = 0
 	}
 
-type t = {
-	data_stack: N.v GoodStack.t;
-	call_stack: call_stack_entry GoodStack.t;
-	(* Currently executing fn. *Not* stored on stack. *)
-	mutable cur: call_stack_entry;
-}
-
-let create(fn: N.fn)(args: N.v array): t =
+let create(fn: declared_fn)(args: v array): interpreter_state =
 	{
 		data_stack = GoodStack.of_array args;
 		call_stack = GoodStack.create();
 		cur = entry_of fn @@ Array.length args
 	}
 
-let peek({data_stack; _}: t): N.v =
+let peek({data_stack; _}: interpreter_state): v =
 	GoodStack.peek data_stack
 
-let pop({data_stack; _}: t): N.v =
+let pop({data_stack; _}: interpreter_state): v =
 	GoodStack.pop data_stack
 
-let pop_n({data_stack; _}: t)(n: int): N.v array =
+let pop_n({data_stack; _}: interpreter_state)(n: int): v array =
 	GoodStack.pop_n data_stack n
 
-let push({data_stack; _}: t)(value: N.v): unit =
+let push({data_stack; _}: interpreter_state)(value: v): unit =
 	GoodStack.push data_stack value
+let push_many({data_stack; _}: interpreter_state)(values: v array): unit =
+	GoodStack.push_many data_stack values
 
-let un_let({data_stack; _}: t): unit =
+let un_let({data_stack; _}: interpreter_state): unit =
 	GoodStack.un_let data_stack
 
-let cur_fn({cur = {fn; _}; _}: t): N.fn =
-	fn
+let cur_fn({cur = {cse_fn; _}; _}: interpreter_state): declared_fn =
+	cse_fn
 
-let cur_code({cur = {code; code_idx; _}; _}: t): N.bytecode =
-	code.(code_idx)
+let cur_code({cur = {cse_code; code_idx; _}; _}: interpreter_state): bytecode =
+	cse_code.(code_idx)
 
-let cur_loc({cur = {code_idx; locs; _}; _}: t): Loc.t =
-	CodeLocs.get locs code_idx
+let cur_loc({cur = {code_idx; cse_locs; _}; _}: interpreter_state): Loc.t =
+	CodeLocs.get cse_locs code_idx
 
-let goto({cur; _}: t)(idx: int): unit =
+let goto({cur; _}: interpreter_state)(idx: int): unit =
 	cur.code_idx <- idx
-let goto_next({cur = {code_idx; _}; _} as state: t): unit =
+let goto_next({cur = {code_idx; _}; _} as state: interpreter_state): unit =
 	goto state @@ code_idx + 1
 
-let push_fn({call_stack; cur; data_stack; _} as state: t)(fn: N.fn): unit =
+let push_fn({call_stack; cur; data_stack; _} as state: interpreter_state)(fn: declared_fn): unit =
 	GoodStack.push call_stack cur;
-	state.cur <- entry_of fn (GoodStack.size data_stack)
+	state.cur <- entry_of fn @@ GoodStack.size data_stack
 
-let pop_fn({call_stack; _} as state: t): bool =
+let pop_fn({call_stack; _} as state: interpreter_state): bool =
 	try
 		state.cur <- GoodStack.pop call_stack;
 		false
 	with GoodStack.EmptyStack ->
 		true
 
-let load({cur = {stack_start_index; _}; data_stack; _}: t)(relative_index: int): N.v =
+let load({cur = {stack_start_index; _}; data_stack; _}: interpreter_state)(relative_index: int): v =
 	let index = stack_start_index + relative_index in
 	GoodStack.get data_stack index
 
-let assert_data_stack_back_to_function_start({cur = {stack_start_index; _}; data_stack; _}: t): unit =
-	Assert.equal (GoodStack.size data_stack) stack_start_index OutputU.output_int
+let call_builtin(state: interpreter_state)({exec; _}: builtin_fn): unit =
+	exec state
 
-let debug_print
-	(noze: Noze.t)
-	(file_name: FileIO.file_name)
-	({cur = {stack_start_index; _}; data_stack; _} as state: t): unit =
-	OutputU.printf "Stack: %a (start: %d)\n"
-		(GoodStack.output_with_max 3 ValU.output) data_stack
-		stack_start_index;
-	let lc_loc = Noze.lc_loc noze file_name (cur_loc state) in
-	OutputU.printf "Executing: %a at %s:%a\n"
-		ValU.output_bytecode (cur_code state)
-		file_name
-		Loc.output_lc_loc lc_loc
+let call_lambda(state: interpreter_state)(called: v): unit =
+	begin match called with
+	| Primitive _ | Rc _ ->
+		assert false
+	| Fn f ->
+		let rec call_fn = function
+			| BuiltinFn b ->
+				call_builtin state b
+			| DeclaredFn fn ->
+				push_fn state fn
+			| PartialFn {fn; partial_args} ->
+				push_many state partial_args;
+				call_fn fn in
+		call_fn f
+	end
+
+let assert_data_stack_back_to_function_start({cur = {stack_start_index; _}; data_stack; _}: interpreter_state): unit =
+	Assert.equal (GoodStack.size data_stack) stack_start_index OutputU.output_int

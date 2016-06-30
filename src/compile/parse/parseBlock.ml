@@ -2,7 +2,18 @@ type ctx =
 	| Line
 	| ExprOnly (* Like Line, but forbid an `=` because we're already in one *)
 	| Paren (* Parse an expression and expect a ')' *)
+	| Quote (* Look for a QuoteEnd *)
 	| CaseHead
+
+(* For debugging...*)
+let output_ctx(out: 'o OutputU.t)(ctx: ctx): unit =
+	OutputU.str out begin match ctx with
+	| Line -> "Line"
+	| ExprOnly -> "ExprOnly"
+	| Paren -> "Paren"
+	| Quote -> "Quote"
+	| CaseHead -> "CaseHead"
+	end
 
 type next =
 	| NewlineAfterEquals of Ast.local_declare
@@ -20,9 +31,13 @@ let parse_single(l: Lexer.t)(start: Loc.pos)(t: Token.t): Ast.expr =
 		| _ ->
 			ParseU.unexpected start l t
 
+(*TODO: neater*)
 let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx: ctx): Ast.expr * next =
 	let parts: Ast.expr MutArray.t = MutArray.create() in
 	let add_part = MutArray.add parts in
+
+	let any_so_far(): bool =
+		not @@ MutArray.empty parts in
 
 	let finish_regular(): Ast.expr =
 		let loc = Lexer.loc_from l expr_start in
@@ -35,6 +50,15 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			let head = MutArray.get parts 0 in
 			let tail = MutArray.tail parts in
 			Ast.Call(loc, head, tail) in
+
+	let dot_dot(left: Ast.expr): Ast.expr * next =
+		let right_start, next = Lexer.pos_next l in
+		match next with
+		| Token.Colon ->
+			raise U.TODO
+		| _ ->
+			let right, next = parse_expr_with_next l right_start next ctx in
+			Ast.Partial(Lexer.loc_from l expr_start, left, [| right |]), next in
 
 	let rec recur(start: Loc.pos)(next: Token.t) =
 		let unexpected() = ParseU.unexpected start l next in
@@ -69,11 +93,36 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 				CompileErrorU.raise (Lexer.loc_from l start) CompileError.PrecedingEquals
 			end
 
+		| Token.DotDot ->
+				let left = finish_regular() in
+				dot_dot left
+
 		| Token.Operator name ->
-			let left = finish_regular() in
 			let op = Ast.ExprAccess(Lexer.loc_from l start, name) in
-			let right, next = parse_expr l ctx in
-			Ast.Call(Lexer.loc_from l expr_start, op, [|left; right|]), next
+			if any_so_far() then begin
+				let left = finish_regular() in
+				let right, next = parse_expr l ctx in
+				Ast.Call(Lexer.loc_from l expr_start, op, [| left; right |]), next
+			end else begin
+				let right_start, next = Lexer.pos_next l in
+				match ctx with
+					| Line | Quote | CaseHead -> unexpected()
+					| ExprOnly ->
+						begin match next with
+						| Token.DotDot ->
+							dot_dot op
+						| Token.Newline | Token.Indent | Token.Dedent ->
+							raise U.TODO
+						| x -> ParseU.unexpected right_start l x
+						end
+					| Paren ->
+						begin match next with
+						| Token.Rparen ->
+							(* (+) refers to the function itself. *)
+							op, CtxEnded
+						| x -> ParseU.unexpected right_start l x
+						end
+				end
 
 		| Token.Lparen ->
 			let a, next = parse_expr l Paren in
@@ -91,7 +140,9 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 		| Token.Newline | Token.Dedent ->
 			finish_regular(), begin match ctx with
 			| Line | ExprOnly -> if next = Token.Newline then NewlineAfterStatement else CtxEnded
-			| _ -> unexpected()
+			| _ ->
+				OutputU.printf "%a\n" output_ctx ctx; (*TODO:KILL*)
+				unexpected()
 			end
 
 		| Token.Indent ->
@@ -107,12 +158,33 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 				unexpected()
 			end
 
+		| Token.QuoteStart s ->
+			add_part (parse_quote l start s);
+			let start, next = Lexer.pos_next l in
+			recur start next
+
+		| Token.RCurly ->
+			finish_regular(), begin match ctx with
+			| Quote -> CtxEnded
+			| _ -> unexpected()
+			end
+
 		| x ->
-			add_part @@ parse_single l start x;
+			add_part (parse_single l start x);
 			let start, next = Lexer.pos_next l in
 			recur start next in
 
 	recur expr_start next
+
+and parse_quote(l: Lexer.t)(start: Loc.pos)(head: string): Ast.expr =
+	let parts =
+		ArrayU.build_loop begin fun () ->
+			let interpolated, next = parse_expr l Quote in
+			assert (next = CtxEnded);
+			let s, is_done = Lexer.next_quote_part l in
+			(interpolated, s), not is_done
+		end in
+	Ast.Quote(Lexer.loc_from l start, head, parts)
 
 and parse_expr(l: Lexer.t)(ctx: ctx): Ast.expr * next =
 	let start, next = Lexer.pos_next l in

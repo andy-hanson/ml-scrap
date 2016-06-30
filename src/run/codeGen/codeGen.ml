@@ -3,15 +3,21 @@ module W = CodeWriter
 let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 	match expr with
 	| Ast.ExprAccess((loc, _) as access) ->
-		begin match W.binding w access with
-		| Binding.Builtin {Builtin.value; _} ->
-			W.const w loc value
-		| Binding.Declared _ ->
-			raise U.TODO
+		begin match Bind.binding (W.bindings w) access with
+		| Binding.Builtin v ->
+			W.const w loc v
+		| Binding.Declared decl ->
+			begin match TypeOfAst.ty_or_v_of_ast (W.type_of_ast w) decl with
+			| N.Ty _ ->
+				(*TODO: If it's a record, push a constructor fn*)
+				raise U.TODO
+			| N.V v ->
+				W.const w loc v
+			end
 		| Binding.Local l ->
-			W.write_local_access w loc l
+			W.access_local w loc l
 		| Binding.Parameter p ->
-			W.write_parameter_access w loc p
+			W.access_parameter w loc p
 		| Binding.BuiltinType _ ->
 			(*TODO: handle Rc case. codeGen should never raise compile errors.*)
 			CompileErrorU.raise loc CompileError.CantUseTypeAsValue
@@ -21,7 +27,10 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		write_call w loc called args
 
 	| Ast.Case(loc, cased, parts) ->
-		write_case w loc cased parts
+		write_expr w cased;
+		write_case_body w loc parts;
+		(* un-let the cased value *)
+		W.un_let w loc
 
 	| Ast.Let(loc, declare, value, expr) ->
 		W.set_local_depth w declare;
@@ -30,19 +39,28 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		W.un_let w loc
 
 	| Ast.Literal(loc, value) ->
-		W.const w loc value
+		W.const w loc @@ N.Primitive value
 
 	| Ast.Seq(loc, a, b) ->
 		write_expr w a;
 		W.drop w loc;
 		write_expr w b
 
+	| Ast.Partial(loc, f, args) ->
+		ArrayU.iter args (write_expr w);
+		write_expr w f;
+		W.partial w loc @@ Array.length args
+
+	| Ast.Quote(loc, start, parts) ->
+		ArrayU.iter parts (fun (expr, _) -> write_expr w expr);
+		let strings = Array.append [| start |] @@ ArrayU.map parts snd in
+		W.quote w loc strings
+
 and write_call(w: W.t)(call_loc: Loc.t)(called: Ast.expr)(args: Ast.expr array): unit =
 	let arity = Array.length args in
 	match called with
 	| Ast.ExprAccess((loc, _) as access) ->
-		(* Eager evaluation always writes args first. Cond is special. *)
-		let write_args() = ArrayU.iter args (write_expr w) in
+		let write_args() = ArrayU.iter args @@ write_expr w in
 		let call_lambda(write_access: unit -> unit): unit =
 			write_args();
 			write_access();
@@ -50,26 +68,29 @@ and write_call(w: W.t)(call_loc: Loc.t)(called: Ast.expr)(args: Ast.expr array):
 		let construct(rt: N.rt): unit =
 			write_args();
 			W.construct w loc rt arity in
-		begin match W.binding w access with
+		begin match Bind.binding (W.bindings w) access with
 		| Binding.Builtin b ->
 			write_builtin_call w loc b args
 		| Binding.Declared d ->
 			begin match d with
-			| Ast.DeclFn fn_ast ->
+			| Ast.Fn fn_ast ->
 				write_args();
-				let fn = W.fn_of_ast w fn_ast in
+				let fn = TypeOfAst.fn_of_ast (W.type_of_ast w) fn_ast in
 				W.call_static w loc fn arity
-			| Ast.DeclCn _cn_ast ->
+			| Ast.Cn _cn_ast ->
 				raise U.TODO
-			| Ast.DeclRt rt_ast ->
-				construct @@ W.rt_of_ast w rt_ast
-			| Ast.DeclUn _ | Ast.DeclFt _ | Ast.DeclCt _ ->
+			| Ast.Rt rt_ast ->
+				construct @@ TypeOfAst.rt_of_ast (W.type_of_ast w) rt_ast
+			| Ast.Un _ ->
 				assert false
+			| Ast.Ft _ | Ast.Ct _ ->
+				(* This is just a cast. *)
+				write_args()
 			end
 		| Binding.Local l ->
-			call_lambda @@ fun () -> W.write_local_access w loc l
+			call_lambda @@ fun () -> W.access_local w loc l
 		| Binding.Parameter p ->
-			call_lambda @@ fun () -> W.write_parameter_access w loc p
+			call_lambda @@ fun () -> W.access_parameter w loc p
 		| Binding.BuiltinType t ->
 			begin match t with
 			| N.Rt rt -> construct rt
@@ -81,19 +102,21 @@ and write_call(w: W.t)(call_loc: Loc.t)(called: Ast.expr)(args: Ast.expr array):
 		raise U.TODO
 
 (*TODO:inline*)
-and write_builtin_call(w: W.t)(loc: Loc.t)(b: Builtin.t)(args: Ast.expr array): unit =
-	if b == Builtin.cond then
-		write_cond w loc args
-	else begin
-		match b.Builtin.value with
-		| N.BuiltinFn(fn) ->
+and write_builtin_call(w: W.t)(loc: Loc.t)(b: N.v)(args: Ast.expr array): unit =
+	match b with
+	| N.Fn N.BuiltinFn(fn) ->
+		if fn == Builtin.cond_value then
+			write_cond w loc args
+		else if fn == Builtin.do_value then begin
+			assert (Array.length args = 1);
+			write_expr w args.(0);
+			W.call_lambda w loc 0
+		end else begin
 			(* Standard, eager fn call *)
 			ArrayU.iter args @@ write_expr w;
 			W.call_builtin w loc fn @@ Array.length args
-		| _ ->
-			(* Type checker should ensure only functions get here *)
-			assert false
-	end
+		end
+	| _ -> assert false
 
 and write_cond(w: W.t)(loc: Loc.t)(args: Ast.expr array): unit =
 	let condition, if_true, if_false = ArrayU.triple_of args in
@@ -113,19 +136,12 @@ and write_cond(w: W.t)(loc: Loc.t)(args: Ast.expr array): unit =
 
 	W.resolve_goto w goto_bottom
 
-(*TODO:INLINE*)
-and write_case(w: W.t)(loc: Loc.t)(cased: Ast.expr)(parts: Ast.case_part array): unit =
-	write_expr w cased;
-	write_case_body w loc parts;
-	(* un-let the cased value *)
-	W.un_let w loc
-
 and write_case_body(w: W.t)(loc: Loc.t)(parts: Ast.case_part array): unit =
 	let cases = W.case w loc @@ Array.length parts in
 
 	let bottom_placeholders = ArrayU.mapi parts begin fun idx (loc, test, result) ->
 		let Ast.AsTest(_, local, _) = test in
-		W.resolve_case_part w cases idx (W.type_of_local w local);
+		W.resolve_case_part w cases idx (TypeCheck.type_of_local (W.types w) local);
 		(* case does not pop anything from the stack, so that becomse the new local *)
 		W.set_local_depth w local;
 		write_expr w result;
@@ -143,14 +159,14 @@ let write_code(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(types: TypeCheck.t)(p
 	do_write w;
 	W.finish w loc
 
-let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(types: TypeCheck.t)(Ast.Modul(decls)): unit =
+let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(types: TypeCheck.t)(decls: Ast.modul): unit =
 	ArrayU.iter decls begin function
-		| Ast.DeclFn((_, _, (_, _, parameters), body) as fn_ast) ->
+		| Ast.Fn((_, _, (_, _, parameters), body) as fn_ast) ->
 			let fn = TypeOfAst.fn_of_ast type_of_ast fn_ast in
 			fn.N.code <- write_code bindings type_of_ast types parameters (AstU.expr_loc body) @@ fun w -> write_expr w body
-		| Ast.DeclCn((loc, _, _, parts) as cn_ast) ->
-			let cn = TypeOfAst.cn_of_ast type_of_ast cn_ast in
-			cn.N.code <- write_code bindings type_of_ast types [||] loc @@ fun w -> write_case_body w loc parts
-		| Ast.DeclRt _ | Ast.DeclUn _ | Ast.DeclFt _ | Ast.DeclCt _ ->
+		| Ast.Cn((loc, _, _, parts) as cn_ast) ->
+			let fn = TypeOfAst.cn_of_ast type_of_ast cn_ast in
+			fn.N.code <- write_code bindings type_of_ast types [||] loc @@ fun w -> write_case_body w loc parts
+		| Ast.Rt _ | Ast.Un _ | Ast.Ft _ | Ast.Ct _ ->
 			()
 	end;

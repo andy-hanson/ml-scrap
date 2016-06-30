@@ -29,10 +29,31 @@ let read_char(l: t): char =
 let skip(l: t): unit =
 	ignore @@ read_char l
 
-let skip_while(l: t)(pred: char -> bool): unit =
-	while pred l.peek do
-		skip l
-	done
+let skip_while({peek; source; _} as l: t)(pred: char -> bool): unit =
+	if pred peek then begin
+		(* Returns the first char that's not skipped. *)
+		let rec recur() =
+			let ch = BatIO.read source in
+			l.pos <- l.pos + 1;
+			if pred ch then recur() else ch in
+		l.peek <- try recur() with BatIO.No_more_input -> '\x00'
+	end
+
+let buffer_while({peek; source; _} as l: t)(b: BatBuffer.t)(pred: char -> bool): unit =
+	(*TODO: duplicate of above...*)
+	if pred peek then begin
+		BatBuffer.add_char b peek;
+		(* Returns the first char that's not skipped. *)
+		let rec recur() =
+			let ch = BatIO.read source in
+			l.pos <- l.pos + 1;
+			if pred ch then begin
+				BatBuffer.add_char b ch;
+				recur()
+			end else
+				ch in
+		l.peek <- try recur() with BatIO.No_more_input -> '\x00'
+	end
 
 let skip_newlines(l: t): unit =
 	skip_while l @@ (=) '\n'
@@ -48,16 +69,47 @@ let make(warn: Loc.t -> CompileError.message -> unit)(source: BatIO.input): t =
 	} in
 	U.returning l skip_newlines
 
+let next_quote_part(l: t): string * bool =
+	let b = BatBuffer.create 16 in
+	(*buffer_while b (fun ch -> ch != '"' && ch != '\n' && ch != '{');*)
+	let rec recur(): bool =
+		match read_char l with
+		| '"' ->
+			true
+		| '{' ->
+			false
+		| '\n' ->
+			raise U.TODO (*TODO: unterminated quote error*)
+		| '\\' ->
+			let ch = read_char l in
+			BatBuffer.add_char b begin match ch with
+			| '"' | '{' ->
+				ch
+			| 'n' ->
+				'\n'
+			| 't' ->
+				'\t'
+			| _ ->
+				raise U.TODO (*TODO: bad escape error*)
+			end;
+			recur()
+		| ch ->
+			BatBuffer.add_char b ch;
+			recur() in
+	let is_done = recur() in
+	BatBuffer.contents b, is_done
+
+(*TODO: inline*)
+let take_string(l: t): Token.t =
+	let str, is_done = next_quote_part l in
+	if is_done then Token.Literal(N.String str) else Token.QuoteStart(str)
+
 let rec next({warn; _} as l: t): Token.t =
 	let loc_from = loc_from l in
 	let read_char() = read_char l in
 	let skip() = skip l in
 	let skip_newlines() = skip_newlines l in
-
-	let buffer_while(b: BatBuffer.t)(cond: char -> bool): unit =
-		while cond l.peek do
-			BatBuffer.add_char b @@ read_char()
-		done in
+	let buffer_while = buffer_while l in
 
 	let take_number(negate: bool)(fst: char): Token.t =
 		let b = BatBuffer.create 4 in
@@ -84,8 +136,7 @@ let rec next({warn; _} as l: t): Token.t =
 		let b = BatBuffer.create 8 in
 		BatBuffer.add_char b fst;
 		buffer_while b pred;
-		let str = BatBuffer.contents b in
-		let name = Sym.of_string str in
+		let name = Sym.of_buffer b in
 		OpU.or_else (TokenU.keyword name) (fun () -> make_token name) in
 
 	let take_operator(ch: char): Token.t =
@@ -130,7 +181,12 @@ let rec next({warn; _} as l: t): Token.t =
 	let ch = read_char() in
 	match ch with
 	| '\x00' ->
-		Token.End
+		(* Remember to dedent before finishing *)
+		if l.indent != 0 then begin
+			l.indent <- l.indent - 1;
+			Token.Dedent
+		end else
+			Token.EOF
 
 	| ' ' ->
 		if l.peek = '\n' then
@@ -171,6 +227,18 @@ let rec next({warn; _} as l: t): Token.t =
 
 	| '+' | '*' | '/' | '^' | '?' | '<' | '>' | '=' ->
 		take_operator ch
+
+	| '.' ->
+		begin match read_char() with
+		| '.' -> Token.DotDot
+		| _ -> raise U.TODO (*TODO: error message*)
+		end
+
+	| '"' ->
+		take_string l
+
+	| '}' ->
+		Token.RCurly
 
 	| ch ->
 		CompileErrorU.raise (Loc.single_character l.pos) @@ CompileError.UnrecognizedCharacter ch

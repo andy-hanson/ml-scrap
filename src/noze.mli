@@ -2,8 +2,8 @@ type t
 
 val create: FileIO.t -> t
 
-val lex: t -> FileIO.file_name -> (Token.t * Loc.t) array
-val parse: t -> FileIO.file_name -> Ast.modul
-val compile: t -> FileIO.file_name -> N.modul
+val lex: t -> FileIO.path -> (Token.t * Loc.t) array
+val parse: t -> FileIO.path -> Ast.modul
+val compile: t -> FileIO.path -> N.modul
 
-val lc_loc: t -> FileIO.file_name -> Loc.t -> Loc.lc_loc
+val lc_loc: t -> FileIO.path -> Loc.t -> Loc.lc_loc

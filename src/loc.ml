@@ -33,12 +33,15 @@ let walk_to(source: BatIO.input)({line; column}: lc_pos)(distance_to_walk: int) 
 	let column = ref column in
 	U.do_times distance_to_walk begin fun () ->
 		(*Assuming pos is valid, this will not throw no_more_input*)
-		match BatIO.read source with
-		| '\n' ->
-			incr line;
-			column := 1
-		| _ ->
-			incr column
+		try
+			match BatIO.read source with
+			| '\n' ->
+				incr line;
+				column := 1
+			| _ ->
+				incr column
+		with BatIO.No_more_input ->
+			()
 	end;
 	{line = !line; column = !column}
 

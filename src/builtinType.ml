@@ -1,30 +1,15 @@
 open N
+(*open BuiltinTypeU*)
 
-let rc_n(name: string)(props: (string * ty) array): ty =
-	TypeU.t_rc (Sym.of_string name) @@ ArrayU.map props @@ fun (name, typ) -> Sym.of_string name, typ
-let rc1(name: string)(prop_name: string)(typ: ty): ty =
-	rc_n name [| prop_name, typ |]
+let action = TFn(Ft {
+	fname = Sym.of_string "Action";
+	return_type = t_void;
+	parameters = [||]
+})
 
-let print = rc1 "Print" "value" Any
-(*TODO: use a singleton (N.tySn)*)
-let read_line = rc1 "ReadLine" "value" TVoid
-
-(*TODO: helper in TypeU*)
-(*let world = N.tyFt {
-	N.tyfname = Sym.of_string "World";
-	N.tyreturn_type = N.tyVoid;
-	N.typarameters = [| Sym.of_string "msg", print |]
-}*)
-let world = Ct {
-	cname = Sym.of_string "World";
-	ct_cases = [|
-		TVoid, print
-	|]
-}
-
-let all = [|
-	(*TODO:Any*)
-	TBool; TFloat; TInt; TVoid;
-	print; read_line;
-	world
+let foo = [|
+	t_bool; t_float; t_int; t_string; t_void;
+	action
 |]
+
+let all = Array.append foo World.types

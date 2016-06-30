@@ -2,12 +2,11 @@ type access = Loc.t * Sym.t
 
 type typ =
 	| TypeAccess of access
-	(*GenericTypeInstance*)
+	(*| GenericTypeInstance*)
 
 type local_declare = Loc.t * Sym.t
 
 type case_test =
-	(* :foo Foo *)
 	| AsTest of Loc.t * local_declare * typ
 type case_part = Loc.t * case_test * expr
 
@@ -16,8 +15,13 @@ and expr =
 	| Call of Loc.t * expr * expr array
 	| Case of Loc.t * expr * case_part array
 	| Let of Loc.t * local_declare * expr * expr
-	| Literal of Loc.t * N.v
+	| Literal of Loc.t * N.primitive
 	| Seq of Loc.t * expr * expr
+	| Partial of Loc.t * expr * expr array
+	(* Head * (interpolation, text) pairs. For string with no interpolations, Literal is used instead. *)
+	| Quote of Loc.t * string * quote_part array
+
+and quote_part = expr * string
 
 type property = Loc.t * Sym.t * typ
 type parameter = Loc.t * Sym.t * typ
@@ -30,13 +34,11 @@ type un = Loc.t * Sym.t * typ array
 type ft = Loc.t * Sym.t * signature
 type ct = Loc.t * Sym.t * ((typ * typ) array)
 type decl =
-	(*TODO: take out 'Decl' from names*)
-	| DeclFn of fn
-	| DeclCn of cn
-	| DeclRt of rt
-	| DeclUn of un
-	| DeclFt of ft
-	| DeclCt of ct
+	| Fn of fn
+	| Cn of cn
+	| Rt of rt
+	| Un of un
+	| Ft of ft
+	| Ct of ct
 
-(*TODO: use tuple*)
-type modul = Modul of decl array
+type modul = decl array

@@ -15,10 +15,6 @@ module CtLookup: Lookup.S with type key = ct
 module LocalDeclareLookup: Lookup.S with type key = local_declare
 module ParameterLookup: Lookup.S with type key = parameter
 
-(* values * types *)
-val modul_split: decl array -> decl array * decl array
-val modul_fns: decl array -> fn array
-
 val output_access: (access, 'o) OutputU.printer
 val output_fn: (fn, 'o) OutputU.printer
 val output_typ: (typ, 'o) OutputU.printer

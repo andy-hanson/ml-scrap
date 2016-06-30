@@ -4,6 +4,9 @@ type ('a, 'o) printer = ('a, 'o) BatIO.printer
 
 let printf = Batteries.Printf.printf
 
+let dbg(value: 'a)(printer: ('a, 'o) printer): unit =
+	printf "\n!!! %a\n" printer value
+
 let out = Batteries.Printf.fprintf
 
 let str = BatIO.nwrite
@@ -32,3 +35,6 @@ let out_to_string = Batteries.Printf.sprintf2
 
 let output_int(o: 'o t)(i: int): unit =
 	out o "%d" i
+
+let output_string_escaped(o: 'o t)(s: string): unit =
+	out o "\"%s\"" @@ String.escaped s

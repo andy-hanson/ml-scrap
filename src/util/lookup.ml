@@ -106,3 +106,8 @@ module Make(K: Key): S with type key = K.t = struct
 		end;
 		OutputU.str out "}"
 end
+
+module Str: S with type key = string = Make(struct
+	include String
+	let hash = Hashtbl.hash
+end)

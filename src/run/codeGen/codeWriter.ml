@@ -49,13 +49,11 @@ let incr_stack_depth(w: t): unit =
 let set_code({code; _}: t)(code_idx: int)(bytecode: N.bytecode): unit =
 	MutArray.set code code_idx bytecode
 
-(*TODO: rename to access_local*)
-let write_local_access(w: t)(loc: Loc.t)(local: Ast.local_declare): unit =
+let access_local(w: t)(loc: Loc.t)(local: Ast.local_declare): unit =
 	write_bc w loc @@ N.Load(get_local_depth w local);
 	incr_stack_depth w
 
-(*TODO: rename to access_parameter*)
-let write_parameter_access({parameters; _} as w: t)(loc: Loc.t)(parameter: Ast.parameter): unit =
+let access_parameter({parameters; _} as w: t)(loc: Loc.t)(parameter: Ast.parameter): unit =
 	(*TODO: Array.find_index helper*)
 	let rec get_idx(i: int) = if parameters.(i) == parameter then i else get_idx (i + 1) in
 	let param_index = get_idx 0 in
@@ -67,40 +65,52 @@ let finish({code; locs; stack_depth; _} as w: t)(loc: Loc.t): N.code =
 	write_bc w loc N.Return;
 	{N.bytecodes = MutArray.to_array code; N.locs = CodeLocs.finish locs}
 
-let binding({bindings; _}: t)(access: Ast.access): Binding.t =
-	Bind.binding bindings access
-let fn_of_ast({type_of_ast; _}: t)(fn_ast: Ast.fn): N.fn =
-	TypeOfAst.fn_of_ast type_of_ast fn_ast
-let rt_of_ast({type_of_ast; _}: t)(rt_ast: Ast.rt): N.rt =
-	TypeOfAst.rt_of_ast type_of_ast rt_ast
-let type_of_local({types; _}: t)(local: Ast.local_declare): N.ty =
-	TypeCheck.type_of_local types local
-
+let bindings({bindings; _}: t): Bind.t =
+	bindings
+let type_of_ast({type_of_ast; _}: t): TypeOfAst.t =
+	type_of_ast
+let types({types; _}: t): TypeCheck.t =
+	types
 
 let un_let(w: t)(loc: Loc.t): unit =
 	write_bc w loc N.UnLet;
 	decr_stack_depth w
+
 let const(w: t)(loc: Loc.t)(value: N.v): unit =
 	write_bc w loc @@ N.Const value;
 	incr_stack_depth w
+
 let drop(w: t)(loc: Loc.t): unit =
 	write_bc w loc N.Drop;
 	decr_stack_depth w
+
 let call_builtin(w: t)(loc: Loc.t)(fn: N.builtin_fn)(arity: int): unit =
 	write_bc w loc @@ N.CallBuiltin fn;
 	apply_fn_to_stack_depth w arity
-let call_static(w: t)(loc: Loc.t)(fn: N.fn)(arity: int): unit =
+
+let call_static(w: t)(loc: Loc.t)(fn: N.declared_fn)(arity: int): unit =
 	write_bc w loc @@ N.CallStatic fn;
 	apply_fn_to_stack_depth w arity
+
 let construct(w: t)(loc: Loc.t)(rt: N.rt)(arity: int): unit =
 	write_bc w loc @@ N.Construct rt;
 	apply_fn_to_stack_depth w arity
+
 let call_lambda(w: t)(loc: Loc.t)(arity: int): unit =
 	write_bc w loc N.CallLambda;
 	(* Decr one for the lambda itself *)
 	decr_stack_depth w;
 	apply_fn_to_stack_depth w arity
 
+let partial(w: t)(loc: Loc.t)(arity: int): unit =
+	write_bc w loc @@ N.Partial arity;
+	(* Take 'arity' args off, and take the fn off, but push a partially applited function back. *)
+	w.stack_depth <- w.stack_depth - arity
+
+let quote(w: t)(loc: Loc.t)(strings: string array): unit =
+	write_bc w loc @@ N.Quote strings;
+	(* Pop n-1 args off the stack and push one back on. *)
+	w.stack_depth <- w.stack_depth - (Array.length strings - 2)
 
 type placeholder = code_idx
 let placeholder(w: t)(loc: Loc.t): placeholder =
@@ -112,6 +122,6 @@ let resolve_goto(w: t)(p: placeholder): unit =
 
 type cases = (N.ty * int) array
 let case(w: t)(loc: Loc.t)(n_parts: int): cases =
-	U.returning (Array.make n_parts (N.TVoid, -1)) @@ fun dummy_parts -> write_bc w loc @@ N.Case dummy_parts
+	U.returning (Array.make n_parts (N.t_void, -1)) @@ fun dummy_parts -> write_bc w loc @@ N.Case dummy_parts
 let resolve_case_part(w: t)(cases: cases)(part_index: int)(ty: N.ty): unit =
 	cases.(part_index) <- ty, next_code_idx w

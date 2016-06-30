@@ -1,14 +1,32 @@
-ct Converter
-	Float Int
-	Int Float
-cn my-cnv Converter
-	i Int
-		1.0
-	f Float
-		1
+|| fnc say-it Void n Int world World
+||	world: Print n
 
-fn my-cnv-b Float i Int
-	1.0
+|| fn main Void world World
+||	speaker = say-it .. world
+||	x = speaker .. 137
+||	do x
+||	do x
+||	do x
+
+fn main Int
+	incr = + .. 1
+	incr 1
+
+|| fn main Void world World
+||	world: Print "One plus one is {1 + 1} you know"
+
+
+|| ct Converter
+||	Float Int
+||	Int Float
+|| cn my-cnv Converter
+||	i Int
+||		1.0
+||	f Float
+||		1
+
+|| fn my-cnv-b Float i Int
+||	1.0
 
 || un IntOrFloat
 || 	Int
@@ -23,17 +41,17 @@ fn my-cnv-b Float i Int
 || 			|| float->int f
 || 			false
 
-|| fn print-factorials Void world World
-||	print-factorials-recur 0 world
-|| fn print-factorials-recur Void n Int world World
-||	cond (n == 10) (world: Print n)
-||		world: Print n
-||		print-factorials-recur (n + 1) world
+ct Printer
+	Void Print
 
+fn print-factorials Void world World
+	print-factorials-recur 0: Printer world
 
+fn print-factorials-recur Void n Int print Printer
+	cond (n == 10) (print: Print n)
+		print: Print n
+		print-factorials-recur (n + 1) print
 
-|| fn foo Float cnv Converter
-||	cnv 0
 
 
 || Problem: `cond` must be typed as Void <- Bool Void Void, so can't write factorial too...

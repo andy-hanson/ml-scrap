@@ -3,6 +3,7 @@ open Token
 let keyword_to_string(keyword: t): string =
 	match keyword with
 	| Equals -> "="
+	| DotDot -> ".."
 	| Case -> "case"
 	| Colon -> ":"
 	| Fn -> "fn"
@@ -11,23 +12,28 @@ let keyword_to_string(keyword: t): string =
 	| Un -> "un"
 	| Ft -> "ft"
 	| Ct -> "ct"
-	| Indent -> "indent"
-	| Dedent -> "dedent"
-	| Newline -> "newline"
-	| Lparen -> "("
-	| Rparen -> ")"
-	| End -> "EOF"
-	| Name _ | TypeName _ | Operator _  | Literal _ -> assert false
+	| _ -> assert false
 
 let keyword =
 	let name_to_keyword = Sym.Lookup.build_from_values Token.all_keywords (U.compose keyword_to_string Sym.of_string) in
 	Sym.Lookup.try_get name_to_keyword
 
 let output(out: 'o OutputU.t)(token: t) =
+	let o fmt = OutputU.out out fmt in
+	let s = OutputU.str out in
 	match token with
-	| Name s | TypeName s ->
+	| Name s | TypeName s | Operator s ->
 		OutputU.out out "'%a'" Sym.output s
+	| QuoteStart s ->
+		o "QuoteStart(\"%s\")" @@ String.escaped s
 	| Literal value ->
-		ValU.output out value
-	| k ->
-		OutputU.str out @@ keyword_to_string k
+		ValU.output_primitive out value
+	| Indent -> s "indent"
+	| Dedent -> s "dedent"
+	| Newline -> s "newline"
+	| Lparen -> s "("
+	| Rparen -> s ")"
+	| RCurly -> s "}"
+	| EOF -> s "EOF"
+	| keyword ->
+		s @@ keyword_to_string keyword

@@ -1,12 +1,13 @@
 open CompileError
 
 let raise(loc: Loc.t)(m: message): 'a =
-	raise @@ T(Warning(loc, m))
+	raise @@ Exn (loc, m)
 
 let check(cond: bool)(loc: Loc.t)(message: message): unit =
 	if not cond then
 		raise loc message
 
+(*TODO: This should just be its own module.*)
 let output_message(out: 'o OutputU.t)(m: message): unit =
 	let o fmt = OutputU.out out fmt in
 	match m with

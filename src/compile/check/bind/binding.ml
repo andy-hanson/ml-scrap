@@ -1,5 +1,5 @@
 type t =
-	| Builtin of Builtin.t
+	| Builtin of N.v
 	| Declared of Ast.decl
 	| Local of Ast.local_declare
 	| Parameter of Ast.parameter

@@ -2,11 +2,12 @@ type t =
 	| Name of Sym.t
 	| TypeName of Sym.t
 	| Operator of Sym.t
-	| Literal of N.v
+	| Literal of N.primitive
 	(* Keywords *)
 	| Equals
+	| DotDot
 	(* Expression keywords *)
- 	| Case
+	| Case
 	| Colon
 	(* Declaration keywords *)
 	| Fn
@@ -21,9 +22,9 @@ type t =
 	| Newline
 	| Lparen
 	| Rparen
-	(* Always emitted at start of lexing *)
-	(* | Start *)
-	| End
+	| RCurly
+	| QuoteStart of string
+	| EOF
 
 (* Just the keywords with text names *)
 let all_keywords: t array =

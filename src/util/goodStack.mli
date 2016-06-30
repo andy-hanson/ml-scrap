@@ -12,6 +12,7 @@ val size: 'a t -> int
 val empty: 'a t -> bool
 
 val push: 'a t -> 'a -> unit
+val push_many: 'a t -> 'a array -> unit
 
 val peek: 'a t -> 'a
 

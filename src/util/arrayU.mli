@@ -20,9 +20,8 @@ val filter: 'a array -> ('a -> bool) -> 'a array
 val filter_map: 'a array -> ('a -> 'b option) -> 'b array
 
 val find: 'a array -> ('a -> bool) -> 'a option
-val find_map: 'a array -> ('a -> 'b option) -> 'b
+val find_map: 'a array -> ('a -> 'b option) -> 'b option
 val exists: 'a array -> ('a -> bool) -> bool
-val for_all_zip: 'a array -> 'b array -> ('a -> 'b -> bool) -> bool
 
 val fold: 'b -> 'a array -> ('b -> 'a -> 'b) -> 'b
 
@@ -36,3 +35,5 @@ val build_until_none: (unit -> 'a option) -> 'a array
 
 val try_remove: 'a array -> 'a -> 'a array option
 val try_remove_where: 'a array -> ('a -> bool) -> ('a * 'a array) option
+
+val partial: 'a array -> 'b array -> ('a -> 'b -> unit) -> 'a array

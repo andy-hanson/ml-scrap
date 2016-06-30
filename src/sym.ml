@@ -1,20 +1,18 @@
-type t = {name: string}
+type t = {text: string}
 
-module Table = Lookup.Make(struct
-	include String
-	let hash = Hashtbl.hash
-end)
+let table: t Lookup.Str.t = Lookup.Str.create_with_size (1024 * 1024)
 
-let table: t Table.t = Table.create_with_size (1024 * 1024)
+let of_string(text: string): t =
+	Lookup.Str.get_or_update table text @@ fun () -> {text}
 
-let of_string(name: string): t =
-	Table.get_or_update table name @@ fun () -> {name}
+let of_buffer(buffer: BatBuffer.t): t =
+	of_string @@ BatBuffer.contents buffer
 
-let string_of({name}: t): string =
-	name
+let string_of({text}: t): string =
+	text
 
-let output(out: 'o OutputU.t)({name}: t): unit =
-	OutputU.str out name
+let output(out: 'o OutputU.t)({text}: t): unit =
+	OutputU.str out text
 
 let eq = (==)
 let hash(s: t) = Hashtbl.hash (string_of s)
@@ -24,7 +22,7 @@ type t' = t
 module Map = MapU.Make(struct
 	type t = t'
 	let compare s1 s2 =
-		if s1 == s2 then 0 else compare s1.name s2.name
+		if s1 == s2 then 0 else compare s1.text s2.text
 end)
 
 module Lookup = Lookup.Make(struct

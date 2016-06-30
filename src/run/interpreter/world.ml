@@ -1,3 +1,23 @@
+open N
+open BuiltinTypeU
+
+let print = rc1 "Print" "value" Any
+(*TODO use a singleton (N.tySn)*)
+let read_line = rc1 "ReadLine" "value" t_void
+
+let ct_world = Ct {
+	cname = Sym.of_string "World";
+	ct_cases = [|
+		t_void, print
+	|]
+}
+let ty_world = TFn ct_world
+
+let types = [|
+	print; read_line;
+	ty_world
+|]
+
 module RtLookup = Lookup.Make(struct
 	type t = N.rt
 	let equal = (==)
@@ -18,13 +38,15 @@ let message_handlers: handler RtLookup.t =
 	RtLookup.build begin fun build ->
 		let add1 typ f =
 			build (extract_rc typ) (Fn1 f) in
-		add1 BuiltinType.print @@ fun v ->
+		add1 print @@ fun v ->
 			OutputU.printf "%a\n" ValU.output v;
-			N.Void
+			N.v_void
 	end
 
-let f(msg: N.v): N.v =
+let call(msg: N.v): N.v =
 	match msg with
+	| N.Primitive _ | N.Fn _ ->
+		assert false
 	| N.Rc(typ, properties) ->
 		let handler = RtLookup.get message_handlers typ in
 		begin match handler with
@@ -37,5 +59,8 @@ let f(msg: N.v): N.v =
 			let a, b, c = ArrayU.triple_of properties in
 			f a b c*)
 		end
-	| N.Bool _ | N.Int _ | N.Float _ | N.Void | N.Fn _ | N.BuiltinFn _ | N.World ->
-		assert false
+
+let world = N.Fn(N.BuiltinFn {
+	N.builtin_ty_fn = ct_world;
+	N.exec = fun state -> State.push state @@ call @@ State.pop state
+})

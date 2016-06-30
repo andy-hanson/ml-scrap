@@ -20,7 +20,7 @@ let add_params(scope: Scope.t)(params: Ast.parameter array): Scope.t =
 	end
 
 let builtins =
-		let m1 = Sym.Map.make Builtin.all @@ fun ({Builtin.name; _} as b) -> name, Binding.Builtin b in
+		let m1 = Sym.Map.make Builtin.all @@ fun ({Builtin.name; value}) -> name, Binding.Builtin value in
 		let m2 = Sym.Map.make BuiltinType.all @@ fun b -> TypeU.name b, Binding.BuiltinType b in
 		(* There are no shared names *)
 		Sym.Map.union (fun _ _ _ -> assert false) m1 m2

@@ -1,5 +1,6 @@
 <src/**>: include
-true: package(batteries), package(core)
+<test/**>: include
+true: package(batteries)
 true: debug
 true: thread
 true: bin_annot
