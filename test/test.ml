@@ -6,49 +6,67 @@ let compile_str(path: FileIO.path)(content: string): N.modul =
 	mock#add_file path content;
 	Noze.compile test_noze path
 
-
 type test_result =
 	| Success of N.v
-	| Failure of CompileError.t
+	| Failure of Err.t
 
 type test = {
 	name: string;
-	src: string;
-	expect: test_result
+	src: string
 }
 
-let run_test({name; src; expect}: test): unit =
+let run_test({name; src}: test): unit =
 	let mdl = compile_str name src in
 	let fn = TestU.fn_named mdl "main" in
 	let actual = Interpreter.call_fn fn [| |] in
-	match expect with
-	| Success v ->
-		Assert.equal actual v ValU.output
-	| Failure _ ->
-		raise U.TODO;;
+	assert (actual = N.v_void);;
 
 run_test {
-	name = "One plus one";
-	src = "fn main Int
-	1 + 1";
-	expect = Success (N.v_int 2)
+	name = "1 + 1";
+	src = "
+fn main Void
+	ck (1 + 1) == 2"
+};;
+
+run_test {
+	name = "Recursion";
+	src ="
+fn main Void
+	ck (factorial 6) == 720
+
+fn factorial Int x Int
+	less = x < 2
+	cond less 1: x * factorial: x - 1"
 };;
 
 run_test {
 	name = "Locals";
-	src = "fn main Int
+	src = "
+fn main Void
 	one = 1
 	other-one = 1
-	one + other-one";
-	expect = Success (N.v_int 2)
+	ck (one + other-one) == 2"
+};;
+
+(*TODO need to be able to read values back out to really test this!*)
+run_test {
+	name = "Rt";
+	src ="
+rt Point
+	x Int
+	y Int
+
+fn main Void
+	ck 0 == 0"
 };;
 
 run_test {
 	name = "Higher order functions";
-	src = "fn main Int
+	src = "
+fn main Void
 	two = do-twice incr 0
 	other-two = do-twice (+ .. 1) 0
-	two + other-two
+	ck two == other-two
 
 ft F
 	Int input Int
@@ -57,8 +75,57 @@ fn do-twice Int func F target Int
 	func: func target
 
 fn incr Int x Int
-	x + 1";
-	expect = Success (N.v_int 4)
+	x + 1"
 };;
 
-(*TODO: test unions, ct, World, interpolation*)
+run_test {
+	name = "Union";
+	src = "
+fn main Void
+	ck is-float? 0.0
+	ck not: is-float? 0
+
+un FloatOrInt
+	Float
+	Int
+
+fn is-float? Bool x FloatOrInt
+	cs x
+		Float @ f
+			true
+		Int @ i
+			false"
+};;
+
+run_test {
+	name = "Ct";
+	src = "
+fn main Void
+	ck (convert 0.0) == 0
+	ck (convert 0) == 0.0
+	ck ((FloatOfIntConverter @ convert) 0) == 0.0
+
+ct Converter
+	Float Int
+	Int Float
+
+ct FloatOfIntConverter
+	Float Int
+
+cn convert Converter
+	Int @ i
+		0.0
+	Float @ f
+		0
+"
+};;
+
+run_test {
+	name = "Interpolation";
+	src = "
+fn main Void
+	ck \"1 + 1 = {1 + 1}!\" == \"1 + 1 = 2!\"
+"
+};;
+
+(*TODO: World tests w/ mock world*)

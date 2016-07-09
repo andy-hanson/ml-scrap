@@ -1,73 +1,34 @@
-|| fnc say-it Void n Int world World
-||	world: Print n
+fn main Void world World
+	say-hello: Printer @ world
 
-|| fn main Void world World
-||	speaker = say-it .. world
-||	x = speaker .. 137
-||	do x
-||	do x
-||	do x
-
-fn main Int
-	incr = + .. 1
-	incr 1
-
-|| fn main Void world World
-||	world: Print "One plus one is {1 + 1} you know"
-
-
-|| ct Converter
-||	Float Int
-||	Int Float
-|| cn my-cnv Converter
-||	i Int
-||		1.0
-||	f Float
-||		1
-
-|| fn my-cnv-b Float i Int
-||	1.0
-
-|| un IntOrFloat
-|| 	Int
-|| 	Float
-
-|| fn is-int? Bool x IntOrFloat
-|| 	case x
-|| 		i Int
-|| 			|| + i 1
-|| 			true
-|| 		f Float
-|| 			|| float->int f
-|| 			false
+fn say-hello Void printer Printer
+	printer: Print "Hello, world!"
 
 ct Printer
 	Void Print
 
-fn print-factorials Void world World
-	print-factorials-recur 0: Printer world
 
-fn print-factorials-recur Void n Int print Printer
-	cond (n == 10) (print: Print n)
-		print: Print n
-		print-factorials-recur (n + 1) print
+|| fn main Void world World
+||	speaker = say-it .. world
+||	x = speaker .. "Hello, world!"
+||	do x
+||	do x
+||	do x
 
-
-
-|| Problem: `cond` must be typed as Void <- Bool Void Void, so can't write factorial too...
-|| Generic types can't come soon enough!
-
-|| fn factorial Int x Int
-||	less = x < 2
-||	cond less 1: x * factorial: x - 1
+|| fn say-it Void message String world World
+||	world: Print message
 
 
-|| fn incr Int x Int
-|| + x 1
+|| fn main Void world World
+||	world: Print "One plus one is {1 + 1} you know"
 
-|| rc Point
-||	x Int
-||	y Int
+|| ct Printer
+|| 	Void Print
 
-|| fn main Point x Int y Int
-||	Point (incr x): incr y
+|| fn print-factorials Void world World
+||	print-factorials-recur 0: Printer world
+
+|| fn print-factorials-recur Void n Int print Printer
+||	cond (n == 10) (print: Print n)
+||		print: Print n
+||		print-factorials-recur (n + 1) print

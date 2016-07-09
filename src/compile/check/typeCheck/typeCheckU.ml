@@ -5,7 +5,7 @@ let eq(a: ty)(b: ty): bool =
 	a = b
 
 let rec assert_eq(loc: Loc.t)(expected: ty)(actual: ty): unit =
-	let fail() = CompileErrorU.raise loc @@ CompileError.NotExpectedType(expected, actual) in
+	let fail() = ErrU.raise loc @@ Err.NotExpectedType(expected, actual) in
 	match expected with
 	| Any | TPrimitive _ | Rt _ ->
 		(* These are all nominal types. *)
@@ -44,8 +44,9 @@ let rec assert_eq(loc: Loc.t)(expected: ty)(actual: ty): unit =
 			end
 		end
 
+(*TODO: Pretty sure this should be the same thing as assert_upcast*)
 let rec assert_value_assignable(loc: Loc.t)(expected: ty)(actual: ty): unit =
-	let fail() = CompileErrorU.raise loc @@ CompileError.NotExpectedType(expected, actual) in
+	let fail() = ErrU.raise loc @@ Err.NotExpectedType(expected, actual) in
 	match expected with
 	| Any ->
 		()
@@ -61,12 +62,16 @@ let rec assert_value_assignable(loc: Loc.t)(expected: ty)(actual: ty): unit =
 		| Any | TFn _ ->
 			fail()
 		end
-	| TFn f ->
-		assert_fn_upcast loc f actual
+	| TFn _ ->
+		assert_upcast loc expected actual
 
-and assert_fn_upcast(loc: Loc.t)(expected: ty_fn)(actual: ty): unit =
-	let fail() = CompileErrorU.raise loc @@ CompileError.NotExpectedType(N.TFn expected, actual) in
-	match expected with
+and assert_upcast(loc: Loc.t)(expected: ty)(actual: ty): unit =
+	let fail() = ErrU.raise loc @@ Err.NotExpectedType(expected, actual) in
+	let foo =
+		match expected with
+		| TFn f -> f
+		| _ -> raise U.TODO (*TODO: error?*) in
+	match foo with
 	| Ft {fname = _; return_type = expected_return_type; parameters = expected_parameters} ->
 		begin match actual with
 		| Any | TPrimitive _ | Rt _ | Un _  ->
@@ -118,6 +123,6 @@ let join(loc: Loc.t)(types: ty array): ty =
 	(*TODO actual join algorithm*)
 	let t = Array.get types 0 in
 	ArrayU.iter types begin fun typ ->
-		CompileErrorU.check (eq t typ) loc @@ CompileError.CombineTypes(t, typ)
+		ErrU.check (eq t typ) loc @@ Err.CombineTypes(t, typ)
 	end;
 	t

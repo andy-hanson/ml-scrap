@@ -11,4 +11,4 @@ let output(out: 'o OutputU.t)(b: t): unit =
 	| Parameter p ->
 		OutputU.out out "Parameter(%a)" AstU.output_parameter p
 	| BuiltinType b ->
-		OutputU.out out "BuiltinType(%a)" TypeU.output b
+		OutputU.out out "BuiltinType(%a)" TyU.output b

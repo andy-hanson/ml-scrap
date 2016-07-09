@@ -1,1 +1,1 @@
-val f: CompileContext.t -> BatIO.input -> Ast.modul
+val f: BatIO.input -> Ast.modul

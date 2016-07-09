@@ -1,21 +1,22 @@
 let parse_signature(l: Lexer.t): Ast.signature * Token.t =
 	let start = Lexer.pos l in
 	let return_type = ParseType.f l in
-	(*TODO: way to not use ref?*)
-	let next_token = ref Token.EOF in
-	let params = ArrayU.build_until_none begin fun () ->
-		let start, next = Lexer.pos_next l in
-		match next with
-		| Token.Indent | Token.Newline | Token.Dedent ->
-			next_token := next;
-			None
-		| Token.Name name ->
-			let typ = ParseType.f l in
-			Some (Lexer.loc_from l start, name, typ)
-		| t ->
-			ParseU.unexpected start l t
-	end in
-	(Lexer.loc_from l start, return_type, params), !next_token
+	let params, next =
+		ArrayU.build_and_return begin fun build ->
+			let rec recur(): Token.t =
+				let start, next = Lexer.pos_next l in
+				match next with
+				| Token.Indent | Token.Newline | Token.Dedent ->
+					next
+				| Token.Name name ->
+					let typ = ParseType.f l in
+					build (Lexer.loc_from l start, name, typ);
+					recur()
+				| t ->
+					ParseU.unexpected start l t in
+			recur()
+		end in
+	(Lexer.loc_from l start, return_type, params), next
 
 let parse_fn(l: Lexer.t)(start: Loc.pos): Ast.fn =
 	let name = ParseU.parse_name l in
@@ -28,7 +29,7 @@ let parse_cn(l: Lexer.t)(start: Loc.pos): Ast.cn =
 	let name = ParseU.parse_name l in
 	let typ = ParseType.f l in
 	ParseU.must_skip l Token.Indent;
-	let parts = ParseBlock.parse_case_parts l in
+	let parts = ParseBlock.parse_cs_parts l in
 	Lexer.loc_from l start, name, typ, parts
 
 let parse_rt(l: Lexer.t)(start: Loc.pos): Ast.rt =
@@ -99,22 +100,19 @@ let parse_ct(l: Lexer.t)(start: Loc.pos): Ast.ct =
 	Lexer.loc_from l start, name, cases
 
 (* parse module declaration or End *)
-let try_parse_decl(l: Lexer.t): Ast.decl option =
-	let start, next = Lexer.pos_next l in
+let parse_decl(l: Lexer.t)(start: Loc.pos)(next: Token.t): Ast.decl =
 	match next with
-	| Token.EOF ->
-		None
 	| Token.Fn ->
-		Some(Ast.Fn(parse_fn l start))
+		Ast.Fn(parse_fn l start)
 	| Token.Cn ->
-		Some (Ast.Cn(parse_cn l start))
+		Ast.Cn(parse_cn l start)
 	| Token.Rt ->
-		Some(Ast.Rt(parse_rt l start))
+		Ast.Rt(parse_rt l start)
 	| Token.Un ->
-		Some(Ast.Un(parse_un l start))
+		Ast.Un(parse_un l start)
 	| Token.Ft ->
-		Some(Ast.Ft(parse_ft l start))
+		Ast.Ft(parse_ft l start)
 	| Token.Ct ->
-		Some(Ast.Ct(parse_ct l start))
+		Ast.Ct(parse_ct l start)
 	| x ->
 		ParseU.unexpected start l x

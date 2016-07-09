@@ -1,5 +1,5 @@
 open N
-(*open BuiltinTypeU*)
+(*open BuiltinTyU*)
 
 let action = TFn(Ft {
 	fname = Sym.of_string "Action";

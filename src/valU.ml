@@ -29,8 +29,8 @@ let rec type_of_fn(fn: fn): ty_fn =
 		builtin_ty_fn
 	| DeclaredFn {fn_type; _} ->
 		fn_type
-	| PartialFn {fn; partial_args} ->
-		Ft(TypeU.partial_type (type_of_fn fn) @@ ArrayU.map partial_args type_of)
+	| PartialFn {partially_applied; partial_args} ->
+		Ft(TyU.partial_type (type_of_fn partially_applied) @@ ArrayU.map partial_args type_of)
 
 and type_of(v: v): ty =
  	match v with
@@ -52,7 +52,7 @@ let builtin_fn_name({builtin_ty_fn; _}: builtin_fn): Sym.t =
 	ty_fn_name builtin_ty_fn
 let fn_arity({fn_type; _}: declared_fn): int =
 	match fn_type with
-	| Ft ft -> TypeU.ft_arity ft
+	| Ft ft -> TyU.ft_arity ft
 	| Ct _ -> 1
 
 let output_primitive(out: 'o OutputU.t)(p: primitive): unit =
@@ -77,9 +77,9 @@ let rec output_fn(out: 'o OutputU.t)(fn: fn): unit =
 		o "DeclaredFn(%a)" Sym.output (fn_name fn)
 	| BuiltinFn b ->
 		o "BuiltinFn(%a)" Sym.output @@ builtin_fn_name b
-	| PartialFn {fn; partial_args} ->
+	| PartialFn {partially_applied; partial_args} ->
 		OutputU.out out "PartialFn(%a, %a)"
-			output_fn fn
+			output_fn partially_applied
 			(OutputU.out_array output) partial_args
 
 (*TODO: NOut module*)
@@ -101,7 +101,7 @@ and output(out: 'o OutputU.t)(value: v): unit =
 
 and output_declared_fn(out: 'o OutputU.t)({fn_type; _}: declared_fn): unit =
 	OutputU.out out "Fn(%a)"
-		TypeU.output_ty_fn fn_type
+		TyU.output_ty_fn fn_type
 and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 	let o fmt = OutputU.out out fmt in
 	match c with
@@ -111,8 +111,8 @@ and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 		o "CallBuiltin(%a)" Sym.output (builtin_fn_name f)
 	| CallLambda ->
 		o "CallLambda"
-	| Case parts ->
-		o "Case(%a)" (OutputU.out_array @@ OutputU.out_pair TypeU.output OutputU.output_int) parts
+	| Cs parts ->
+		o "Cs(%a)" (OutputU.out_array @@ OutputU.out_pair TyU.output OutputU.output_int) parts
 	| Const v ->
 		o "Const(%a)" output v
 	| Construct {rname; _} ->
@@ -134,6 +134,8 @@ and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 	| Quote strings ->
 		o "Quote(%a)"
 			(OutputU.out_array OutputU.output_string_escaped) strings
+	| Check ->
+		o "Check"
 	| Nil ->
 		o "Nil"
 and output_code(out: 'o OutputU.t)({bytecodes; locs}: code): unit =

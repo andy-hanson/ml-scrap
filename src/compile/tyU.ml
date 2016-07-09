@@ -1,7 +1,5 @@
 open N
 
-(*TODO: rename to TyU.ml*)
-
 let name = function
 	| Any -> Sym.of_string "Any"
 	| TPrimitive p ->

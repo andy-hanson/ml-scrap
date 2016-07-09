@@ -5,7 +5,10 @@ let typ_loc = function
 		loc
 
 let expr_loc = function
-	| ExprAccess(loc, _) | Call(loc, _, _) | Case(loc, _, _) | Let(loc, _, _, _) | Literal(loc, _) | Seq(loc, _, _) | Partial(loc, _, _) | Quote(loc, _, _) ->
+	| ExprType(typ) ->
+		typ_loc typ
+	| At(loc, _, _) | ExprAccess(loc, _) | Call(loc, _, _) | Cs(loc, _, _) | Let(loc, _, _, _)
+	| Literal(loc, _) | Seq(loc, _, _) | Partial(loc, _, _) | Quote(loc, _, _) | Check(loc, _) ->
 		loc
 
 let decl_loc_name = function
@@ -90,22 +93,29 @@ let output_local_declare(out: 'o OutputU.t)((_, name): Ast.local_declare): unit 
 
 let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 	match expr with
+	| At(_, typ, expr) ->
+		OutputU.out out "At(%a, %a)"
+			output_typ typ
+			output_expr expr
+	| ExprType(typ) ->
+		OutputU.out out "ExprType(%a)"
+			output_typ typ
 	| ExprAccess(access) ->
 		output_access out access
 	| Call(_, fn, args) ->
-		OutputU.out out "Call %a %a"
+		OutputU.out out "Call(%a, %a)"
 			output_expr fn
 			(OutputU.out_array output_expr) args
-	| Case(_, cased, parts) ->
+	| Cs(_, cased, parts) ->
 		let output_part out (_, test, expr) =
-			let out_test out (AsTest(_, declare, typ)) =
-				OutputU.out out "AsTest(%a, %a)"
-					output_local_declare
-					declare output_typ typ in
-			OutputU.out out "CasePart(%a, %a)"
+			let out_test out (AtTest(_, typ, declare)) =
+				OutputU.out out "AtTest(%a, %a)"
+					output_typ typ
+					output_local_declare declare in
+			OutputU.out out "CsPart(%a, %a)"
 				out_test test
 				output_expr expr in
-		OutputU.out out "Case(%a, %a)"
+		OutputU.out out "Cs(%a, %a)"
 			output_expr cased
 			(OutputU.out_array output_part) parts
 	| Let(_, declare, value, expr) ->
@@ -131,6 +141,8 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 		OutputU.out out "Quote(\"%s\", %a)"
 			(String.escaped head)
 			(OutputU.out_array output_part) parts
+	| Check(_, checked) ->
+		OutputU.out out "Check(%a)" output_expr checked
 
 let output_fn(out: 'o OutputU.t)((_, name, sign, body): Ast.fn): unit =
 	let out_sig out (_, typ, params) =
@@ -163,5 +175,5 @@ let output_decl(out: 'o OutputU.t)(decl: decl): unit =
 	| Ft ft -> output_ft out ft
 	| Ct ct -> output_ct out ct
 
-let output_modul(out: 'o OutputU.t)(decls: modul): unit =
+let output_modul(out: 'o OutputU.t)((_imports, decls): modul): unit =
 	OutputU.out_array output_decl out decls

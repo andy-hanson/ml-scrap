@@ -75,9 +75,9 @@ let call_lambda(state: interpreter_state)(called: v): unit =
 				call_builtin state b
 			| DeclaredFn fn ->
 				push_fn state fn
-			| PartialFn {fn; partial_args} ->
+			| PartialFn {partially_applied; partial_args} ->
 				push_many state partial_args;
-				call_fn fn in
+				call_fn partially_applied in
 		call_fn f
 	end
 

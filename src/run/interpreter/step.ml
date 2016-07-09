@@ -19,7 +19,7 @@ let step(state: N.interpreter_state): bool =
 			State.call_lambda state @@ State.pop state
 		end
 
-	| N.Case parts ->
+	| N.Cs parts ->
 		let cased = State.peek state in
 		let matching_case = ArrayU.find_map parts begin fun (typ, idx) ->
 			OpU.op_if (Subsumes.f typ cased) @@ fun () -> idx
@@ -32,7 +32,7 @@ let step(state: N.interpreter_state): bool =
 
 	| N.Construct rt ->
 		(*TODO: check property types*)
-		let properties = State.pop_n state @@ TypeU.rt_arity rt in
+		let properties = State.pop_n state @@ TyU.rt_arity rt in
 		State.push state @@ N.Rc(rt, properties);
 		next()
 
@@ -67,11 +67,12 @@ let step(state: N.interpreter_state): bool =
 		next()
 
 	| N.Partial arity ->
-		let fn = match State.pop state with
+		let partially_applied =
+			match State.pop state with
 			| N.Fn f -> f
 			| _ -> assert false in
 		let partial_args = State.pop_n state arity in
-		State.push state @@ N.Fn(N.PartialFn {N.fn; N.partial_args});
+		State.push state @@ N.Fn(N.PartialFn {N.partially_applied; N.partial_args});
 		next()
 
 	| N.Quote strings ->
@@ -86,6 +87,14 @@ let step(state: N.interpreter_state): bool =
 		let result = N.v_string (BatBuffer.contents b) in
 
 		State.push state result;
+		next()
+
+	| N.Check ->
+		let checked = State.pop state in
+		if not @@ ValU.bool_of checked then
+			(*TODO Noze exception, not ocaml exeption*)
+			raise U.TODO;
+		State.push state N.v_void;
 		next()
 
 	| N.Nil ->

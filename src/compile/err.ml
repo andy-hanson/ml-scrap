@@ -7,7 +7,7 @@ type message =
 	| UnrecognizedCharacter of char
 	(* parser *)
 	| BlockCantEndInDeclare
-	| CaseMustBeInLineContext
+	| CsMustBeInLineContext
 	| EmptyExpression
 	| EqualsInExpression
 	| FnNeedsParts
@@ -19,8 +19,8 @@ type message =
 	| CantUseTypeAsValue
 	| NameAlreadyBound of Sym.t * Binding.t
 	(* typeCheck *)
-	| CanOnlyCaseUnion of N.ty
-	| CasePartType of N.ty array * N.ty
+	| CanOnlyCsUnion of N.ty
+	| CsPartType of N.ty array * N.ty
 	| CasesUnhandled of N.ty array
 	| CombineTypes of N.ty * N.ty
 	| NotAFunction of N.ty

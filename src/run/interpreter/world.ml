@@ -8,7 +8,8 @@ let read_line = rc1 "ReadLine" "value" t_void
 let ct_world = Ct {
 	cname = Sym.of_string "World";
 	ct_cases = [|
-		t_void, print
+		t_void, print;
+		t_string, read_line
 	|]
 }
 let ty_world = TFn ct_world

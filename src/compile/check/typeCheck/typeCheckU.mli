@@ -12,5 +12,5 @@ Whether we can do `foo bar` where `foo` takes A and `bar` is of type `B`.
 Unlike `assert_value_assignable`, this does not allow upcasting functions.
 *)
 val assert_parameter_assignable: Loc.t -> ty -> ty -> unit
-val assert_fn_upcast: Loc.t -> ty_fn -> ty -> unit
+val assert_upcast: Loc.t -> ty -> ty -> unit
 val join: Loc.t -> ty array -> ty

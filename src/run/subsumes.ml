@@ -38,4 +38,4 @@ let rec f(t: ty)(v: v): bool =
 
 let check(t: ty)(v: v): unit =
 	if not (f t v) then
-		failwith @@ OutputU.out_to_string "Expected a %a, got %a" TypeU.output t ValU.output v
+		failwith @@ OutputU.out_to_string "Expected a %a, got %a" TyU.output t ValU.output v

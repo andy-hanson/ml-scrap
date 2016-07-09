@@ -2,16 +2,18 @@ open Token
 
 let keyword_to_string(keyword: t): string =
 	match keyword with
+	| At -> "@"
 	| Equals -> "="
-	| DotDot -> ".."
-	| Case -> "case"
-	| Colon -> ":"
+	| Import -> "import"
+	| Cs -> "cs"
+	| Ck -> "ck"
 	| Fn -> "fn"
 	| Cn -> "cn"
 	| Rt -> "rt"
 	| Un -> "un"
 	| Ft -> "ft"
 	| Ct -> "ct"
+	| Sn -> "sn"
 	| _ -> assert false
 
 let keyword =
@@ -28,6 +30,8 @@ let output(out: 'o OutputU.t)(token: t) =
 		o "QuoteStart(\"%s\")" @@ String.escaped s
 	| Literal value ->
 		ValU.output_primitive out value
+	| Colon -> s ":"
+	| DotDot -> s ".."
 	| Indent -> s "indent"
 	| Dedent -> s "dedent"
 	| Newline -> s "newline"

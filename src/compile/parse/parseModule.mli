@@ -1,1 +1,1 @@
-val parse_module: Lexer.t -> Ast.modul
+val f: Lexer.t -> Ast.modul

@@ -112,6 +112,10 @@ let quote(w: t)(loc: Loc.t)(strings: string array): unit =
 	(* Pop n-1 args off the stack and push one back on. *)
 	w.stack_depth <- w.stack_depth - (Array.length strings - 2)
 
+let check(w: t)(loc: Loc.t): unit =
+	write_bc w loc N.Check
+	(* Stack depth: pop bool, push void *)
+
 type placeholder = code_idx
 let placeholder(w: t)(loc: Loc.t): placeholder =
 	U.returning (next_code_idx w) @@ fun _ -> write_bc w loc N.Return
@@ -121,7 +125,7 @@ let resolve_goto(w: t)(p: placeholder): unit =
 	set_code w p @@ N.Goto(next_code_idx w)
 
 type cases = (N.ty * int) array
-let case(w: t)(loc: Loc.t)(n_parts: int): cases =
-	U.returning (Array.make n_parts (N.t_void, -1)) @@ fun dummy_parts -> write_bc w loc @@ N.Case dummy_parts
-let resolve_case_part(w: t)(cases: cases)(part_index: int)(ty: N.ty): unit =
+let cs(w: t)(loc: Loc.t)(n_parts: int): cases =
+	U.returning (Array.make n_parts (N.t_void, -1)) @@ fun dummy_parts -> write_bc w loc @@ N.Cs dummy_parts
+let resolve_cs_part(w: t)(cases: cases)(part_index: int)(ty: N.ty): unit =
 	cases.(part_index) <- ty, next_code_idx w

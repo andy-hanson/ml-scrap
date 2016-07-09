@@ -15,7 +15,7 @@ let ffnn(name: string)(return_type: ty)(parameters: (string * ty) array)(exec: N
 	{
 		name;
 		value = Fn(BuiltinFn {
-			builtin_ty_fn = Ft(TypeU.ft name return_type @@ ArrayU.map parameters @@ fun (name, typ) -> Sym.of_string name, typ);
+			builtin_ty_fn = Ft(TyU.ft name return_type @@ ArrayU.map parameters @@ fun (name, typ) -> Sym.of_string name, typ);
 			exec
 		})
 	}
@@ -33,14 +33,14 @@ let do_value = match do_action.value with | Fn(BuiltinFn f) -> f | _ -> assert f
 let pop_int pop = ValU.int_of @@ pop()
 
 let cond = fn "cond"
-	t_void [| "condition", t_bool; "if-true", t_void; "if-false", t_void |]
+	t_int [| "condition", t_bool; "if-true", t_int; "if-false", t_int |]
 	@@ fun _ -> raise U.TODO
 (*TODO:NEATER*)
 let cond_value = match cond.value with | Fn(BuiltinFn f) -> f | _ -> assert false
 
 let not = fn "not"
 	t_bool [| "b", t_bool |]
-	@@ fun pop -> v_bool(ValU.bool_of @@ pop())
+	@@ fun pop -> v_bool(not @@ ValU.bool_of @@ pop())
 
 let equal = fn "=="
 	t_bool [| "a", Any; "b", Any |]

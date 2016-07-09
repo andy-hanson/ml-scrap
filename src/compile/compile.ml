@@ -1,7 +1,7 @@
 (*TODO: this needs to be changed to deal with interpolation.*)
-let lex(io: FileIO.t)(file_name: string)(ctx: CompileContext.t): (Token.t * Loc.t) array =
+let lex(io: FileIO.t)(file_name: string): (Token.t * Loc.t) array =
 	io#read file_name begin fun source ->
-		let l = Lexer.make (CompileContext.warn ctx) source in
+		let l = Lexer.make source in
 		ArrayU.build begin fun build ->
 			let rec recur() =
 				let start, next = Lexer.pos_next l in
@@ -39,8 +39,8 @@ let lex(io: FileIO.t)(file_name: string)(ctx: CompileContext.t): (Token.t * Loc.
 		end
 	end
 
-let f(io: FileIO.t)(file_name: string)(ctx: CompileContext.t): N.modul =
-	let modul_ast = io#read file_name (Parse.f ctx) in
+let f(io: FileIO.t)(file_name: string): N.modul =
+	let modul_ast = io#read file_name Parse.f in
 	let bindings = Bind.bind modul_ast in
 	let binding = Bind.binding bindings in
 	let modul, type_of_ast = TypeOfAst.build file_name binding modul_ast in

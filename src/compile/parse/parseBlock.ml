@@ -3,7 +3,7 @@ type ctx =
 	| ExprOnly (* Like Line, but forbid an `=` because we're already in one *)
 	| Paren (* Parse an expression and expect a ')' *)
 	| Quote (* Look for a QuoteEnd *)
-	| CaseHead
+	| CsHead
 
 (* For debugging...*)
 let output_ctx(out: 'o OutputU.t)(ctx: ctx): unit =
@@ -12,7 +12,7 @@ let output_ctx(out: 'o OutputU.t)(ctx: ctx): unit =
 	| ExprOnly -> "ExprOnly"
 	| Paren -> "Paren"
 	| Quote -> "Quote"
-	| CaseHead -> "CaseHead"
+	| CsHead -> "CsHead"
 	end
 
 type next =
@@ -24,7 +24,7 @@ type next =
 let parse_single(l: Lexer.t)(start: Loc.pos)(t: Token.t): Ast.expr =
 	let loc = Lexer.loc_from l start in
 	match t with
-		| Token.Name name | Token.TypeName name ->
+		| Token.Name name (*| Token.TypeName name*) ->
 			Ast.ExprAccess(loc, name)
 		| Token.Literal value ->
 			Ast.Literal(loc, value)
@@ -43,7 +43,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 		let loc = Lexer.loc_from l expr_start in
 		match MutArray.length parts with
 		| 0 ->
-			CompileErrorU.raise loc CompileError.EmptyExpression
+			ErrU.raise loc Err.EmptyExpression
 		| 1 ->
 			MutArray.get parts 0
 		| _ ->
@@ -63,9 +63,9 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 	let rec recur(start: Loc.pos)(next: Token.t) =
 		let unexpected() = ParseU.unexpected start l next in
 		match next with
-		| Token.Case ->
-			CompileErrorU.check (ctx = Line) (Lexer.loc_from l start) CompileError.CaseMustBeInLineContext;
-			let expr = parse_case l start in
+		| Token.Cs ->
+			ErrU.check (ctx = Line) (Lexer.loc_from l start) Err.CsMustBeInLineContext;
+			let expr = parse_cs l start in
 			add_part expr;
 			finish_regular(), EndNestedBlock
 
@@ -74,28 +74,61 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			add_part expr;
 			finish_regular(), next
 
+		| Token.Ck ->
+			ErrU.check (not (any_so_far()) && ctx = Line) (Lexer.loc_from l start) Err.EqualsInExpression; (*TODO: Err.CkMustBeAtStart*)
+			let cond, next = parse_expr l ExprOnly in
+			Ast.Check(Lexer.loc_from l expr_start, cond), next
+
 		| Token.Equals ->
-			CompileErrorU.check (ctx = Line) (Lexer.loc_from l start) CompileError.EqualsInExpression;
+			ErrU.check (ctx = Line) (Lexer.loc_from l start) Err.EqualsInExpression;
+			let fail() = ErrU.raise (Lexer.loc_from l start) Err.PrecedingEquals in
 			begin match MutArray.length parts with
 			| 1 ->
-				let x = MutArray.get parts 0 in
-				begin match x with
+				begin match MutArray.get parts 0 with
 				| Ast.ExprAccess(loc, name) ->
 					let declare = loc, name in
 					let expr, next = parse_expr l ExprOnly in
-					CompileErrorU.check (next != CtxEnded) (Lexer.loc_from l start) CompileError.BlockCantEndInDeclare;
+					ErrU.check (next != CtxEnded) (Lexer.loc_from l start) Err.BlockCantEndInDeclare;
 					assert (next = NewlineAfterStatement);
 					expr, NewlineAfterEquals declare
 				| _ ->
-					CompileErrorU.raise (AstU.expr_loc x) CompileError.PrecedingEquals
+					fail()
 				end
 			| _ ->
-				CompileErrorU.raise (Lexer.loc_from l start) CompileError.PrecedingEquals
+				(*TODO: `p Point x y` and `Point x y`*)
+				fail()
 			end
 
 		| Token.DotDot ->
-				let left = finish_regular() in
-				dot_dot left
+			let left = finish_regular() in
+			dot_dot left
+
+		| Token.TypeName _ ->
+			let typ = ParseType.f_with_start l start next in
+			let start, next = Lexer.pos_next l in
+			begin match next with
+			| Token.At ->
+				let expr, next = parse_expr l ctx in
+				let loc = Lexer.loc_from l expr_start in
+				Ast.At(loc, typ, expr), next
+			| x ->
+				add_part (Ast.ExprType typ);
+				recur start x
+			end
+
+		(*TODO:KILL| Token.At ->
+			let typ =
+				match MutArray.length parts with
+				| 0 ->
+					let loc = Lexer.loc_from l expr_start in
+					ErrU.raise loc Err.EmptyExpression (*TODO: more appropriate error: expected a type left of '@'*)
+				| 1 ->
+					MutArray.get parts 0
+				| _ ->
+					unexpected() in
+			let expr, next = parse_expr l ctx in
+			let loc = Lexer.loc_from l expr_start in
+			Ast.At(loc, typ, expr), next*)
 
 		| Token.Operator name ->
 			let op = Ast.ExprAccess(Lexer.loc_from l start, name) in
@@ -106,7 +139,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			end else begin
 				let right_start, next = Lexer.pos_next l in
 				match ctx with
-					| Line | Quote | CaseHead -> unexpected()
+					| Line | Quote | CsHead -> unexpected()
 					| ExprOnly ->
 						begin match next with
 						| Token.DotDot ->
@@ -120,6 +153,8 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 						| Token.Rparen ->
 							(* (+) refers to the function itself. *)
 							op, CtxEnded
+						| Token.DotDot ->
+							dot_dot op
 						| x -> ParseU.unexpected right_start l x
 						end
 				end
@@ -147,7 +182,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 
 		| Token.Indent ->
 			begin match ctx with
-			| CaseHead ->
+			| CsHead ->
 				finish_regular(), CtxEnded
 			| Line ->
 				let start, next = Lexer.pos_next l in
@@ -171,6 +206,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 
 		| x ->
 			add_part (parse_single l start x);
+			(*TODO: duplicate code below*)
 			let start, next = Lexer.pos_next l in
 			recur start next in
 
@@ -190,27 +226,30 @@ and parse_expr(l: Lexer.t)(ctx: ctx): Ast.expr * next =
 	let start, next = Lexer.pos_next l in
 	parse_expr_with_next l start next ctx
 
-and parse_case_parts(l: Lexer.t): Ast.case_part array =
+and parse_cs_parts(l: Lexer.t): Ast.cs_part array =
 	ArrayU.build_until_none begin fun () ->
 		let start, next = Lexer.pos_next l in
 		match next with
 		| Token.Dedent ->
 			None
-		| Token.Name name ->
-			let declare = Lexer.loc_from l start, name in
-			let typ = ParseType.f l in
-			let test = Ast.AsTest(Lexer.loc_from l start, declare, typ) in
-			ParseU.must_skip l Token.Indent;
-			let result = f l in
-			Some(Lexer.loc_from l start, test, result)
 		| x ->
-			ParseU.unexpected start l x
+			let typ = ParseType.f_with_start l start x in
+			begin match Lexer.next l with
+			| Token.At ->
+				let declare = ParseU.parse_name_with_loc l in
+				let test = Ast.AtTest(Lexer.loc_from l start, typ, declare) in
+				ParseU.must_skip l Token.Indent;
+				let result = f l in
+				Some(Lexer.loc_from l start, test, result)
+			| x ->
+				ParseU.unexpected start l x
+			end
 	end
 
-and parse_case(l: Lexer.t)(start: Loc.pos): Ast.expr =
-	let cased, next = parse_expr l CaseHead in
+and parse_cs(l: Lexer.t)(start: Loc.pos): Ast.expr =
+	let cased, next = parse_expr l CsHead in
 	assert (next = CtxEnded);
-	Ast.Case((Lexer.loc_from l start), cased, parse_case_parts l)
+	Ast.Cs((Lexer.loc_from l start), cased, parse_cs_parts l)
 
 and parse_block(l: Lexer.t)(start: Loc.pos)(first: Token.t): Ast.expr =
 	let expr, next = parse_expr_with_next l start first Line in

@@ -1,11 +1,6 @@
 let empty(a: 'a array): bool =
 	Array.length a = 0
 
-let head(a: 'a array): 'a =
-	Array.get a 0
-let tail(a: 'a array): 'a array =
-	Array.sub a 1 (Array.length a - 1)
-
 let same_length(a: 'a array)(b: 'b array): bool =
 	Array.length a = Array.length b
 
@@ -86,10 +81,13 @@ let triple_of(arr: 'a array): 'a * 'a * 'a =
 	assert (Array.length arr = 3);
 	arr.(0), arr.(1), arr.(2)
 
-let build(f: ('a -> unit) -> unit): 'a array =
+let build_and_return(f: ('a -> unit) -> 'b): 'a array * 'b =
 	let arr = MutArray.create() in
-	f (MutArray.add arr);
-	MutArray.to_array arr
+	let res = f @@ MutArray.add arr in
+	MutArray.to_array arr, res
+
+let build(f: ('a -> unit) -> unit): 'a array =
+	fst @@ build_and_return f
 
 let build_loop(f: unit -> 'a * bool): 'a array =
 	build begin fun build ->
@@ -109,6 +107,15 @@ let build_until_none(f: unit -> 'a option): 'a array =
 				recur()
 			| None -> () in
 		recur();
+	end
+
+let build_fold(start: 'f)(fold: 'f -> 'a option * 'f option): 'a array =
+	build begin fun build ->
+		let rec recur(x) =
+			let here, next = fold x in
+			OpU.may here build;
+			OpU.may next recur in
+		recur start
 	end
 
 let try_remove_where(a: 'a array)(pred: 'a -> bool): ('a * 'a array) option =

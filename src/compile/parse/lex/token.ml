@@ -4,18 +4,22 @@ type t =
 	| Operator of Sym.t
 	| Literal of N.primitive
 	(* Keywords *)
+	| At
 	| Equals
 	| DotDot
+	| Import
 	(* Expression keywords *)
-	| Case
+	| Cs
 	| Colon
+	| Ck
 	(* Declaration keywords *)
 	| Fn
 	| Cn
 	| Rt
-	| Un (*TODO:UT*)
+	| Un
 	| Ft
 	| Ct
+	| Sn
 	(* Grouping *)
 	| Indent
 	| Dedent
@@ -28,4 +32,4 @@ type t =
 
 (* Just the keywords with text names *)
 let all_keywords: t array =
-	[| Equals; Case; Fn; Cn; Rt; Un; Ft; Ct |]
+	[| At; Equals; Cs; Ck; Import; Rt; Un; Ft; Ct; Fn; Cn |]

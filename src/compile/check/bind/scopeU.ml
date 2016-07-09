@@ -2,12 +2,12 @@ let get(scope: Scope.t)(loc: Loc.t)(name: Sym.t): Binding.t =
 	try
 		Sym.Map.find name scope
 	with Not_found ->
-		CompileErrorU.raise loc @@ CompileError.CantBind name
+		ErrU.raise loc @@ Err.CantBind name
 
 let add(scope: Scope.t)(loc: Loc.t)(name: Sym.t)(binding: Binding.t): Scope.t =
 	match Sym.Map.try_get scope name with
 	| Some old_binding ->
-		CompileErrorU.raise loc @@ CompileError.NameAlreadyBound(name, old_binding)
+		ErrU.raise loc @@ Err.NameAlreadyBound(name, old_binding)
 	| None ->
 		Sym.Map.add name binding scope
 
@@ -21,7 +21,7 @@ let add_params(scope: Scope.t)(params: Ast.parameter array): Scope.t =
 
 let builtins =
 		let m1 = Sym.Map.make Builtin.all @@ fun ({Builtin.name; value}) -> name, Binding.Builtin value in
-		let m2 = Sym.Map.make BuiltinType.all @@ fun b -> TypeU.name b, Binding.BuiltinType b in
+		let m2 = Sym.Map.make BuiltinType.all @@ fun b -> TyU.name b, Binding.BuiltinType b in
 		(* There are no shared names *)
 		Sym.Map.union (fun _ _ _ -> assert false) m1 m2
 

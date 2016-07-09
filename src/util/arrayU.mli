@@ -1,8 +1,5 @@
 val empty: 'a array -> bool
 
-val head: 'a array -> 'a
-val tail: 'a array -> 'a array
-
 val same_length: 'a array -> 'b array -> bool
 
 val iter: 'a array -> ('a -> unit) -> unit
@@ -29,9 +26,11 @@ val single_of: 'a array -> 'a
 val pair_of: 'a array -> 'a * 'a
 val triple_of: 'a array -> 'a * 'a * 'a
 
+val build_and_return: (('a -> unit) -> 'b) -> 'a array * 'b
 val build: (('a -> unit) -> unit) -> 'a array
 val build_loop: (unit -> 'a * bool) -> 'a array
 val build_until_none: (unit -> 'a option) -> 'a array
+val build_fold: 'f -> ('f -> 'a option * 'f option) -> 'a array
 
 val try_remove: 'a array -> 'a -> 'a array option
 val try_remove_where: 'a array -> ('a -> bool) -> ('a * 'a array) option

@@ -1,5 +1,4 @@
 type t = {
-	warn: Loc.t -> CompileError.message -> unit;
 	source: BatIO.input;
 	mutable peek: char;
 	mutable pos: Loc.pos;
@@ -58,9 +57,8 @@ let buffer_while({peek; source; _} as l: t)(b: BatBuffer.t)(pred: char -> bool):
 let skip_newlines(l: t): unit =
 	skip_while l @@ (=) '\n'
 
-let make(warn: Loc.t -> CompileError.message -> unit)(source: BatIO.input): t =
+let make(source: BatIO.input): t =
 	let l = {
-		warn;
 		source;
 		peek = safe_read source;
 		pos = 0;
@@ -104,7 +102,7 @@ let take_string(l: t): Token.t =
 	let str, is_done = next_quote_part l in
 	if is_done then Token.Literal(N.String str) else Token.QuoteStart(str)
 
-let rec next({warn; _} as l: t): Token.t =
+let rec next(l: t): Token.t =
 	let loc_from = loc_from l in
 	let read_char() = read_char l in
 	let skip() = skip l in
@@ -119,7 +117,7 @@ let rec next({warn; _} as l: t): Token.t =
 			if (l.peek = '.') then begin
 				skip();
 				BatBuffer.add_char b '.';
-				CompileErrorU.check (CharU.is_digit l.peek) (Loc.single_character l.pos) CompileError.NumberMustHaveDigitsAfterDecimalPoint;
+				ErrU.check (CharU.is_digit l.peek) (Loc.single_character l.pos) Err.NumberMustHaveDigitsAfterDecimalPoint;
 				buffer_while b CharU.is_digit;
 				let s = BatBuffer.contents b in
 				let f = float_of_string s in
@@ -153,7 +151,7 @@ let rec next({warn; _} as l: t): Token.t =
 	let lex_indent(): int =
 		let start = l.pos in
 		U.returning (count_while ((=) '\t')) begin fun _ ->
-			CompileErrorU.check (l.peek != ' ') (loc_from start) CompileError.LeadingSpace
+			ErrU.check (l.peek != ' ') (loc_from start) Err.LeadingSpace
 		end in
 
 	let handle_newline(indent_only: bool): Token.t =
@@ -162,7 +160,7 @@ let rec next({warn; _} as l: t): Token.t =
 		let old_indent = l.indent in
 		l.indent <- lex_indent();
 		if l.indent > old_indent then begin
-			CompileErrorU.check (l.indent = old_indent + 1) (Loc.single_character l.pos) CompileError.TooMuchIndent;
+			ErrU.check (l.indent = old_indent + 1) (Loc.single_character l.pos) Err.TooMuchIndent;
 			Token.Indent
 		end else if l.indent = old_indent then begin
 			if indent_only then
@@ -189,8 +187,7 @@ let rec next({warn; _} as l: t): Token.t =
 			Token.EOF
 
 	| ' ' ->
-		if l.peek = '\n' then
-			warn (Loc.single_character l.pos) CompileError.TrailingSpace;
+		ErrU.check (l.peek != '\n') (Loc.single_character l.pos) Err.TrailingSpace;
 		next l
 
 	| '\n' ->
@@ -225,7 +222,7 @@ let rec next({warn; _} as l: t): Token.t =
 	| 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z' ->
 		take_symbol ch CharU.is_name_char @@ fun s -> Token.TypeName s
 
-	| '+' | '*' | '/' | '^' | '?' | '<' | '>' | '=' ->
+	| '@' | '+' | '*' | '/' | '^' | '?' | '<' | '>' | '=' ->
 		take_operator ch
 
 	| '.' ->
@@ -241,7 +238,7 @@ let rec next({warn; _} as l: t): Token.t =
 		Token.RCurly
 
 	| ch ->
-		CompileErrorU.raise (Loc.single_character l.pos) @@ CompileError.UnrecognizedCharacter ch
+		ErrU.raise (Loc.single_character l.pos) @@ Err.UnrecognizedCharacter ch
 
 let pos_next l =
 	let p = pos l in

@@ -1,13 +1,5 @@
-open CompileError
+open Err
 
-let raise(loc: Loc.t)(m: message): 'a =
-	raise @@ Exn (loc, m)
-
-let check(cond: bool)(loc: Loc.t)(message: message): unit =
-	if not cond then
-		raise loc message
-
-(*TODO: This should just be its own module.*)
 let output_message(out: 'o OutputU.t)(m: message): unit =
 	let o fmt = OutputU.out out fmt in
 	match m with
@@ -24,8 +16,8 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 
 	| BlockCantEndInDeclare ->
 		o "Last line of block can't be a declaration"
-	| CaseMustBeInLineContext ->
-		o "`case` can't appear in a sub-expression"
+	| CsMustBeInLineContext ->
+		o "`cs` can't appear in a sub-expression"
 	| EmptyExpression ->
 		o "Empty expression"
 	| EqualsInExpression ->
@@ -50,30 +42,30 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 			Sym.output name
 			BindingU.output binding
 
-	| CanOnlyCaseUnion typ ->
+	| CanOnlyCsUnion typ ->
 		o "Expected a union type, got a %a"
-			TypeU.output typ
-	| CasePartType(possible_types, handled_type) ->
-		o "Case should handle one of %a, but handles %a instead"
-			(OutputU.out_array TypeU.output) possible_types
-			TypeU.output handled_type
+			TyU.output typ
+	| CsPartType(possible_types, handled_type) ->
+		o "`cs` should handle one of %a, but handles %a instead"
+			(OutputU.out_array TyU.output) possible_types
+			TyU.output handled_type
 	| CasesUnhandled unhandled_types ->
 		o "The following cases are not handled: %a"
-			(OutputU.out_array TypeU.output) unhandled_types
+			(OutputU.out_array TyU.output) unhandled_types
 	| CombineTypes(a, b) ->
 		o "Can't combine types %a and %a because they are not exactly equal and we don't infer unions yet"
-			TypeU.output a
-			TypeU.output b
+			TyU.output a
+			TyU.output b
 	| NotAFunction typ ->
 		o "Expected a function, got a %a"
-			TypeU.output typ
+			TyU.output typ
 	| NotAValue(_, name) ->
 		o "Not a vaule: %a"
 			Sym.output name
 	| NotExpectedType(expected, actual) ->
 		o "Expected %a, got %a"
-			TypeU.output expected
-			TypeU.output actual
+			TyU.output expected
+			TyU.output actual
 	| NumArgs(n_params, n_args) ->
 		o "Function needs %d parameters, but is given %d"
 			n_params

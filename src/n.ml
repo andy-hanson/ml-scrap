@@ -64,7 +64,7 @@ and bytecode =
 	| CallStatic of declared_fn
 	| CallBuiltin of builtin_fn
 	| CallLambda
-	| Case of (ty * int) array
+	| Cs of (ty * int) array
 	| Const of v
 	| Construct of rt
 	| Drop
@@ -79,6 +79,7 @@ and bytecode =
 	| Partial of int
 	(* Pops n-1 arguments off the stack and interpolates them between the given strings. *)
 	| Quote of string array
+	| Check
 	| Nil
 
 and code = {
@@ -101,10 +102,8 @@ and declared_fn = {
 	mutable code: code
 }
 
-(*TODO: we should have a any_fn variant. And be able to construct a partial_fn for an any_fn*)
 and partial_fn = {
-	(*TODO:RENAME*)
-	fn: fn;
+	partially_applied: fn;
 	partial_args: v array
 }
 

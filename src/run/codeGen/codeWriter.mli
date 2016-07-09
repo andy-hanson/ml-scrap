@@ -25,6 +25,7 @@ val construct: t -> Loc.t -> N.rt -> int -> unit
 val call_lambda: t -> Loc.t -> int -> unit
 val partial: t -> Loc.t -> int -> unit
 val quote: t -> Loc.t -> string array -> unit
+val check: t -> Loc.t -> unit
 
 type placeholder
 val placeholder: t -> Loc.t -> placeholder
@@ -32,5 +33,5 @@ val resolve_goto: t -> placeholder -> unit
 val resolve_goto_if_false: t -> placeholder -> unit
 
 type cases
-val case: t -> Loc.t -> int -> cases
-val resolve_case_part: t -> cases -> int -> N.ty -> unit
+val cs: t -> Loc.t -> int -> cases
+val resolve_cs_part: t -> cases -> int -> N.ty -> unit
