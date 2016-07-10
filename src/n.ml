@@ -59,12 +59,17 @@ and primitive =
 	| String of string
 	| Void
 
+and pattern =
+	| PSingle
+	| PDestruct of pattern array
+
 and bytecode =
 	| Call
 	| Cs of (ty * int) array
 	| Const of v
-	(*TODO:KILL | Construct of rt*)
+	| Destruct of pattern array
 	| Drop
+	| Dup
 	(* Load a value from `int` entries earlier in the stack *)
 	| Load of int
 	(* Goto-like codes store index of bytecode to move to. *)
@@ -72,7 +77,7 @@ and bytecode =
 	| GotoIfFalse of int
 	| Return
 	(* For `a = b; c`, we push `b`, then eval `c` (which may fetch `a`); then remove `a` from under it. *)
-	| UnLet
+	| UnLet of int
 	| Partial of int
 	(* Pops n-1 arguments off the stack and interpolates them between the given strings. *)
 	| Quote of string array

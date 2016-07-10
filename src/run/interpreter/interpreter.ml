@@ -1,7 +1,7 @@
 
-let debug_print(noze: Noze.t)(path: FileIO.path)
-	({N.cur = {N.stack_start_index; _}; N.data_stack; _} as state: N.interpreter_state): unit =
-	OutputU.printf "Stack: %a (start: %d)\n"
+let debug_print(noze: Noze.t)(path: FileIO.path)(state: N.interpreter_state): unit =
+	let {cur = {N.stack_start_index; _}; N.data_stack; _} = state in
+	OutputU.printf "Stack: %a (start_idx: %i)\n"
 		(GoodStack.output_with_max 3 ValU.output) data_stack
 		stack_start_index;
 	let lc_loc = Noze.lc_loc noze path (State.cur_loc state) in

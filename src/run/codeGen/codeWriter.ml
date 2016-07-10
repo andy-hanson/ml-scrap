@@ -41,10 +41,10 @@ let set_local_depth({local_depths; stack_depth; _}: t)(declare: Ast.local_declar
 	AstU.LocalDeclareLookup.set local_depths declare stack_depth
 let get_local_depth({local_depths; _}: t)(declare: Ast.local_declare): int =
 	AstU.LocalDeclareLookup.get local_depths declare
-let decr_stack_depth(w: t): unit =
-	w.stack_depth <- w.stack_depth - 1
 let incr_stack_depth(w: t): unit =
 	w.stack_depth <- w.stack_depth + 1
+let decr_stack_depth(w: t): unit =
+	w.stack_depth <- w.stack_depth - 1
 
 let set_code({code; _}: t)(code_idx: int)(bytecode: N.bytecode): unit =
 	MutArray.set code code_idx bytecode
@@ -72,9 +72,13 @@ let type_of_ast({type_of_ast; _}: t): TypeOfAst.t =
 let types({types; _}: t): TypeCheck.t =
 	types
 
-let un_let(w: t)(loc: Loc.t): unit =
-	write_bc w loc N.UnLet;
-	decr_stack_depth w
+let dup(w: t)(loc: Loc.t): unit =
+	write_bc w loc N.Dup;
+	incr_stack_depth w
+
+let un_let(w: t)(loc: Loc.t)(n: int): unit =
+	write_bc w loc @@ N.UnLet n;
+	w.stack_depth <- w.stack_depth - n
 
 let const(w: t)(loc: Loc.t)(value: N.v): unit =
 	write_bc w loc @@ N.Const value;
@@ -104,6 +108,10 @@ let check(w: t)(loc: Loc.t): unit =
 	write_bc w loc N.Check
 	(* Stack depth: pop bool, push void *)
 
+let destruct(w: t)(loc: Loc.t)(patterns: N.pattern array): unit =
+	(* Stack depth should have been handled by the caller...*)
+	write_bc w loc @@ N.Destruct patterns
+
 type placeholder = code_idx
 let placeholder(w: t)(loc: Loc.t): placeholder =
 	U.returning (next_code_idx w) @@ fun _ -> write_bc w loc N.Return
@@ -114,6 +122,7 @@ let resolve_goto(w: t)(p: placeholder): unit =
 
 type cases = (N.ty * int) array
 let cs(w: t)(loc: Loc.t)(n_parts: int): cases =
-	U.returning (Array.make n_parts (N.t_void, -1)) @@ fun dummy_parts -> write_bc w loc @@ N.Cs dummy_parts
+	U.returning (Array.make n_parts (N.t_void, -1)) @@ fun dummy_parts ->
+		write_bc w loc @@ N.Cs dummy_parts
 let resolve_cs_part(w: t)(cases: cases)(part_index: int)(ty: N.ty): unit =
 	cases.(part_index) <- ty, next_code_idx w

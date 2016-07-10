@@ -37,6 +37,6 @@ let fn_named({N.values; _}: N.modul)(name: string): N.declared_fn =
 	| _ -> failwith @@ OutputU.out_to_string "No function named \"%s\"" name
 
 let call_fn(noze: Noze.t)(m: N.modul)(name: string)(vals: N.v array): N.v =
-	let debug = false in
+	let debug = true in
 	let fn = fn_named m name in
 	(if debug then Interpreter.debug_call_fn noze else Interpreter.call_fn) fn vals

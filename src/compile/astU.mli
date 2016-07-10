@@ -21,5 +21,7 @@ val output_typ: (typ, 'o) OutputU.printer
 val output_parameter: (parameter, 'o) OutputU.printer
 val output_local_declare: (local_declare, 'o) OutputU.printer
 val output_expr: (expr, 'o) OutputU.printer
+val output_decl_val: (decl_val, 'o) OutputU.printer
+val output_decl_ty: (decl_ty, 'o) OutputU.printer
 val output_decl: (decl, 'o) OutputU.printer
 val output_modul: (modul, 'o) OutputU.printer

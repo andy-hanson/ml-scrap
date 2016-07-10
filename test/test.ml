@@ -40,12 +40,13 @@ fn factorial Int x Int
 };;
 
 run_test {
-	name = "Locals";
+	name = "Let";
 	src = "
 fn main Void
-	one = 1
-	other-one = 1
-	ck (one + other-one) == 2"
+	a = 1
+	b = 2
+	ck a == 1
+	ck b == 2"
 };;
 
 (*TODO need to be able to read values back out to really test this!*)
@@ -58,6 +59,52 @@ rt Point
 
 fn main Void
 	ck 0 == 0"
+};;
+
+run_test {
+	name = "Un";
+	src = "
+fn main Void
+	ck is-float? 0.0
+	ck not: is-float? 0
+
+un FloatOrInt
+	Float
+	Int
+
+fn is-float? Bool x FloatOrInt
+	cs x
+		Float @ f
+			true
+		Int @ i
+			false"
+};;
+
+run_test {
+	name = "Patterns";
+	src = "
+fn main Void
+	p = Point 1 2
+	x y = p
+	ck x == 1
+	ck y == 2
+	ck sum 1 == 1
+	ck sum p == 3
+
+rt Point
+	x Int
+	y Int
+
+un IntOrPoint
+	Int
+	Point
+
+fn sum Int ip IntOrPoint
+	cs ip
+		Int @ i
+			i
+		Point x y
+			x + y"
 };;
 
 run_test {
@@ -79,31 +126,12 @@ fn incr Int x Int
 };;
 
 run_test {
-	name = "Union";
-	src = "
-fn main Void
-	ck is-float? 0.0
-	ck not: is-float? 0
-
-un FloatOrInt
-	Float
-	Int
-
-fn is-float? Bool x FloatOrInt
-	cs x
-		Float @ f
-			true
-		Int @ i
-			false"
-};;
-
-run_test {
 	name = "Ct";
 	src = "
 fn main Void
-	ck (convert 0.0) == 0
-	ck (convert 0) == 0.0
-	ck ((FloatOfIntConverter @ convert) 0) == 0.0
+	ck convert 0.0 == 0
+	ck convert 0 == 0.0
+	ck (FloatOfIntConverter @ convert) 0 == 0.0
 
 ct Converter
 	Float Int
@@ -116,16 +144,14 @@ cn convert Converter
 	Int @ i
 		0.0
 	Float @ f
-		0
-"
+		0"
 };;
 
 run_test {
-	name = "Interpolation";
+	name = "String interpolation";
 	src = "
 fn main Void
-	ck \"1 + 1 = {1 + 1}!\" == \"1 + 1 = 2!\"
-"
+	ck \"1 + 1 = {1 + 1}!\" == \"1 + 1 = 2!\""
 };;
 
 (*TODO: World tests w/ mock world*)

@@ -46,8 +46,8 @@ let get_base(decls: Ast.decl array): t =
 	ArrayU.fold builtins decls begin fun scope decl ->
 		let loc, name = AstU.decl_loc_name decl in
 		match decl with
-		| Ast.Fn _ | Ast.Cn _ ->
-			add_v scope loc name @@ Binding.VDeclared decl
-		| Ast.Rt _ | Ast.Un _ | Ast.Ft _ | Ast.Ct _ ->
-			add_ty scope loc name @@ Binding.TDeclared decl
+		| Ast.DeclVal v ->
+			add_v scope loc name @@ Binding.VDeclared v
+		| Ast.DeclTy t ->
+			add_ty scope loc name @@ Binding.TDeclared t
 	end

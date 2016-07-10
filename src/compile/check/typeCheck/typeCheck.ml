@@ -42,8 +42,6 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 				TyU.t_ft rname (Rt rt) properties
 			| Ast.Un _ | Ast.Ft _ | Ast.Ct _ ->
 				raise U.TODO (*TODO: these types are not useable as values; have an error message saying this*)
-			(*TODO: binding for type access should not possibly be a fn *)
-			| Ast.Fn _ | Ast.Cn _ -> assert false
 			end
 		| Binding.BuiltinType t ->
 			(*TODO: type-as-value helper*)
@@ -72,13 +70,11 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 				| Binding.Builtin value ->
 					ValU.type_of value
 				| Binding.VDeclared d ->
-					(*TODO: this access will only access a value, and type accesses will only access types... so we should have 2 different kinds of binding.*)
 					begin match d with
 					| Ast.Fn fn ->
 						TFn(Ft(TypeOfAst.ft_of_fn type_of_ast fn))
 					| Ast.Cn(_, _, typ, _) ->
 						declared_type typ
-					| Ast.Rt _ | Ast.Un _ | Ast.Ft _ | Ast.Ct _ -> assert false
 					end
 				| Binding.Local declare ->
 					get_local_type declare
@@ -114,9 +110,9 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 			| Ast.Cs(loc, cased, parts) ->
 				check_cs loc cased parts
 
-			| Ast.Let(_, declare, value, expr) ->
-				let typ = check_expr value in
-				set_local_type declare typ;
+			| Ast.Let(_, pattern, value, expr) ->
+				let ty = check_expr value in
+				check_pattern ty pattern;
 				check_expr expr
 
 			| Ast.Literal(_, v) ->
@@ -159,19 +155,37 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 		ExprTypes.set expr_types expr expr_type;
 		expr_type
 
+	(*TODO:move?*)
+	and check_pattern(ty: ty)(pattern: Ast.pattern) =
+		match pattern with
+		| Ast.PSingle declare ->
+			set_local_type declare ty;
+		| Ast.PDestruct(_, patterns) ->
+			begin match ty with
+			| Rt {properties; _} ->
+				if (Array.length properties != Array.length patterns) then raise U.TODO;(*TODO: appropriate error*)
+				ArrayU.iter_zip properties patterns begin fun (_, property_type) pattern ->
+					check_pattern property_type pattern
+				end
+			| _ ->
+				raise U.TODO (*TODO: Error: can only destructure rt*)
+			end
+
 	and check_cs(loc: Loc.t)(cased: Ast.expr)(parts: Ast.cs_part array): ty =
 		let cased_types =
 			match check_expr cased with
 			| Un {utypes; _} -> utypes
 			| t -> ErrU.raise (AstU.expr_loc cased) (Err.CanOnlyCsUnion t) in
 		let remaining_types, part_types =
-			ArrayU.fold_map cased_types parts begin fun remaining_types (_, test, result) ->
-				let Ast.AtTest(test_loc, test_type_ast, declare) = test in
+			ArrayU.fold_map cased_types parts begin fun remaining_types (_, (test_loc, test_type_ast, pattern), result) ->
 				let test_type = declared_type test_type_ast in
-				set_local_type declare test_type;
-				let remaining_types = match ArrayU.try_remove remaining_types test_type with
-				| Some types -> types
-				| None -> ErrU.raise test_loc @@ Err.CsPartType(remaining_types, test_type) in
+				check_pattern test_type pattern;
+				let remaining_types =
+					match ArrayU.try_remove remaining_types test_type with
+					| Some types ->
+						types
+					| None ->
+						ErrU.raise test_loc @@ Err.CsPartType(remaining_types, test_type) in
 				remaining_types, check_expr result
 			end in
 		ErrU.check (ArrayU.empty remaining_types) loc @@ Err.CasesUnhandled remaining_types;
@@ -179,10 +193,9 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 
 	(*TODO: share code with check_cs*)
 	and check_cn(_loc: Loc.t)(cases: ct_case array)(parts: Ast.cs_part array): unit =
-		let remaining_cases = ArrayU.fold cases parts begin fun remaining_cases (_, test, result) ->
-			let Ast.AtTest(_test_loc, test_type_ast, declare) = test in
+		let remaining_cases = ArrayU.fold cases parts begin fun remaining_cases (_, (_, test_type_ast, pattern), result) ->
 			let test_type = declared_type test_type_ast in
-			set_local_type declare test_type;
+			check_pattern test_type pattern;
 			let (_, return), remaining_cases =
 				match ArrayU.try_remove_where remaining_cases @@ fun (input, _) -> TypeCheckU.eq input test_type with
 				| Some(x) -> x
@@ -194,17 +207,20 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 		assert (ArrayU.empty remaining_cases) in
 
 	ArrayU.iter decls begin function
-		| Ast.Fn((_, _, _, body) as fn) ->
-			let return_type = (TypeOfAst.ft_of_fn type_of_ast fn).return_type in
-			assert_value_assignable return_type body
-		| Ast.Cn((loc, _, type_ast, parts) as _cn) ->
-			let typ = declared_type type_ast in
-			let case_types =
-				match typ with
-				| TFn(Ct {ct_cases; _}) -> ct_cases
-				| _ -> raise U.TODO (*TODO: an appropriate error*) in
-			check_cn loc case_types parts
-		| Ast.Rt _ | Ast.Un _ | Ast.Ft _ | Ast.Ct _ ->
+		| Ast.DeclVal v ->
+			begin match v with
+			| Ast.Fn((_, _, _, body) as fn) ->
+				let return_type = (TypeOfAst.ft_of_fn type_of_ast fn).return_type in
+				assert_value_assignable return_type body
+			| Ast.Cn((loc, _, type_ast, parts) as _cn) ->
+				let typ = declared_type type_ast in
+				let case_types =
+					match typ with
+					| TFn(Ct {ct_cases; _}) -> ct_cases
+					| _ -> raise U.TODO (*TODO: an appropriate error*) in
+					check_cn loc case_types parts
+			end
+		| Ast.DeclTy _ ->
 			()
 	end;
 

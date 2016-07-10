@@ -12,18 +12,24 @@ let expr_loc = function
 		loc
 
 let decl_loc_name = function
-	| Fn((loc, name, _, _)) ->
-		loc, name
-	| Cn((loc, name, _, _)) ->
-		loc, name
-	| Rt((loc, name, _)) ->
-		loc, name
-	| Un((loc, name, _)) ->
-		loc, name
-	| Ft((loc, name, _)) ->
-		loc, name
-	| Ct((loc, name, _)) ->
-		loc, name
+	| DeclVal v ->
+		begin match v with
+		| Fn((loc, name, _, _)) ->
+			loc, name
+		| Cn((loc, name, _, _)) ->
+			loc, name
+		end
+	| DeclTy t ->
+		begin match t with
+		| Rt((loc, name, _)) ->
+			loc, name
+		| Un((loc, name, _)) ->
+			loc, name
+		| Ft((loc, name, _)) ->
+			loc, name
+		| Ct((loc, name, _)) ->
+			loc, name
+		end
 
 module type SimpleKey = sig
 	type t
@@ -91,46 +97,52 @@ let output_parameter(out: 'o OutputU.t)((_, name, typ): Ast.parameter): unit =
 let output_local_declare(out: 'o OutputU.t)((_, name): Ast.local_declare): unit =
 	OutputU.out out "%a" Sym.output name
 
+let rec output_pattern(out: 'o OutputU.t)(pattern: pattern): unit =
+	let o fmt = OutputU.out out fmt in
+	match pattern with
+	| PSingle declare ->
+		o "PSingle(%a)" output_local_declare declare
+	| PDestruct(_, patterns) ->
+		o "PDestruct(%a)" (OutputU.out_array output_pattern) patterns
+
 let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
+	let o fmt = OutputU.out out fmt in
 	match expr with
 	| At(_, typ, expr) ->
-		OutputU.out out "At(%a, %a)"
+		o "At(%a, %a)"
 			output_typ typ
 			output_expr expr
 	| ExprType(typ) ->
-		OutputU.out out "ExprType(%a)"
+		o "ExprType(%a)"
 			output_typ typ
 	| ExprAccess(access) ->
 		output_access out access
 	| Call(_, fn, args) ->
-		OutputU.out out "Call(%a, %a)"
+		o "Call(%a, %a)"
 			output_expr fn
 			(OutputU.out_array output_expr) args
 	| Cs(_, cased, parts) ->
-		let output_part out (_, test, expr) =
-			let out_test out (AtTest(_, typ, declare)) =
-				OutputU.out out "AtTest(%a, %a)"
-					output_typ typ
-					output_local_declare declare in
-			OutputU.out out "CsPart(%a, %a)"
-				out_test test
+		let output_part(out: 'o OutputU.t)((_, (_, typ, pattern), expr): cs_part): unit =
+			OutputU.out out "CsPart((%a, %a), %a)"
+				output_typ typ
+				output_pattern pattern
 				output_expr expr in
-		OutputU.out out "Cs(%a, %a)"
+		o "Cs(%a, %a)"
 			output_expr cased
 			(OutputU.out_array output_part) parts
-	| Let(_, declare, value, expr) ->
-		OutputU.out out "Let(%a = %a, %a)"
-			output_local_declare declare
+	| Let(_, pattern, value, expr) ->
+		o "Let(%a = %a, %a)"
+			output_pattern pattern
 			output_expr value
 			output_expr expr
 	| Literal(_, v) ->
 		ValU.output_primitive out v
 	| Seq(_, a, b) ->
-		OutputU.out out "Seq(%a, %a)"
+		o "Seq(%a, %a)"
 			output_expr a
 			output_expr b
 	| Partial(_, fn, args) ->
-		OutputU.out out "Partial(%a, %a)"
+		o "Partial(%a, %a)"
 			output_expr fn
 			(OutputU.out_array output_expr) args
 	| Quote(_, head, parts) ->
@@ -138,11 +150,11 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 			OutputU.out out "%a \"%s\""
 				output_expr expr
 				(String.escaped str) in
-		OutputU.out out "Quote(\"%s\", %a)"
+		o "Quote(\"%s\", %a)"
 			(String.escaped head)
 			(OutputU.out_array output_part) parts
 	| Check(_, checked) ->
-		OutputU.out out "Check(%a)" output_expr checked
+		o "Check(%a)" output_expr checked
 
 let output_fn(out: 'o OutputU.t)((_, name, sign, body): Ast.fn): unit =
 	let out_sig out (_, typ, params) =
@@ -166,14 +178,24 @@ let output_ft(_out: 'o OutputU.t)((_, _, _): Ast.ft): unit =
 let output_ct(_out: 'o OutputU.t)((_, _, _): Ast.ct): unit =
 	raise U.TODO
 
-let output_decl(out: 'o OutputU.t)(decl: decl): unit =
-	match decl with
+let output_decl_val(out: 'o OutputU.t)(decl: decl_val): unit =
+	begin match decl with
 	| Fn fn -> output_fn out fn
 	| Cn cn -> output_cn out cn
+	end
+
+let output_decl_ty(out: 'o OutputU.t)(decl: decl_ty): unit =
+	begin match decl with
 	| Rt rt -> output_rt out rt
 	| Un un -> output_un out un
 	| Ft ft -> output_ft out ft
 	| Ct ct -> output_ct out ct
+	end
+
+let output_decl(out: 'o OutputU.t)(decl: decl): unit =
+	match decl with
+	| DeclVal v -> output_decl_val out v
+	| DeclTy t -> output_decl_ty out t
 
 let output_modul(out: 'o OutputU.t)((_imports, decls): modul): unit =
 	OutputU.out_array output_decl out decls

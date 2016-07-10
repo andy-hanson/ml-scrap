@@ -6,7 +6,7 @@ val peek: interpreter_state -> v
 val pop: interpreter_state -> v
 val pop_n: interpreter_state -> int -> v array
 val push: interpreter_state -> v -> unit
-val un_let: interpreter_state -> unit
+val un_let: interpreter_state -> int -> unit
 
 val cur_fn: interpreter_state -> declared_fn
 val cur_code: interpreter_state -> bytecode

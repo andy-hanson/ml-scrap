@@ -4,6 +4,7 @@ val apply_fn_to_stack_depth: t -> int -> unit
 
 (*TODO: rename to register_local or something*)
 val set_local_depth: t -> Ast.local_declare -> unit
+val incr_stack_depth: t -> unit
 val decr_stack_depth: t -> unit
 
 (*TODO:move down*)
@@ -16,13 +17,16 @@ val bindings: t -> Bind.t
 val type_of_ast: t -> TypeOfAst.t
 val types: t -> TypeCheck.t
 
-val un_let: t -> Loc.t -> unit
+(*TODO: ordering*)
+val dup: t -> Loc.t -> unit
+val un_let: t -> Loc.t -> int -> unit
 val const: t -> Loc.t -> N.v -> unit
 val drop: t -> Loc.t -> unit
 val call: t -> Loc.t -> int -> unit
 val partial: t -> Loc.t -> int -> unit
 val quote: t -> Loc.t -> string array -> unit
 val check: t -> Loc.t -> unit
+val destruct: t -> Loc.t -> N.pattern array -> unit
 
 type placeholder
 val placeholder: t -> Loc.t -> placeholder

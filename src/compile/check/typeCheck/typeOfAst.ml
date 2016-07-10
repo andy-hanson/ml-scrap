@@ -44,10 +44,17 @@ let set_value_by_name(value_by_name: v Sym.Lookup.t)({fns; cns; rts = _; uns = _
 	Fns.iter_values fns (fun fn -> set (ValU.fn_name fn) @@ Fn(DeclaredFn fn));
 	Cns.iter_values cns (fun cn -> set (ValU.fn_name cn) @@ Fn(DeclaredFn cn))
 
-let type_of_ast(type_of_ast: t)(ast: Ast.decl): ty =
+let val_of_ast(type_of_ast: t)(ast: Ast.decl_val): v =
+	let fn =
+		match ast with
+		| Ast.Fn f ->
+			fn_of_ast type_of_ast f
+		| Ast.Cn c ->
+			cn_of_ast type_of_ast c in
+	Fn(DeclaredFn fn)
+
+let ty_of_ast(type_of_ast: t)(ast: Ast.decl_ty): ty =
 	begin match ast with
-	| Ast.Fn _ | Ast.Cn _ ->
-		assert false
 	| Ast.Rt r ->
 		Rt(rt_of_ast type_of_ast r)
 	| Ast.Un u ->
@@ -57,13 +64,11 @@ let type_of_ast(type_of_ast: t)(ast: Ast.decl): ty =
 	| Ast.Ct c ->
 		TFn(Ct(ct_of_ast type_of_ast c))
 	end
+
+
 (*TODO: kill above? or at least write it in terms of this*)
-let ty_or_v_of_ast(type_of_ast: t)(ast: Ast.decl): ty_or_v =
+(*TODO:KILL let ty_or_v_of_ast(type_of_ast: t)(ast: Ast.decl): ty_or_v =
 	begin match ast with
-	| Ast.Fn f ->
-		V(Fn(DeclaredFn(fn_of_ast type_of_ast f)))
-	| Ast.Cn c ->
-		V(Fn(DeclaredFn(cn_of_ast type_of_ast c)))
 	| Ast.Rt r ->
 		Ty(Rt(rt_of_ast type_of_ast r))
 	| Ast.Un u ->
@@ -72,7 +77,7 @@ let ty_or_v_of_ast(type_of_ast: t)(ast: Ast.decl): ty_or_v =
 		Ty(TFn(Ft(ft_of_ast type_of_ast f)))
 	| Ast.Ct c ->
 		Ty(TFn(Ct(ct_of_ast type_of_ast c)))
-	end
+	end*)
 
 let declared_type(bindings: Bind.t)(t: t)(typ: Ast.typ): ty =
 	match typ with
@@ -81,7 +86,7 @@ let declared_type(bindings: Bind.t)(t: t)(typ: Ast.typ): ty =
 		| Binding.BuiltinType b ->
 			b
 		| Binding.TDeclared d ->
-			type_of_ast t d
+			ty_of_ast t d
 		end
 
 let dummy_ft(fname: Sym.t): ft =
@@ -100,18 +105,24 @@ let build(path: FileIO.path)(bindings: Bind.t)((_, decls): Ast.modul): modul * t
 	U.returning (modul, {rts; uns; fts; cts; fns; parameter_types; cns}) begin fun (modul, type_of_ast) ->
 		let declared_fn(fn_type: ty_fn): declared_fn = { fn_type; containing_modul = modul; code = dummy_code } in
 		ArrayU.iter decls begin function
-			| Ast.Rt((_, rname, _) as r) ->
-				Rts.set rts r {rname; properties = [||]}
-			| Ast.Un((_, uname, _) as u) ->
-				Uns.set uns u {uname; utypes = [||]}
-			| Ast.Ft((_, fname, _) as f) ->
-				Fts.set fts f {fname; return_type = t_void; parameters = [||]}
-			| Ast.Ct((_, cname, _) as c) ->
-				Cts.set cts c {cname; ct_cases = [||]}
-			| Ast.Fn((_, name, _, _) as fn) ->
-				Fns.set fns fn @@ declared_fn @@ Ft(dummy_ft name)
-			| Ast.Cn((_, name, _, _) as cn) ->
-				Cns.set cns cn @@ declared_fn @@ Ct(dummy_ct name);
+			| Ast.DeclVal v ->
+				begin match v with
+				| Ast.Fn((_, name, _, _) as fn) ->
+					Fns.set fns fn @@ declared_fn @@ Ft(dummy_ft name)
+				| Ast.Cn((_, name, _, _) as cn) ->
+					Cns.set cns cn @@ declared_fn @@ Ct(dummy_ct name)
+				end
+			| Ast.DeclTy t ->
+				begin match t with
+				| Ast.Rt((_, rname, _) as r) ->
+					Rts.set rts r {rname; properties = [||]}
+				| Ast.Un((_, uname, _) as u) ->
+					Uns.set uns u {uname; utypes = [||]}
+				| Ast.Ft((_, fname, _) as f) ->
+					Fts.set fts f {fname; return_type = t_void; parameters = [||]}
+				| Ast.Ct((_, cname, _) as c) ->
+					Cts.set cts c {cname; ct_cases = [||]}
+				end
 		end;
 		set_type_by_name modul.types type_of_ast;
 		set_value_by_name modul.values type_of_ast;

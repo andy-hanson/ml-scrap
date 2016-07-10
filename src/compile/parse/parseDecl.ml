@@ -99,20 +99,19 @@ let parse_ct(l: Lexer.t)(start: Loc.pos): Ast.ct =
 	end in
 	Lexer.loc_from l start, name, cases
 
-(* parse module declaration or End *)
 let parse_decl(l: Lexer.t)(start: Loc.pos)(next: Token.t): Ast.decl =
 	match next with
 	| Token.Fn ->
-		Ast.Fn(parse_fn l start)
+		Ast.DeclVal(Ast.Fn(parse_fn l start))
 	| Token.Cn ->
-		Ast.Cn(parse_cn l start)
+		Ast.DeclVal(Ast.Cn(parse_cn l start))
 	| Token.Rt ->
-		Ast.Rt(parse_rt l start)
+		Ast.DeclTy(Ast.Rt(parse_rt l start))
 	| Token.Un ->
-		Ast.Un(parse_un l start)
+		Ast.DeclTy(Ast.Un(parse_un l start))
 	| Token.Ft ->
-		Ast.Ft(parse_ft l start)
+		Ast.DeclTy(Ast.Ft(parse_ft l start))
 	| Token.Ct ->
-		Ast.Ct(parse_ct l start)
+		Ast.DeclTy(Ast.Ct(parse_ct l start))
 	| x ->
 		ParseU.unexpected start l x

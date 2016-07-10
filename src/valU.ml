@@ -83,9 +83,9 @@ let rec output_fn(out: 'o OutputU.t)(fn: fn): unit =
 		OutputU.out out "PartialFn(%a, %a)"
 			output_fn partially_applied
 			(OutputU.out_array output) partial_args
-	| Ctr rt ->
+	| Ctr {rname; _} ->
 		OutputU.out out "Ctr(%a)"
-			TyU.output_rt rt
+			Sym.output rname
 
 (*TODO: NOut module*)
 and output(out: 'o OutputU.t)(value: v): unit =
@@ -107,17 +107,29 @@ and output(out: 'o OutputU.t)(value: v): unit =
 and output_declared_fn(out: 'o OutputU.t)({fn_type; _}: declared_fn): unit =
 	OutputU.out out "Fn(%a)"
 		TyU.output_ty_fn fn_type
+
+and output_pattern(out: 'o OutputU.t)(pattern: pattern): unit =
+	match pattern with
+	| PSingle ->
+		OutputU.str out "PSingle"
+	| PDestruct patterns ->
+		OutputU.out_array output_pattern out patterns
+
 and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 	let o fmt = OutputU.out out fmt in
 	match c with
 	| Call ->
 		o "Call"
 	| Cs parts ->
-		o "Cs(%a)" (OutputU.out_array @@ OutputU.out_pair TyU.output OutputU.output_int) parts
+		o "Cs(%a)" (OutputU.out_array @@ OutputU.out_pair TyU.output_brief OutputU.output_int) parts
 	| Const v ->
 		o "Const(%a)" output v
+	| Destruct pattern ->
+		o "Destruct(%a)" (OutputU.out_array output_pattern) pattern
 	| Drop ->
 		o "Drop"
+	| Dup ->
+		o "Dup"
 	| Load i ->
 		o "Load(%d)" i
 	| Goto i ->
@@ -126,8 +138,8 @@ and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 		o "GotoIfFalse(%d)" i
 	| Return ->
 		o "Return"
-	| UnLet ->
-		o "UnLet"
+	| UnLet n ->
+		o "UnLet(%i)" n
 	| Partial arity ->
 		o "Partial(%i)" arity
 	| Quote strings ->

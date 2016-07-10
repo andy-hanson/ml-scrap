@@ -30,8 +30,8 @@ let push({data_stack; _}: interpreter_state)(value: v): unit =
 let push_many({data_stack; _}: interpreter_state)(values: v array): unit =
 	GoodStack.push_many data_stack values
 
-let un_let({data_stack; _}: interpreter_state): unit =
-	GoodStack.un_let data_stack
+let un_let({data_stack; _}: interpreter_state)(n: int): unit =
+	GoodStack.un_let data_stack n
 
 let cur_fn({cur = {cse_fn; _}; _}: interpreter_state): declared_fn =
 	cse_fn

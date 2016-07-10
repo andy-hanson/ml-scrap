@@ -98,15 +98,21 @@ let build_loop(f: unit -> 'a * bool): 'a array =
 		recur();
 	end
 
+let rec build_until_none_worker(f: unit -> 'a option)(build: 'a -> unit): unit =
+	match f() with
+	| Some x ->
+		build x;
+		build_until_none_worker f build
+	| None ->
+		()
+
 let build_until_none(f: unit -> 'a option): 'a array =
+	build @@ build_until_none_worker f
+
+let build_until_none_with_first(first: 'a)(f: unit -> 'a option): 'a array =
 	build begin fun build ->
-		let rec recur() =
-			match f() with
-			| Some x ->
-				build x;
-				recur()
-			| None -> () in
-		recur();
+		build first;
+		build_until_none_worker f build
 	end
 
 let build_fold(start: 'f)(fold: 'f -> 'a option * 'f option): 'a array =

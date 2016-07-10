@@ -38,10 +38,10 @@ let pop_n(gs: 'a t)(n: int): 'a array =
 		MutArray.delete_range gs start n
 	end
 
-let un_let(gs: 'a t): unit =
+let un_let(gs: 'a t)(n: int): unit =
 	let l = MutArray.length gs in
-	MutArray.set gs (l - 2) (MutArray.get gs @@ l - 1);
-	MutArray.delete_last gs
+	MutArray.set gs (l - n - 1) (MutArray.last gs);
+	MutArray.delete_last_n gs n
 
 let output_with_max(max: int)(output_element: ('a, 'o) OutputU.printer)(out: 'o OutputU.t)(gs: 'a t) =
 	let n = size gs in
@@ -49,6 +49,5 @@ let output_with_max(max: int)(output_element: ('a, 'o) OutputU.printer)(out: 'o 
 		OutputU.out_array output_element out @@ MutArray.to_array gs
 	else
 		let tail = MutArray.slice gs (n - max) max in
-		OutputU.out out "[... %a] %a"
+		OutputU.out out "[... %a]"
 			(OutputU.out_array_elements output_element) tail
-			output_element (peek gs)

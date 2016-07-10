@@ -1,22 +1,50 @@
+fn main Int
+	convert 1.0
+
+ct Converter
+	Float Int
+	Int Float
+
+cn convert Converter
+	Int @ i
+		0.0
+	Float @ f
+		0
+
+|| rt Point
+||	x Int
+||	y Int
+
+|| un IntOrPoint
+||	Int
+||	Point
+
+|| fn sum Int ip IntOrPoint
+||	cs ip
+||		Int @ i
+||			i
+||		Point x y
+||			x + y
+
+
 || fn main Void world World
 ||	say-hello: Printer @ world
 
-fn say-hello Void printer Printer
-	printer: Print "Hello, world!"
+|| fn say-hello Void printer Printer
+||	printer: Print "Hello, world!"
 
-ct Printer
-	Void Print
+|| ct Printer
+||	Void Print
 
+|| fn main Void world World
+||	speaker = say-it .. world
+||	x = speaker .. "Hello, world!"
+||	do x
+||	do x
+||	do x
 
-fn main Void world World
-	speaker = say-it .. world
-	x = speaker .. "Hello, world!"
-	do x
-	do x
-	do x
-
-fn say-it Void message String world World
-	world: Print message
+|| fn say-it Void message String world World
+||	world: Print message
 
 || fn main Void world World
 ||	world: Print "One plus one is {1 + 1} you know"

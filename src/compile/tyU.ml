@@ -78,10 +78,13 @@ and output_rt(out: 'o OutputU.t)({rname; properties}: rt): unit =
 and output_short(out: 'o OutputU.t)(t: ty): unit =
 	OutputU.str out @@ Sym.string_of @@ name t
 
+and output_brief(out: 'o OutputU.t)(t: ty): unit =
+	OutputU.str out @@ Sym.string_of @@ name t
+
 and output(out: 'o OutputU.t)(t: ty): unit =
 	match t with
 	| Any | TPrimitive _ ->
-		OutputU.str out @@ Sym.string_of @@ name t
+		output_brief out t
 	| Rt rt ->
 		output_rt out rt
 	| Un {uname; utypes} ->

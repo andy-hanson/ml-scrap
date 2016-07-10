@@ -29,13 +29,8 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		| Binding.Builtin v ->
 			W.const w loc v
 		| Binding.VDeclared decl ->
-			begin match TypeOfAst.ty_or_v_of_ast (W.type_of_ast w) decl with
-			| N.Ty _ ->
-				(*TODO: If it's a record, push a constructor fn*)
-				raise U.TODO
-			| N.V v ->
-				W.const w loc v
-			end
+			let v = TypeOfAst.val_of_ast (W.type_of_ast w) decl in
+			W.const w loc v
 		| Binding.Local l ->
 			W.access_local w loc l
 		| Binding.Parameter p ->
@@ -47,15 +42,13 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 
 	| Ast.Cs(loc, cased, parts) ->
 		recur cased;
-		write_cs_body w loc parts;
-		(* un-let the cased value *)
-		W.un_let w loc
+		write_cs_body w loc parts
 
-	| Ast.Let(loc, declare, value, expr) ->
-		W.set_local_depth w declare;
+	| Ast.Let(loc, pattern, value, expr) ->
 		recur value;
+		let pattern_size = handle_pattern w pattern in
 		recur expr;
-		W.un_let w loc
+		W.un_let w loc pattern_size
 
 	| Ast.Literal(loc, value) ->
 		W.const w loc @@ N.Primitive value
@@ -126,22 +119,50 @@ and write_cond(w: W.t)(loc: Loc.t)(args: Ast.expr array): unit =
 
 	W.resolve_goto w goto_bottom
 
+(*TODO:move? and rename!*)
+(*Returns number of UnLets we will need at the end*)
+and handle_pattern(w: W.t)(pattern: Ast.pattern): int =
+	match pattern with
+	| Ast.PSingle declare ->
+		(*TODO: this is silly...*)
+		(*The local is the previous stack depth*)
+		W.decr_stack_depth w;
+		W.set_local_depth w declare;
+		W.incr_stack_depth w;
+		1
+	| Ast.PDestruct(loc, patterns) ->
+		let pattern_size = ref 0 in
+		let rec pattern_of_ast(pattern: Ast.pattern): N.pattern =
+			match pattern with
+			| Ast.PSingle declare ->
+				W.set_local_depth w declare;
+				incr pattern_size;
+				W.incr_stack_depth w;
+				N.PSingle
+			| Ast.PDestruct(_, patterns) ->
+				N.PDestruct(ArrayU.map patterns pattern_of_ast) in
+		(* The original value destructed is popped and destructed to the patterned values. *)
+		W.decr_stack_depth w;
+		let patterns = ArrayU.map patterns pattern_of_ast in
+		W.destruct w loc patterns;
+		!pattern_size
+
 and write_cs_body(w: W.t)(loc: Loc.t)(parts: Ast.cs_part array): unit =
 	let cases = W.cs w loc @@ Array.length parts in
 
-	let bottom_placeholders = ArrayU.mapi parts begin fun idx (loc, test, result) ->
-		let Ast.AtTest(_, _, local) = test in
-		W.resolve_cs_part w cases idx (TypeCheck.type_of_local (W.types w) local);
-		(* case does not pop anything from the stack, so that becomse the new local *)
-		W.set_local_depth w local;
-		write_expr w result;
-		(* Like for cond, we don't want the stack depth increased for every individual case, just for the whole. *)
-		if idx != Array.length parts - 1 then W.decr_stack_depth w;
-		(*TODO: very last one doesn't need goto bottom, it's already at the bottom*)
-		W.placeholder w loc
-	end in
+	let bottom_placeholders =
+		ArrayU.mapi parts begin fun idx (loc, (_, typ, pattern), result) ->
+			W.resolve_cs_part w cases idx (TypeOfAst.declared_type (W.bindings w) (W.type_of_ast w) typ);
+			let pattern_size = handle_pattern w pattern in
+			write_expr w result;
+			W.un_let w loc pattern_size;
+			(* Like for cond, we don't want the stack depth increased for every individual case, just for the whole. *)
+			(*if idx != Array.length parts - 1 then W.decr_stack_depth w;*)
+			(*TODO: very last one doesn't need goto bottom, it's already at the bottom*)
+			W.placeholder w loc
+		end in
 
-	ArrayU.iter bottom_placeholders (W.resolve_goto w)
+	ArrayU.iter bottom_placeholders @@ W.resolve_goto w
 
 (*TODO: move inside f. Or better, move inside CodeWriter.ml!*)
 let write_code(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(types: TypeCheck.t)(parameters: Ast.parameter array)(loc: Loc.t)(do_write: W.t -> unit): N.code =
@@ -151,12 +172,19 @@ let write_code(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(types: TypeCheck.t)(p
 
 let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(types: TypeCheck.t)((_, decls): Ast.modul): unit =
 	ArrayU.iter decls begin function
-		| Ast.Fn((_, _, (_, _, parameters), body) as fn_ast) ->
-			let fn = TypeOfAst.fn_of_ast type_of_ast fn_ast in
-			fn.N.code <- write_code bindings type_of_ast types parameters (AstU.expr_loc body) @@ fun w -> write_expr w body
-		| Ast.Cn((loc, _, _, parts) as cn_ast) ->
-			let fn = TypeOfAst.cn_of_ast type_of_ast cn_ast in
-			fn.N.code <- write_code bindings type_of_ast types [||] loc @@ fun w -> write_cs_body w loc parts
-		| Ast.Rt _ | Ast.Un _ | Ast.Ft _ | Ast.Ct _ ->
+		| Ast.DeclVal v ->
+			begin match v with
+			| Ast.Fn((_, _, (_, _, parameters), body) as fn_ast) ->
+				let fn = TypeOfAst.fn_of_ast type_of_ast fn_ast in
+				fn.N.code <- write_code bindings type_of_ast types parameters (AstU.expr_loc body) @@ fun w -> write_expr w body
+			| Ast.Cn((loc, _, _, parts) as cn_ast) ->
+				let fn = TypeOfAst.cn_of_ast type_of_ast cn_ast in
+				fn.N.code <- write_code bindings type_of_ast types [||] loc begin fun w ->
+					(* Keep the original cased value on the stack. *)
+					W.dup w loc;
+					write_cs_body w loc parts
+				end
+			end
+		| Ast.DeclTy _ ->
 			()
 	end;

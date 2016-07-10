@@ -30,6 +30,7 @@ val build_and_return: (('a -> unit) -> 'b) -> 'a array * 'b
 val build: (('a -> unit) -> unit) -> 'a array
 val build_loop: (unit -> 'a * bool) -> 'a array
 val build_until_none: (unit -> 'a option) -> 'a array
+val build_until_none_with_first: 'a -> (unit -> 'a option) -> 'a array
 val build_fold: 'f -> ('f -> 'a option * 'f option) -> 'a array
 
 val try_remove: 'a array -> 'a -> 'a array option

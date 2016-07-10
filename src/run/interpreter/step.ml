@@ -19,8 +19,28 @@ let step(state: N.interpreter_state): bool =
 		State.push state value;
 		next()
 
+	| N.Destruct patterns ->
+		let rec use_pattern(pattern: N.pattern)(value: N.v) =
+			match pattern with
+			| N.PSingle ->
+				State.push state value
+			| N.PDestruct patterns ->
+				destruct patterns value
+		and destruct(patterns: N.pattern array)(value: N.v) =
+			match value with
+			| N.Rc(_, properties) ->
+				ArrayU.iter_zip patterns properties use_pattern
+			| _ ->
+				assert false in
+		destruct patterns (State.pop state);
+		next()
+
 	| N.Drop ->
 		ignore (State.pop state);
+		next()
+
+	| N.Dup ->
+		State.push state (State.peek state);
 		next()
 
 	| N.Goto new_idx ->
@@ -44,9 +64,9 @@ let step(state: N.interpreter_state): bool =
 		State.push state return_value;
 		State.pop_fn state
 
-	| N.UnLet ->
+	| N.UnLet n ->
 		(* Stack effect: `... a b` -> `... b` *)
-		State.un_let state;
+		State.un_let state n;
 		next()
 
 	| N.Partial arity ->

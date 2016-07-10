@@ -1,3 +1,5 @@
+open Ast
+
 type t = {
 	vals: Binding.v AstU.AccessLookup.t;
 	tys: Binding.ty AstU.AccessLookup.t;
@@ -7,59 +9,63 @@ let ty_binding({tys; _}: t) = AstU.AccessLookup.get tys
 
 type ctx = {
 	scope: Scope.t;
-	add_v: Ast.access -> Binding.v -> unit;
-	add_ty: Ast.access -> Binding.ty -> unit;
+	add_v: access -> Binding.v -> unit;
+	add_ty: access -> Binding.ty -> unit;
 }
 
-let add_type({scope; add_ty; _}: ctx)(typ: Ast.typ): unit = (*TODO:NAME*)
+let add_type({scope; add_ty; _}: ctx)(typ: typ): unit = (*TODO:NAME*)
 	match typ with
-	| Ast.TypeAccess((loc, name) as access) ->
+	| TypeAccess((loc, name) as access) ->
 		add_ty access @@ ScopeU.get_ty scope loc name
 
-let rec bind_cases({scope; _} as ctx: ctx)(cases: Ast.cs_part array): unit =
-	ArrayU.iter cases begin fun (_, test, result) ->
-		match test with
-		| Ast.AtTest(_, typ, declare) ->
-			add_type ctx typ;
-			let scope = ScopeU.add_local scope declare in
-			bind_expr {ctx with scope} result
+let rec add_pattern_to_scope(scope: Scope.t)(pattern: Ast.pattern): Scope.t =
+	match pattern with
+	| PSingle(declare) ->
+		ScopeU.add_local scope declare
+	| PDestruct(_, patterns) ->
+		ArrayU.fold scope patterns add_pattern_to_scope
+
+let rec bind_cases({scope; _} as ctx: ctx)(cases: cs_part array): unit =
+	ArrayU.iter cases begin fun (_, (_, typ, pattern), result) ->
+		add_type ctx typ;
+		bind_expr {ctx with scope = add_pattern_to_scope scope pattern} result
 	end
 
-and bind_expr({scope; add_v; _} as ctx: ctx)(expr: Ast.expr): unit =
+and bind_expr({scope; add_v; _} as ctx: ctx)(expr: expr): unit =
 	let recur = bind_expr ctx in
 	(*TODO: open Ast*)
 	match expr with
-	| Ast.At(_, typ, expr) ->
+	| At(_, typ, expr) ->
 	 	add_type ctx typ;
 		recur expr
-	| Ast.ExprType(typ) ->
+	| ExprType(typ) ->
 		add_type ctx typ
-	| Ast.ExprAccess((loc, name) as access) ->
+	| ExprAccess((loc, name) as access) ->
 		add_v access @@ ScopeU.get_v scope loc name
-	| Ast.Call(_, called, arguments) ->
+	| Call(_, called, arguments) ->
 		recur called;
 		ArrayU.iter arguments recur
-	| Ast.Cs(_, cased, cases) ->
+	| Cs(_, cased, cases) ->
 		recur cased;
 		bind_cases ctx cases
-	| Ast.Let(_, declare, value, expr) ->
+	| Let(_, pattern, value, expr) ->
 		recur value;
-		let scope = ScopeU.add_local scope declare in
+		let scope = add_pattern_to_scope scope pattern in
 		bind_expr {ctx with scope} expr
-	| Ast.Literal _ ->
+	| Literal _ ->
 		()
-	| Ast.Seq(_, a, b) ->
+	| Seq(_, a, b) ->
 		recur a;
 		recur b
-	| Ast.Partial(_, f, args) ->
+	| Partial(_, f, args) ->
 		recur f;
 		ArrayU.iter args recur
-	| Ast.Quote(_, _, parts) ->
+	| Quote(_, _, parts) ->
 		ArrayU.iter parts @@ fun (expr, _) -> recur expr
-	| Ast.Check(_, expr) ->
+	| Check(_, expr) ->
 		recur expr
 
-let bind((_, decls): Ast.modul): t =
+let bind((_, decls): modul): t =
 	let vals = AstU.AccessLookup.create() in
 	let tys = AstU.AccessLookup.create() in
 
@@ -67,33 +73,37 @@ let bind((_, decls): Ast.modul): t =
 		let base_scope = ScopeU.get_base decls in
 		let ctx = {scope = base_scope; add_v = AstU.AccessLookup.set vals; add_ty = AstU.AccessLookup.set tys} in
 
-		let bind_signature((_, return_type, parameters): Ast.signature): unit =
+		let bind_signature((_, return_type, parameters): signature): unit =
 			add_type ctx return_type;
 			ArrayU.iter parameters @@ fun (_, _, typ) -> add_type ctx typ in
 
 		ArrayU.iter decls begin function
-		| Ast.Fn((_, _, ((_, _, params) as signature), body)) ->
-			bind_signature signature;
-			let scope = ScopeU.add_params base_scope params in
-			bind_expr {ctx with scope} body
+		| DeclVal v ->
+			begin match v with
+			| Fn((_, _, ((_, _, params) as signature), body)) ->
+				bind_signature signature;
+				let scope = ScopeU.add_params base_scope params in
+				bind_expr {ctx with scope} body
 
-		| Ast.Cn((_, _, typ, cases)) ->
-			add_type ctx typ;
-			bind_cases ctx cases
+			| Cn((_, _, typ, cases)) ->
+				add_type ctx typ;
+				bind_cases ctx cases
+			end
+		| DeclTy t ->
+			begin match t with
+			| Rt((_, _, properties)) ->
+				ArrayU.iter properties @@ fun (_, _, typ) -> add_type ctx typ
 
-		| Ast.Rt((_, _, properties)) ->
-			ArrayU.iter properties @@ fun (_, _, typ) -> add_type ctx typ
+			| Un((_, _, types)) ->
+				ArrayU.iter types @@ add_type ctx
+			| Ft((_, _, signature)) ->
+				bind_signature signature
 
-		| Ast.Un((_, _, types)) ->
-			ArrayU.iter types @@ add_type ctx
-
-		| Ast.Ft((_, _, signature)) ->
-			bind_signature signature
-
-		| Ast.Ct((_, _, cases)) ->
-			ArrayU.iter cases @@ fun (return, input) ->
-				add_type ctx return;
-				add_type ctx input
+			| Ct((_, _, cases)) ->
+				ArrayU.iter cases @@ fun (return, input) ->
+					add_type ctx return;
+					add_type ctx input
+			end
 		end
 	end
 
