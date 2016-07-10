@@ -5,13 +5,30 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 	match expr with
 	| Ast.At(_, _, expr) ->
 		recur expr
-	| Ast.ExprType(_) ->
-		raise U.TODO (*TODO: constructors should be handled in write_call*)
+	| Ast.ExprType(typ_ast) ->
+		let Ast.TypeAccess((loc, _) as access) = typ_ast in
+		let rt =
+			begin match Bind.ty_binding (W.bindings w) access with
+			| Binding.TDeclared d ->
+				begin match d with
+				| Ast.Rt rt_ast ->
+					TypeOfAst.rt_of_ast (W.type_of_ast w) rt_ast
+				| _ ->
+					assert false
+				end
+			| Binding.BuiltinType t ->
+				begin match t with
+				| N.Rt rt -> rt
+				| _ -> assert false
+				end
+			end in
+		W.const w loc @@ N.Fn(N.Ctr rt)
+
 	| Ast.ExprAccess((loc, _) as access) ->
 		begin match Bind.binding (W.bindings w) access with
 		| Binding.Builtin v ->
 			W.const w loc v
-		| Binding.Declared decl ->
+		| Binding.VDeclared decl ->
 			begin match TypeOfAst.ty_or_v_of_ast (W.type_of_ast w) decl with
 			| N.Ty _ ->
 				(*TODO: If it's a record, push a constructor fn*)
@@ -23,9 +40,6 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 			W.access_local w loc l
 		| Binding.Parameter p ->
 			W.access_parameter w loc p
-		| Binding.BuiltinType _ ->
-			(*TODO: handle Rc case. codeGen should never raise compile errors.*)
-			ErrU.raise loc Err.CantUseTypeAsValue
 		end
 
 	| Ast.Call(loc, called, args) ->
@@ -66,83 +80,33 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		W.check w loc
 
 (*TODO: get rid of specialized Call bytecodes, and just always use the call_lambda case*)
-and write_call(w: W.t)(call_loc: Loc.t)(called: Ast.expr)(args: Ast.expr array): unit =
-	let arity = Array.length args in
-	let write_args() = ArrayU.iter args @@ write_expr w in
-	let call_lambda(write_called: unit -> unit): unit =
-		write_args();
-		write_called();
-		W.call_lambda w call_loc arity in
+and write_call(w: W.t)(loc: Loc.t)(called: Ast.expr)(args: Ast.expr array): unit =
+	let eager() =
+		ArrayU.iter args (write_expr w);
+		write_expr w called;
+		W.call w loc @@ Array.length args in
 	match called with
-	| Ast.ExprAccess((loc, _) as access) ->
+	| Ast.ExprAccess(access) ->
 		begin match Bind.binding (W.bindings w) access with
 		| Binding.Builtin b ->
-			write_builtin_call w loc b args
-		| Binding.Declared d ->
-			begin match d with
-			| Ast.Fn fn_ast ->
-				write_args();
-				let fn = TypeOfAst.fn_of_ast (W.type_of_ast w) fn_ast in
-				W.call_static w loc fn arity
-			| Ast.Cn cn_ast ->
-				(*TODO: this is a lot like above, share code*)
-				write_args();
-				let fn = TypeOfAst.cn_of_ast (W.type_of_ast w) cn_ast in
-				W.call_static w loc fn arity
-			(*TODO: ocaml type system should ensure these never happen*)
-			| Ast.Rt _ | Ast.Un _ | Ast.Ft _ | Ast.Ct _ ->
+			begin match b with
+			| N.Fn N.BuiltinFn(fn) ->
+				if fn == Builtin.cond_value then
+					write_cond w loc args
+				(*TODO:KILL else if fn == Builtin.do_value then begin
+					assert (Array.length args = 1);
+					write_expr w args.(0);
+					W.call w loc 0*)
+				else
+					eager()
+			| _ ->
 				assert false
 			end
-		| Binding.Local l ->
-			call_lambda @@ fun () -> W.access_local w loc l
-		| Binding.Parameter p ->
-			call_lambda @@ fun () -> W.access_parameter w loc p
-		| Binding.BuiltinType _ ->
-			assert false
+		| _ ->
+			eager()
 		end
-	| Ast.ExprType(typ_ast) ->
-		let Ast.TypeAccess((loc, _) as access) = typ_ast in
-		let construct(rt: N.rt): unit =
-			write_args();
-			W.construct w loc rt arity in
-		begin match Bind.binding (W.bindings w) access with
-		| Binding.Declared d -> (*TODO: Binding.DeclaredType*)
-			begin match d with
-			| Ast.Rt rt_ast ->
-				construct @@ TypeOfAst.rt_of_ast (W.type_of_ast w) rt_ast
-			| Ast.Un _ | Ast.Ft _ | Ast.Ct _ ->
-				assert false
-			(*TODO: ocaml type system should ensure these never happen*)
-			| Ast.Fn _ | Ast.Cn _ ->
-				assert false
-			end
-		| Binding.BuiltinType t ->
-			begin match t with
-			| N.Rt rt -> construct rt
-			| _ -> assert false
-			end
-		| Binding.Builtin _ | Binding.Local _ | Binding.Parameter _ ->
-			assert false
-		end
-	| x ->
-		call_lambda @@ fun () -> write_expr w x
-
-(*TODO:inline*)
-and write_builtin_call(w: W.t)(loc: Loc.t)(b: N.v)(args: Ast.expr array): unit =
-	match b with
-	| N.Fn N.BuiltinFn(fn) ->
-		if fn == Builtin.cond_value then
-			write_cond w loc args
-		else if fn == Builtin.do_value then begin
-			assert (Array.length args = 1);
-			write_expr w args.(0);
-			W.call_lambda w loc 0
-		end else begin
-			(* Standard, eager fn call *)
-			ArrayU.iter args @@ write_expr w;
-			W.call_builtin w loc fn @@ Array.length args
-		end
-	| _ -> assert false
+	| _ ->
+		eager()
 
 and write_cond(w: W.t)(loc: Loc.t)(args: Ast.expr array): unit =
 	let condition, if_true, if_false = ArrayU.triple_of args in

@@ -19,10 +19,7 @@ val types: t -> TypeCheck.t
 val un_let: t -> Loc.t -> unit
 val const: t -> Loc.t -> N.v -> unit
 val drop: t -> Loc.t -> unit
-val call_builtin: t -> Loc.t -> N.builtin_fn -> int -> unit
-val call_static: t -> Loc.t -> N.declared_fn -> int -> unit
-val construct: t -> Loc.t -> N.rt -> int -> unit
-val call_lambda: t -> Loc.t -> int -> unit
+val call: t -> Loc.t -> int -> unit
 val partial: t -> Loc.t -> int -> unit
 val quote: t -> Loc.t -> string array -> unit
 val check: t -> Loc.t -> unit

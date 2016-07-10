@@ -9,8 +9,8 @@ type t = {expr_types: expr_types; local_types: local_types}
 let type_of_expr({expr_types; _}: t) = ExprTypes.get expr_types
 let type_of_local({local_types; _}: t) = LocalTypes.get local_types
 
-let f(binding: Ast.access -> Binding.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
-	let declared_type = TypeOfAst.declared_type binding type_of_ast in
+let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
+	let declared_type = TypeOfAst.declared_type bindings type_of_ast in
 
 	let expr_types: expr_types = ExprTypes.create() in
 	let local_types: local_types = LocalTypes.create() in
@@ -33,8 +33,8 @@ let f(binding: Ast.access -> Binding.t)(type_of_ast: TypeOfAst.t)((_, decls): As
 	*)
 	and check_type_as_expr(typ_ast: Ast.typ): ty =
 		let Ast.TypeAccess((loc, _) as access) = typ_ast in
-		begin match binding access with
-		| Binding.Declared d ->
+		begin match Bind.ty_binding bindings access with
+		| Binding.TDeclared d ->
 			begin match d with
 			| Ast.Rt rt_ast ->
 				(*TODO: Factor out to fn_of_rc helper somewhere in TyU*)
@@ -54,8 +54,6 @@ let f(binding: Ast.access -> Binding.t)(type_of_ast: TypeOfAst.t)((_, decls): As
 			| _ ->
 				ErrU.raise loc @@ Err.NotAValue access
 			end
-		| Binding.Builtin _ | Binding.Local _ | Binding.Parameter _ ->
-			assert false
 		end
 
 	and check_expr(expr: Ast.expr): ty =
@@ -70,10 +68,10 @@ let f(binding: Ast.access -> Binding.t)(type_of_ast: TypeOfAst.t)((_, decls): As
 			| Ast.ExprType(typ_ast) ->
 				check_type_as_expr typ_ast
 			| Ast.ExprAccess(access) ->
-				begin match binding access with
+				begin match Bind.binding bindings access with
 				| Binding.Builtin value ->
 					ValU.type_of value
-				| Binding.Declared d ->
+				| Binding.VDeclared d ->
 					(*TODO: this access will only access a value, and type accesses will only access types... so we should have 2 different kinds of binding.*)
 					begin match d with
 					| Ast.Fn fn ->
@@ -86,9 +84,6 @@ let f(binding: Ast.access -> Binding.t)(type_of_ast: TypeOfAst.t)((_, decls): As
 					get_local_type declare
 				| Binding.Parameter parameter ->
 					TypeOfAst.parameter_type type_of_ast parameter
-				(* TODO: should not be a possible binding *)
-				| Binding.BuiltinType _ ->
-					assert false
 				end
 
 			| Ast.Call(loc, called, args) ->

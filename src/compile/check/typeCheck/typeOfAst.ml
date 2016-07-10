@@ -74,15 +74,13 @@ let ty_or_v_of_ast(type_of_ast: t)(ast: Ast.decl): ty_or_v =
 		Ty(TFn(Ct(ct_of_ast type_of_ast c)))
 	end
 
-let declared_type(binding: Ast.access -> Binding.t)(t: t)(typ: Ast.typ): ty =
+let declared_type(bindings: Bind.t)(t: t)(typ: Ast.typ): ty =
 	match typ with
 	| Ast.TypeAccess(access) ->
-		begin match binding access with
-		| Binding.Builtin _ | Binding.Local _ | Binding.Parameter _ ->
-			raise U.TODO (*TODO not-a-type error*)
+		begin match Bind.ty_binding bindings access with
 		| Binding.BuiltinType b ->
 			b
-		| Binding.Declared d ->
+		| Binding.TDeclared d ->
 			type_of_ast t d
 		end
 
@@ -93,7 +91,7 @@ let dummy_ct(cname: Sym.t): ct =
 let dummy_code: code =
 	{bytecodes = [||]; locs = CodeLocs.empty}
 
-let build(path: FileIO.path)(binding: Ast.access -> Binding.t)((_, decls): Ast.modul): modul * t =
+let build(path: FileIO.path)(bindings: Bind.t)((_, decls): Ast.modul): modul * t =
 	let modul = {path; values = Sym.Lookup.create(); types = Sym.Lookup.create()} in
 	let rts, uns, fts, cts, fns, parameter_types, cns =
 		Rts.create(), Uns.create(), Fts.create(), Cts.create(), Fns.create(), ParameterTypes.create(), Cns.create() in
@@ -118,7 +116,7 @@ let build(path: FileIO.path)(binding: Ast.access -> Binding.t)((_, decls): Ast.m
 		set_type_by_name modul.types type_of_ast;
 		set_value_by_name modul.values type_of_ast;
 
-		let declared_type = declared_type binding type_of_ast in
+		let declared_type = declared_type bindings type_of_ast in
 
 		(* Fill in types *)
 		Rts.iter rts begin fun (_, _, properties) rt ->

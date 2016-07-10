@@ -1,15 +1,20 @@
-type t = Binding.t AstU.AccessLookup.t
-let binding = AstU.AccessLookup.get
+type t = {
+	vals: Binding.v AstU.AccessLookup.t;
+	tys: Binding.ty AstU.AccessLookup.t;
+}
+let binding({vals; _}: t) = AstU.AccessLookup.get vals
+let ty_binding({tys; _}: t) = AstU.AccessLookup.get tys
 
 type ctx = {
 	scope: Scope.t;
-	add: Ast.access -> Binding.t -> unit
+	add_v: Ast.access -> Binding.v -> unit;
+	add_ty: Ast.access -> Binding.ty -> unit;
 }
 
-let add_type({scope; add}: ctx)(typ: Ast.typ): unit = (*TODO:NAME*)
+let add_type({scope; add_ty; _}: ctx)(typ: Ast.typ): unit = (*TODO:NAME*)
 	match typ with
 	| Ast.TypeAccess((loc, name) as access) ->
-		add access @@ ScopeU.get scope loc name
+		add_ty access @@ ScopeU.get_ty scope loc name
 
 let rec bind_cases({scope; _} as ctx: ctx)(cases: Ast.cs_part array): unit =
 	ArrayU.iter cases begin fun (_, test, result) ->
@@ -20,7 +25,7 @@ let rec bind_cases({scope; _} as ctx: ctx)(cases: Ast.cs_part array): unit =
 			bind_expr {ctx with scope} result
 	end
 
-and bind_expr({scope; add} as ctx: ctx)(expr: Ast.expr): unit =
+and bind_expr({scope; add_v; _} as ctx: ctx)(expr: Ast.expr): unit =
 	let recur = bind_expr ctx in
 	(*TODO: open Ast*)
 	match expr with
@@ -30,7 +35,7 @@ and bind_expr({scope; add} as ctx: ctx)(expr: Ast.expr): unit =
 	| Ast.ExprType(typ) ->
 		add_type ctx typ
 	| Ast.ExprAccess((loc, name) as access) ->
-		add access @@ ScopeU.get scope loc name
+		add_v access @@ ScopeU.get_v scope loc name
 	| Ast.Call(_, called, arguments) ->
 		recur called;
 		ArrayU.iter arguments recur
@@ -55,9 +60,12 @@ and bind_expr({scope; add} as ctx: ctx)(expr: Ast.expr): unit =
 		recur expr
 
 let bind((_, decls): Ast.modul): t =
-	AstU.AccessLookup.build begin fun add ->
+	let vals = AstU.AccessLookup.create() in
+	let tys = AstU.AccessLookup.create() in
+
+	U.returning {vals; tys} begin fun _ ->
 		let base_scope = ScopeU.get_base decls in
-		let ctx = {scope = base_scope; add} in
+		let ctx = {scope = base_scope; add_v = AstU.AccessLookup.set vals; add_ty = AstU.AccessLookup.set tys} in
 
 		let bind_signature((_, return_type, parameters): Ast.signature): unit =
 			add_type ctx return_type;
@@ -89,5 +97,7 @@ let bind((_, decls): Ast.modul): t =
 		end
 	end
 
-let output accesses =
-	AstU.AccessLookup.output AstU.output_access BindingU.output accesses
+let output(out: 'o OutputU.t)({vals; tys}: t): unit =
+	OutputU.out out "Bind(%a, %a)"
+		(AstU.AccessLookup.output AstU.output_access BindingU.output_v) vals
+		(AstU.AccessLookup.output AstU.output_access BindingU.output_ty) tys

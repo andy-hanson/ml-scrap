@@ -72,7 +72,7 @@ and output_ty_fn(out: 'o OutputU.t)(fn_type: ty_fn): unit =
 	| Ft ft -> output_ft out ft
 	| Ct ct -> output_ct out ct
 
-and output_rc(out: 'o OutputU.t)({rname; properties}: rt): unit =
+and output_rt(out: 'o OutputU.t)({rname; properties}: rt): unit =
 	OutputU.out out "Record(%a, %a)" Sym.output rname (OutputU.out_array output_property) properties
 
 and output_short(out: 'o OutputU.t)(t: ty): unit =
@@ -82,8 +82,8 @@ and output(out: 'o OutputU.t)(t: ty): unit =
 	match t with
 	| Any | TPrimitive _ ->
 		OutputU.str out @@ Sym.string_of @@ name t
-	| Rt rc ->
-		output_rc out rc
+	| Rt rt ->
+		output_rt out rt
 	| Un {uname; utypes} ->
 		OutputU.out out "Un(%a, %a)"
 			Sym.output uname

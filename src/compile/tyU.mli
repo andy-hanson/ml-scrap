@@ -17,5 +17,5 @@ val output_property: (property, 'o) OutputU.printer
 val output_ft: (ft, 'o) OutputU.printer
 val output_ct: (ct, 'o) OutputU.printer
 val output_ty_fn: (ty_fn, 'o) OutputU.printer
-val output_rc: (rt, 'o) OutputU.printer
+val output_rt: (rt, 'o) OutputU.printer
 val output: (ty, 'o) OutputU.printer

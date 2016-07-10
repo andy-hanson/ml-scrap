@@ -26,7 +26,8 @@ let fn(name: string)(return_type: ty)(parameters: (string * ty) array)(exec: (un
 (*TODO: this should have a generic type, meaning the action can return any value (not just Void).*)
 let do_action = ffnn "do"
 	t_void [| "fn", BuiltinType.action |]
-	@@ fun _ -> raise U.TODO
+	@@ fun state -> State.call state @@ State.pop state
+
 (*TODO:NEATER*)
 let do_value = match do_action.value with | Fn(BuiltinFn f) -> f | _ -> assert false
 

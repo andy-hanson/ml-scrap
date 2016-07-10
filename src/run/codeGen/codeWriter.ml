@@ -84,20 +84,8 @@ let drop(w: t)(loc: Loc.t): unit =
 	write_bc w loc N.Drop;
 	decr_stack_depth w
 
-let call_builtin(w: t)(loc: Loc.t)(fn: N.builtin_fn)(arity: int): unit =
-	write_bc w loc @@ N.CallBuiltin fn;
-	apply_fn_to_stack_depth w arity
-
-let call_static(w: t)(loc: Loc.t)(fn: N.declared_fn)(arity: int): unit =
-	write_bc w loc @@ N.CallStatic fn;
-	apply_fn_to_stack_depth w arity
-
-let construct(w: t)(loc: Loc.t)(rt: N.rt)(arity: int): unit =
-	write_bc w loc @@ N.Construct rt;
-	apply_fn_to_stack_depth w arity
-
-let call_lambda(w: t)(loc: Loc.t)(arity: int): unit =
-	write_bc w loc N.CallLambda;
+let call(w: t)(loc: Loc.t)(arity: int): unit =
+	write_bc w loc N.Call;
 	(* Decr one for the lambda itself *)
 	decr_stack_depth w;
 	apply_fn_to_stack_depth w arity

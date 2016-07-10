@@ -3,20 +3,9 @@ let step(state: N.interpreter_state): bool =
 	let next() = State.goto_next state; false in
 
 	match State.cur_code state with
-	| N.CallStatic fn ->
-		(* When fn finishes, we want to return to the *next* bytecode. *)
+	| N.Call ->
 		U.returning (next()) begin fun _ ->
-			(*TODO: maybe it should be called call_static instead of push_fn...*)
-			State.push_fn state fn
-		end
-
-	| N.CallBuiltin b ->
-		State.call_builtin state b;
-		next()
-
-	| N.CallLambda ->
-		U.returning (next()) begin fun _ ->
-			State.call_lambda state @@ State.pop state
+			State.call state @@ State.pop state
 		end
 
 	| N.Cs parts ->
@@ -28,12 +17,6 @@ let step(state: N.interpreter_state): bool =
 
 	| N.Const value ->
 		State.push state value;
-		next()
-
-	| N.Construct rt ->
-		(*TODO: check property types*)
-		let properties = State.pop_n state @@ TyU.rt_arity rt in
-		State.push state @@ N.Rc(rt, properties);
 		next()
 
 	| N.Drop ->

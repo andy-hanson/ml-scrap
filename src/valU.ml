@@ -31,6 +31,8 @@ let rec type_of_fn(fn: fn): ty_fn =
 		fn_type
 	| PartialFn {partially_applied; partial_args} ->
 		Ft(TyU.partial_type (type_of_fn partially_applied) @@ ArrayU.map partial_args type_of)
+	| Ctr _ ->
+		raise U.TODO (*TODO: I left a ctr_type helper around somewhere...*)
 
 and type_of(v: v): ty =
  	match v with
@@ -81,6 +83,9 @@ let rec output_fn(out: 'o OutputU.t)(fn: fn): unit =
 		OutputU.out out "PartialFn(%a, %a)"
 			output_fn partially_applied
 			(OutputU.out_array output) partial_args
+	| Ctr rt ->
+		OutputU.out out "Ctr(%a)"
+			TyU.output_rt rt
 
 (*TODO: NOut module*)
 and output(out: 'o OutputU.t)(value: v): unit =
@@ -105,18 +110,12 @@ and output_declared_fn(out: 'o OutputU.t)({fn_type; _}: declared_fn): unit =
 and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 	let o fmt = OutputU.out out fmt in
 	match c with
-	| CallStatic f ->
-		o "CallFn(%a)" Sym.output (fn_name f)
-	| CallBuiltin f ->
-		o "CallBuiltin(%a)" Sym.output (builtin_fn_name f)
-	| CallLambda ->
-		o "CallLambda"
+	| Call ->
+		o "Call"
 	| Cs parts ->
 		o "Cs(%a)" (OutputU.out_array @@ OutputU.out_pair TyU.output OutputU.output_int) parts
 	| Const v ->
 		o "Const(%a)" output v
-	| Construct {rname; _} ->
-		o "Construct(%a)" Sym.output rname
 	| Drop ->
 		o "Drop"
 	| Load i ->

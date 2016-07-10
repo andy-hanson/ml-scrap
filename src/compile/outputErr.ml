@@ -38,9 +38,13 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 	| CantUseTypeAsValue ->
 		o "Attempted to use a type as a value"
 	| NameAlreadyBound(name, binding) ->
-		o "Attempt to redeclare %a, defined as %a"
+		o "Attempt to redeclare %a; already defined at %a"
 			Sym.output name
-			BindingU.output binding
+			BindingU.output_v binding
+	| TypeNameAlreadyBound(name, binding) ->
+		o "Attempt to redeclare %a; already defined at %a"
+			Sym.output name
+			BindingU.output_ty binding
 
 	| CanOnlyCsUnion typ ->
 		o "Expected a union type, got a %a"

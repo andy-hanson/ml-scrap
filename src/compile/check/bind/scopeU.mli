@@ -1,4 +1,7 @@
-val get: Scope.t -> Loc.t -> Sym.t -> Binding.t
+open Scope
+
+val get_v: t -> Loc.t -> Sym.t -> Binding.v
+val get_ty: t -> Loc.t -> Sym.t -> Binding.ty
 val get_base: Ast.decl array -> Scope.t
-val add_local: Scope.t -> Ast.local_declare -> Scope.t
-val add_params: Scope.t -> Ast.parameter array -> Scope.t
+val add_local: t -> Ast.local_declare -> t
+val add_params: t -> Ast.parameter array -> t

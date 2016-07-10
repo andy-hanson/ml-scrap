@@ -47,6 +47,7 @@ let goto({cur; _}: interpreter_state)(idx: int): unit =
 let goto_next({cur = {code_idx; _}; _} as state: interpreter_state): unit =
 	goto state @@ code_idx + 1
 
+(*TODO: inline?*)
 let push_fn({call_stack; cur; data_stack; _} as state: interpreter_state)(fn: declared_fn): unit =
 	GoodStack.push call_stack cur;
 	state.cur <- entry_of fn @@ GoodStack.size data_stack
@@ -62,22 +63,23 @@ let load({cur = {stack_start_index; _}; data_stack; _}: interpreter_state)(relat
 	let index = stack_start_index + relative_index in
 	GoodStack.get data_stack index
 
-let call_builtin(state: interpreter_state)({exec; _}: builtin_fn): unit =
-	exec state
-
-let call_lambda(state: interpreter_state)(called: v): unit =
+let call(state: interpreter_state)(called: v): unit =
 	begin match called with
 	| Primitive _ | Rc _ ->
 		assert false
 	| Fn f ->
 		let rec call_fn = function
-			| BuiltinFn b ->
-				call_builtin state b
+			| BuiltinFn {exec; _} ->
+				exec state
 			| DeclaredFn fn ->
 				push_fn state fn
 			| PartialFn {partially_applied; partial_args} ->
 				push_many state partial_args;
-				call_fn partially_applied in
+				call_fn partially_applied
+			| Ctr rt ->
+				(*TODO: check property types*)
+				let properties = pop_n state @@ TyU.rt_arity rt in
+				push state @@ N.Rc(rt, properties) in
 		call_fn f
 	end
 

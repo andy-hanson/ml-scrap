@@ -42,8 +42,7 @@ let lex(io: FileIO.t)(file_name: string): (Token.t * Loc.t) array =
 let f(io: FileIO.t)(file_name: string): N.modul =
 	let modul_ast = io#read file_name Parse.f in
 	let bindings = Bind.bind modul_ast in
-	let binding = Bind.binding bindings in
-	let modul, type_of_ast = TypeOfAst.build file_name binding modul_ast in
-	let types = TypeCheck.f binding type_of_ast modul_ast in
+	let modul, type_of_ast = TypeOfAst.build file_name bindings modul_ast in
+	let types = TypeCheck.f bindings type_of_ast modul_ast in
 	CodeGen.f bindings type_of_ast types modul_ast;
 	modul

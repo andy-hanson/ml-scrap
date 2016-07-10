@@ -60,13 +60,10 @@ and primitive =
 	| Void
 
 and bytecode =
-	(*TODO: rename to CallDeclared. Or just kill and use CallLambda only...*)
-	| CallStatic of declared_fn
-	| CallBuiltin of builtin_fn
-	| CallLambda
+	| Call
 	| Cs of (ty * int) array
 	| Const of v
-	| Construct of rt
+	(*TODO:KILL | Construct of rt*)
 	| Drop
 	(* Load a value from `int` entries earlier in the stack *)
 	| Load of int
@@ -91,6 +88,7 @@ and fn =
 	| DeclaredFn of declared_fn
 	| BuiltinFn of builtin_fn
 	| PartialFn of partial_fn
+	| Ctr of rt
 
 (*TODO: we directly introspect this way too much. Create FnU.ml*)
 and declared_fn = {
