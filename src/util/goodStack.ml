@@ -1,4 +1,4 @@
-exception EmptyStack
+(*TODO: kill and just use MutArray*)
 
 type 'a t = 'a MutArray.t
 
@@ -23,14 +23,8 @@ let push(gs: 'a t)(value: 'a): unit =
 let push_many(gs: 'a t)(values: 'a array): unit =
 	ArrayU.iter values @@ push gs
 
-let peek(gs: 'a t): 'a =
-	if MutArray.empty gs then
-		raise EmptyStack
-	else
-		MutArray.last gs
-
-let pop(gs: 'a t): 'a =
-	U.returning (peek gs) @@ fun _ -> MutArray.delete_last gs
+let peek: 'a t -> 'a = MutArray.peek
+let pop: 'a t -> 'a = MutArray.pop
 
 let pop_n(gs: 'a t)(n: int): 'a array =
 	let start = (size gs) - n in
@@ -40,7 +34,7 @@ let pop_n(gs: 'a t)(n: int): 'a array =
 
 let un_let(gs: 'a t)(n: int): unit =
 	let l = MutArray.length gs in
-	MutArray.set gs (l - n - 1) (MutArray.last gs);
+	MutArray.set gs (l - n - 1) (MutArray.peek gs);
 	MutArray.delete_last_n gs n
 
 let output_with_max(max: int)(output_element: ('a, 'o) OutputU.printer)(out: 'o OutputU.t)(gs: 'a t) =

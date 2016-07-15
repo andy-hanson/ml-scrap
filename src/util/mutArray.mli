@@ -1,10 +1,10 @@
+exception Empty
 type 'a t
 
 val create: unit -> 'a t
 val of_array: 'a array -> 'a t
 
 val get: 'a t -> int -> 'a
-val last: 'a t -> 'a
 val length: 'a t -> int
 val empty: 'a t -> bool
 
@@ -17,6 +17,9 @@ val delete_last: 'a t -> unit
 val delete_last_n: 'a t -> int -> unit
 (* Takes start and length *)
 val delete_range: 'a t -> int -> int -> unit
+
+val peek: 'a t -> 'a
+val pop: 'a t -> 'a
 
 val iter: 'a t -> ('a -> unit) -> unit
 (* Takes start and length *)

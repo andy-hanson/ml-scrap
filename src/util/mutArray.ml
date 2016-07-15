@@ -1,3 +1,5 @@
+exception Empty
+
 type 'a t = 'a BatDynArray.t
 
 let create(): 'a t =
@@ -5,7 +7,6 @@ let create(): 'a t =
 let of_array = BatDynArray.of_array
 
 let get = BatDynArray.get
-let last = BatDynArray.last
 let length = BatDynArray.length
 let empty = BatDynArray.empty
 
@@ -18,6 +19,15 @@ let delete_last = BatDynArray.delete_last
 let delete_range = BatDynArray.delete_range
 let delete_last_n(a: 'a t)(n: int): unit =
 	delete_range a (length a - n) n
+
+let peek(a: 'a t): 'a =
+	if empty a then
+		raise Empty
+	else
+		BatDynArray.last a
+
+let pop(a: 'a t): 'a =
+	U.returning (peek a) @@ fun _ -> delete_last a
 
 let iter(a: 'a t)(f: 'a -> unit): unit =
 	BatDynArray.iter f a

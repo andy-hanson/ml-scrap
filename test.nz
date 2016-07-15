@@ -1,31 +1,21 @@
-fn main Int
-	convert 1.0
+rt PointOne
+	y Int
+rt PointTwo
+	x Int
+	y Int
 
-ct Converter
-	Float Int
-	Int Float
+fn main Int world World
+	(PointOne @ PointTwo 2 3).y
 
-cn convert Converter
-	Int @ i
-		0.0
-	Float @ f
-		0
+un IntOrBool
+	Int
+	Bool
 
-|| rt Point
-||	x Int
-||	y Int
+ft Foo
+	IntOrBool x Int
 
-|| un IntOrPoint
-||	Int
-||	Point
-
-|| fn sum Int ip IntOrPoint
-||	cs ip
-||		Int @ i
-||			i
-||		Point x y
-||			x + y
-
+fn f Int x IntOrBool
+	123
 
 || fn main Void world World
 ||	say-hello: Printer @ world

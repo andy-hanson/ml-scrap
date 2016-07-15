@@ -13,8 +13,8 @@ type ctx = {
 	add_ty: access -> Binding.ty -> unit;
 }
 
-let add_type({scope; add_ty; _}: ctx)(typ: typ): unit = (*TODO:NAME*)
-	match typ with
+let add_ty({scope; add_ty; _}: ctx)(ty: ty): unit = (*TODO:NAME*)
+	match ty with
 	| TypeAccess((loc, name) as access) ->
 		add_ty access @@ ScopeU.get_ty scope loc name
 
@@ -26,20 +26,19 @@ let rec add_pattern_to_scope(scope: Scope.t)(pattern: Ast.pattern): Scope.t =
 		ArrayU.fold scope patterns add_pattern_to_scope
 
 let rec bind_cases({scope; _} as ctx: ctx)(cases: cs_part array): unit =
-	ArrayU.iter cases begin fun (_, (_, typ, pattern), result) ->
-		add_type ctx typ;
+	ArrayU.iter cases begin fun (_, (_, ty, pattern), result) ->
+		add_ty ctx ty;
 		bind_expr {ctx with scope = add_pattern_to_scope scope pattern} result
 	end
 
 and bind_expr({scope; add_v; _} as ctx: ctx)(expr: expr): unit =
 	let recur = bind_expr ctx in
-	(*TODO: open Ast*)
 	match expr with
-	| At(_, typ, expr) ->
-	 	add_type ctx typ;
+	| At(_, _, ty, expr) ->
+	 	add_ty ctx ty;
 		recur expr
-	| ExprType(typ) ->
-		add_type ctx typ
+	| ExprType ty ->
+		add_ty ctx ty
 	| ExprAccess((loc, name) as access) ->
 		add_v access @@ ScopeU.get_v scope loc name
 	| Call(_, called, arguments) ->
@@ -48,6 +47,8 @@ and bind_expr({scope; add_v; _} as ctx: ctx)(expr: expr): unit =
 	| Cs(_, cased, cases) ->
 		recur cased;
 		bind_cases ctx cases
+	| GetProperty(_, expr, _) ->
+		recur expr
 	| Let(_, pattern, value, expr) ->
 		recur value;
 		let scope = add_pattern_to_scope scope pattern in
@@ -73,9 +74,9 @@ let bind((_, decls): modul): t =
 		let base_scope = ScopeU.get_base decls in
 		let ctx = {scope = base_scope; add_v = AstU.AccessLookup.set vals; add_ty = AstU.AccessLookup.set tys} in
 
-		let bind_signature((_, return_type, parameters): signature): unit =
-			add_type ctx return_type;
-			ArrayU.iter parameters @@ fun (_, _, typ) -> add_type ctx typ in
+		let bind_signature((_, return_ty, parameters): signature): unit =
+			add_ty ctx return_ty;
+			ArrayU.iter parameters @@ fun (_, _, ty) -> add_ty ctx ty in
 
 		ArrayU.iter decls begin function
 		| DeclVal v ->
@@ -85,24 +86,24 @@ let bind((_, decls): modul): t =
 				let scope = ScopeU.add_params base_scope params in
 				bind_expr {ctx with scope} body
 
-			| Cn((_, _, typ, cases)) ->
-				add_type ctx typ;
+			| Cn((_, _, ty, cases)) ->
+				add_ty ctx ty;
 				bind_cases ctx cases
 			end
 		| DeclTy t ->
 			begin match t with
 			| Rt((_, _, properties)) ->
-				ArrayU.iter properties @@ fun (_, _, typ) -> add_type ctx typ
+				ArrayU.iter properties @@ fun (_, _, ty) -> add_ty ctx ty
 
-			| Un((_, _, types)) ->
-				ArrayU.iter types @@ add_type ctx
+			| Un((_, _, tys)) ->
+				ArrayU.iter tys @@ add_ty ctx
 			| Ft((_, _, signature)) ->
 				bind_signature signature
 
 			| Ct((_, _, cases)) ->
 				ArrayU.iter cases @@ fun (return, input) ->
-					add_type ctx return;
-					add_type ctx input
+					add_ty ctx return;
+					add_ty ctx input
 			end
 		end
 	end

@@ -1,6 +1,7 @@
+open N
 
-let debug_print(noze: Noze.t)(path: FileIO.path)(state: N.interpreter_state): unit =
-	let {cur = {N.stack_start_index; _}; N.data_stack; _} = state in
+let debug_print(noze: Noze.t)(path: FileIO.path)(state: interpreter_state): unit =
+	let {cur = {stack_start_index; _}; data_stack; _} = state in
 	OutputU.printf "Stack: %a (start_idx: %i)\n"
 		(GoodStack.output_with_max 3 ValU.output) data_stack
 		stack_start_index;
@@ -10,20 +11,18 @@ let debug_print(noze: Noze.t)(path: FileIO.path)(state: N.interpreter_state): un
 		path
 		Loc.output_lc_loc lc_loc
 
-let debug_step(noze: Noze.t)(path: FileIO.path)(state: N.interpreter_state): bool =
+let debug_step(noze: Noze.t)(path: FileIO.path)(state: interpreter_state): bool =
 	debug_print noze path state;
 	Step.step state
 
-
-let call_fn_helper(fn: N.declared_fn)(args: N.v array)(step: N.interpreter_state -> bool): N.v =
-	(*TODO: perform ct->ft transormation (join inputs, meet outputs)*)
-	(*TODO: ArrayU.iter_zip parameters args (fun (_, typ) arg -> Subsumes.check typ arg);*)
-	let state = State.create fn args in
+let call_fn_helper({fn_ty; _} as fn: declared_fn)(arguments: v array)(step: interpreter_state -> bool): v =
+	Subsumes.check_fn_arguments fn_ty arguments;
+	let state = State.create fn arguments in
 	while not @@ step state do () done;
-	State.peek state(*TODO: U.returning (State.peek state) @@ Subsumes.check return_type*)
+	U.returning (State.peek state) @@ Subsumes.check_fn_return fn_ty
 
-let call_fn(fn: N.declared_fn)(args: N.v array): N.v =
+let call_fn(fn: declared_fn)(args: v array): v =
 	call_fn_helper fn args Step.step
 
-let debug_call_fn(noze: Noze.t)(fn: N.declared_fn)(args: N.v array): N.v =
-	call_fn_helper fn args @@ debug_step noze fn.N.containing_modul.N.path
+let debug_call_fn(noze: Noze.t)(fn: declared_fn)(args: v array): v =
+	call_fn_helper fn args @@ debug_step noze fn.fn_mdl.path

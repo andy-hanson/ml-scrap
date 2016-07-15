@@ -1,14 +1,15 @@
 open Ast
 
-let typ_loc = function
+let ty_loc = function
 	| TypeAccess(loc, _) ->
 		loc
 
 let expr_loc = function
-	| ExprType(typ) ->
-		typ_loc typ
-	| At(loc, _, _) | ExprAccess(loc, _) | Call(loc, _, _) | Cs(loc, _, _) | Let(loc, _, _, _)
-	| Literal(loc, _) | Seq(loc, _, _) | Partial(loc, _, _) | Quote(loc, _, _) | Check(loc, _) ->
+	| ExprType(ty) ->
+		ty_loc ty
+	| At(loc, _, _, _) | ExprAccess(loc, _) | Call(loc, _, _) | Cs(loc, _, _) | GetProperty(loc, _, _)
+	| Let(loc, _, _, _) | Literal(loc, _) | Seq(loc, _, _) | Partial(loc, _, _) | Quote(loc, _, _)
+	| Check(loc, _) ->
 		loc
 
 let decl_loc_name = function
@@ -86,13 +87,13 @@ end)
 let output_access(out: 'o OutputU.t)((_, name): Ast.access): unit =
 	Sym.output out name
 
-let output_typ(out: 'o OutputU.t)(typ: typ): unit =
-	match typ with
+let output_ty(out: 'o OutputU.t)(ty: ty): unit =
+	match ty with
 	| TypeAccess(access) ->
 		output_access out access
 
-let output_parameter(out: 'o OutputU.t)((_, name, typ): Ast.parameter): unit =
-	OutputU.out out "%a %a" Sym.output name output_typ typ
+let output_parameter(out: 'o OutputU.t)((_, name, ty): Ast.parameter): unit =
+	OutputU.out out "%a %a" Sym.output name output_ty ty
 
 let output_local_declare(out: 'o OutputU.t)((_, name): Ast.local_declare): unit =
 	OutputU.out out "%a" Sym.output name
@@ -108,13 +109,14 @@ let rec output_pattern(out: 'o OutputU.t)(pattern: pattern): unit =
 let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 	let o fmt = OutputU.out out fmt in
 	match expr with
-	| At(_, typ, expr) ->
-		o "At(%a, %a)"
-			output_typ typ
+	| At(_, kind, ty, expr) ->
+		o "At(%s, %a, %a)"
+			(match kind with | Ast.Exact -> "Exact" | Ast.Convert -> "Convert")
+			output_ty ty
 			output_expr expr
-	| ExprType(typ) ->
+	| ExprType(ty) ->
 		o "ExprType(%a)"
-			output_typ typ
+			output_ty ty
 	| ExprAccess(access) ->
 		output_access out access
 	| Call(_, fn, args) ->
@@ -122,14 +124,18 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 			output_expr fn
 			(OutputU.out_array output_expr) args
 	| Cs(_, cased, parts) ->
-		let output_part(out: 'o OutputU.t)((_, (_, typ, pattern), expr): cs_part): unit =
+		let output_part(out: 'o OutputU.t)((_, (_, ty, pattern), expr): cs_part): unit =
 			OutputU.out out "CsPart((%a, %a), %a)"
-				output_typ typ
+				output_ty ty
 				output_pattern pattern
 				output_expr expr in
 		o "Cs(%a, %a)"
 			output_expr cased
 			(OutputU.out_array output_part) parts
+	| GetProperty(_, expr, property) ->
+		o "GetProperty(%a, %a)"
+			output_expr expr
+			Sym.output property
 	| Let(_, pattern, value, expr) ->
 		o "Let(%a = %a, %a)"
 			output_pattern pattern
@@ -157,10 +163,10 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 		o "Check(%a)" output_expr checked
 
 let output_fn(out: 'o OutputU.t)((_, name, sign, body): Ast.fn): unit =
-	let out_sig out (_, typ, params) =
-		let out_param out (_, sym, typ) =
-			OutputU.out out "%a %a" Sym.output sym output_typ typ in
-		OutputU.out out "%a %a" output_typ typ (OutputU.out_array out_param) params in
+	let out_sig(out: 'o OutputU.t)((_, ty, params): Ast.signature): unit =
+		let out_param(out: 'o OutputU.t)((_, sym, ty): Ast.parameter): unit =
+			OutputU.out out "%a %a" Sym.output sym output_ty ty in
+		OutputU.out out "%a %a" output_ty ty (OutputU.out_array out_param) params in
 	OutputU.out out "fn %a %a %a" Sym.output name out_sig sign output_expr body
 
 let output_cn(_out: 'o OutputU.t)((_, _, _, _): Ast.cn): unit =

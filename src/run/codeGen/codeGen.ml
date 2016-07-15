@@ -1,12 +1,43 @@
 module W = CodeWriter
 
+(*TODO: move to CodeWriter.ml*)
+let declared_ty(w: W.t)(ty_ast: Ast.ty): N.ty =
+	TypeOfAst.declared_ty (W.bindings w) (W.type_of_ast w) ty_ast
+
 let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 	let recur = write_expr w in
 	match expr with
-	| Ast.At(_, _, expr) ->
-		recur expr
-	| Ast.ExprType(typ_ast) ->
-		let Ast.TypeAccess((loc, _) as access) = typ_ast in
+	| Ast.At(loc, kind, ty_ast, expr) ->
+		recur expr;
+		begin match kind with
+		| Ast.Exact -> ()
+		| Ast.Convert ->
+			let ty = declared_ty w ty_ast in
+			let e_ty = TypeCheck.ty_of_expr (W.tys w) expr in
+			begin match ty with
+			| N.Rt({N.properties; _} as rt) ->
+				begin match e_ty with
+				| N.Rt {N.properties = e_properties; _} ->
+					let indexes = ArrayU.map properties begin fun (name, _) ->
+						OutputU.printf "%a\n" (OutputU.out_array (fun out (n, _) -> Sym.output out n)) e_properties;
+
+						OpU.force @@ ArrayU.find_index e_properties @@ fun (e_name, _) ->
+							OutputU.printf "%a %a\n" Sym.output name Sym.output e_name;
+							Sym.eq name e_name
+					end in
+					OutputU.printf "%a\n" (OutputU.out_array OutputU.output_int) indexes ;
+					W.cnv_rc w loc rt indexes
+				| _ ->
+					assert false
+				end
+			| N.TFn _ ->
+				raise U.TODO
+			| _ ->
+				assert false
+			end
+		end
+	| Ast.ExprType(ty_ast) ->
+		let Ast.TypeAccess((loc, _) as access) = ty_ast in
 		let rt =
 			begin match Bind.ty_binding (W.bindings w) access with
 			| Binding.TDeclared d ->
@@ -38,15 +69,47 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		end
 
 	| Ast.Call(loc, called, args) ->
-		write_call w loc called args
+		let eager() =
+			ArrayU.iter args (write_expr w);
+			write_expr w called;
+			W.call w loc @@ Array.length args in
+		begin match called with
+		| Ast.ExprAccess(access) ->
+			begin match Bind.binding (W.bindings w) access with
+			| Binding.Builtin b ->
+				begin match b with
+				| N.Fn N.BuiltinFn(fn) ->
+					if fn == Builtin.cond_value then
+						write_cond w loc args
+					else
+						eager()
+				| _ ->
+					assert false
+				end
+			| _ ->
+				eager()
+			end
+		| _ ->
+			eager()
+		end
 
 	| Ast.Cs(loc, cased, parts) ->
 		recur cased;
 		write_cs_body w loc parts
 
+	| Ast.GetProperty(loc, expr, property) ->
+		recur expr;
+		begin match TypeCheck.ty_of_expr (W.tys w) expr with
+		| N.Rt {N.properties; _} ->
+			let index = OpU.force @@ ArrayU.find_index properties @@ fun (name, _) -> Sym.eq name property in
+			W.get_property w loc index
+		| _ ->
+			assert false
+		end
+
 	| Ast.Let(loc, pattern, value, expr) ->
 		recur value;
-		let pattern_size = handle_pattern w pattern in
+		let pattern_size = write_pattern w pattern in
 		recur expr;
 		W.un_let w loc pattern_size
 
@@ -72,35 +135,6 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		recur expr;
 		W.check w loc
 
-(*TODO: get rid of specialized Call bytecodes, and just always use the call_lambda case*)
-and write_call(w: W.t)(loc: Loc.t)(called: Ast.expr)(args: Ast.expr array): unit =
-	let eager() =
-		ArrayU.iter args (write_expr w);
-		write_expr w called;
-		W.call w loc @@ Array.length args in
-	match called with
-	| Ast.ExprAccess(access) ->
-		begin match Bind.binding (W.bindings w) access with
-		| Binding.Builtin b ->
-			begin match b with
-			| N.Fn N.BuiltinFn(fn) ->
-				if fn == Builtin.cond_value then
-					write_cond w loc args
-				(*TODO:KILL else if fn == Builtin.do_value then begin
-					assert (Array.length args = 1);
-					write_expr w args.(0);
-					W.call w loc 0*)
-				else
-					eager()
-			| _ ->
-				assert false
-			end
-		| _ ->
-			eager()
-		end
-	| _ ->
-		eager()
-
 and write_cond(w: W.t)(loc: Loc.t)(args: Ast.expr array): unit =
 	let condition, if_true, if_false = ArrayU.triple_of args in
 	write_expr w condition;
@@ -119,9 +153,8 @@ and write_cond(w: W.t)(loc: Loc.t)(args: Ast.expr array): unit =
 
 	W.resolve_goto w goto_bottom
 
-(*TODO:move? and rename!*)
-(*Returns number of UnLets we will need at the end*)
-and handle_pattern(w: W.t)(pattern: Ast.pattern): int =
+(* Returns number of local variables (= size of UnLet needed after using the variables) *)
+and write_pattern(w: W.t)(pattern: Ast.pattern): int =
 	match pattern with
 	| Ast.PSingle declare ->
 		(*TODO: this is silly...*)
@@ -151,9 +184,9 @@ and write_cs_body(w: W.t)(loc: Loc.t)(parts: Ast.cs_part array): unit =
 	let cases = W.cs w loc @@ Array.length parts in
 
 	let bottom_placeholders =
-		ArrayU.mapi parts begin fun idx (loc, (_, typ, pattern), result) ->
-			W.resolve_cs_part w cases idx (TypeOfAst.declared_type (W.bindings w) (W.type_of_ast w) typ);
-			let pattern_size = handle_pattern w pattern in
+		ArrayU.mapi parts begin fun idx (loc, (_, ty, pattern), result) ->
+			W.resolve_cs_part w cases idx (declared_ty w ty);
+			let pattern_size = write_pattern w pattern in
 			write_expr w result;
 			W.un_let w loc pattern_size;
 			(* Like for cond, we don't want the stack depth increased for every individual case, just for the whole. *)
@@ -164,22 +197,16 @@ and write_cs_body(w: W.t)(loc: Loc.t)(parts: Ast.cs_part array): unit =
 
 	ArrayU.iter bottom_placeholders @@ W.resolve_goto w
 
-(*TODO: move inside f. Or better, move inside CodeWriter.ml!*)
-let write_code(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(types: TypeCheck.t)(parameters: Ast.parameter array)(loc: Loc.t)(do_write: W.t -> unit): N.code =
-	let w: W.t = W.create bindings type_of_ast types parameters in
-	do_write w;
-	W.finish w loc
-
-let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(types: TypeCheck.t)((_, decls): Ast.modul): unit =
+let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(tys: TypeCheck.t)((_, decls): Ast.modul): unit =
 	ArrayU.iter decls begin function
 		| Ast.DeclVal v ->
 			begin match v with
 			| Ast.Fn((_, _, (_, _, parameters), body) as fn_ast) ->
 				let fn = TypeOfAst.fn_of_ast type_of_ast fn_ast in
-				fn.N.code <- write_code bindings type_of_ast types parameters (AstU.expr_loc body) @@ fun w -> write_expr w body
+				fn.N.fn_code <- W.write bindings type_of_ast tys parameters (AstU.expr_loc body) @@ fun w -> write_expr w body
 			| Ast.Cn((loc, _, _, parts) as cn_ast) ->
 				let fn = TypeOfAst.cn_of_ast type_of_ast cn_ast in
-				fn.N.code <- write_code bindings type_of_ast types [||] loc begin fun w ->
+				fn.N.fn_code <- W.write bindings type_of_ast tys [||] loc begin fun w ->
 					(* Keep the original cased value on the stack. *)
 					W.dup w loc;
 					write_cs_body w loc parts

@@ -8,9 +8,9 @@ val fn_of_ast: t -> Ast.fn -> N.declared_fn
 val ft_of_fn: t -> Ast.fn -> N.ft
 val ft_of_ast: t -> Ast.ft -> N.ft
 val ct_of_ast: t -> Ast.ct -> N.ct
-val parameter_type: t -> Ast.parameter -> N.ty
+val parameter_ty: t -> Ast.parameter -> N.ty
 (*TODO:RENAME!*)
 val cn_of_ast: t -> Ast.cn -> N.declared_fn
-val declared_type: Bind.t -> t -> Ast.typ -> N.ty
+val declared_ty: Bind.t -> t -> Ast.ty -> N.ty
 
 val output: (t, 'o) OutputU.printer

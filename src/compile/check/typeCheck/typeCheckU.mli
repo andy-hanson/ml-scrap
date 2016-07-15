@@ -3,14 +3,13 @@ open N
 val eq: ty -> ty -> bool
 val assert_eq: Loc.t -> ty -> ty -> unit
 (*
-Whether we can do `foo A = bar`.
-This is more permissive than `assert_parameter_assignable` since the type declaration and the value are in the same code together.
+Allows the second ty to be *exactly* the first, or if the first is a union, a member of it.
 *)
-val assert_value_assignable: Loc.t -> ty -> ty -> unit
+val assert_exact: Loc.t -> ty -> ty -> unit
 (*
-Whether we can do `foo bar` where `foo` takes A and `bar` is of type `B`.
-Unlike `assert_value_assignable`, this does not allow upcasting functions.
+More permissive than `assert_exact`.
+Allows the second ty to be convertible to the first.
 *)
-val assert_parameter_assignable: Loc.t -> ty -> ty -> unit
+val assert_convert: Loc.t -> ty -> ty -> unit
 val assert_upcast: Loc.t -> ty -> ty -> unit
 val join: Loc.t -> ty array -> ty

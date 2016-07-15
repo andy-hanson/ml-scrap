@@ -1,6 +1,5 @@
 open Ast
 
-val typ_loc: typ -> Loc.t
 val expr_loc: expr -> Loc.t
 val decl_loc_name: decl -> Loc.t * Sym.t
 
@@ -17,7 +16,7 @@ module ParameterLookup: Lookup.S with type key = parameter
 
 val output_access: (access, 'o) OutputU.printer
 val output_fn: (fn, 'o) OutputU.printer
-val output_typ: (typ, 'o) OutputU.printer
+val output_ty: (ty, 'o) OutputU.printer
 val output_parameter: (parameter, 'o) OutputU.printer
 val output_local_declare: (local_declare, 'o) OutputU.printer
 val output_expr: (expr, 'o) OutputU.printer

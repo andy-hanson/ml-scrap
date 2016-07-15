@@ -15,9 +15,9 @@ let rec assert_eq(loc: Loc.t)(expected: ty)(actual: ty): unit =
 		raise U.TODO
 	| TFn f ->
 		begin match f with
-		| Ft {N.fname = _; N.return_type = expected_return; N.parameters = expected_params} ->
+		| Ft {N.fname = _; N.return = expected_return; N.parameters = expected_params} ->
 			begin match actual with
-			| TFn(Ft {N.fname = _; N.return_type = actual_return; N.parameters = actual_params}) ->
+			| TFn(Ft {N.fname = _; N.return = actual_return; N.parameters = actual_params}) ->
 				(*TODO: suggest upcasting on failure*)
 				assert_eq loc expected_return actual_return;
 				if (Array.length expected_params != Array.length actual_params) then fail(); (*TODO: error message*)
@@ -45,23 +45,33 @@ let rec assert_eq(loc: Loc.t)(expected: ty)(actual: ty): unit =
 		end
 
 (*TODO: Pretty sure this should be the same thing as assert_upcast*)
-let rec assert_value_assignable(loc: Loc.t)(expected: ty)(actual: ty): unit =
+let rec assert_convert(loc: Loc.t)(expected: ty)(actual: ty): unit =
+	(*TODO: Err.CantConvert*)
 	let fail() = ErrU.raise loc @@ Err.NotExpectedType(expected, actual) in
 	match expected with
 	| Any ->
 		()
-	| TPrimitive _ | Rt _ ->
+	| TPrimitive _ ->
 		assert_eq loc actual expected
-	| Un {utypes = expected_types; _} ->
+	| Rt({properties = e_props; _} as e_rt) ->
 		begin match actual with
-		| Un {utypes = _actual_types; _} ->
-			raise U.TODO
-		| TPrimitive _ | Rt _ ->
-			(* A union type is guaranteed to only contain simple types. *)
-			if not @@ ArrayU.exists expected_types ((=) actual) then fail()
-		| Any | TFn _ ->
+		| Rt({properties = a_props; _} as a_rt) ->
+			(* Must have all the fields. *)
+			ArrayU.iter e_props begin fun (e_name, e_ty) ->
+				let matching_prop_ty = ArrayU.find_map a_props begin fun (a_name, a_ty) ->
+					OpU.op_if (Sym.eq e_name a_name) @@ fun () -> a_ty
+				end in
+				match matching_prop_ty with
+				| Some a_ty ->
+					assert_exact loc e_ty a_ty
+				| None ->
+					ErrU.raise loc @@ Err.CantConvertRtMissingProperty(e_rt, a_rt, e_name)
+			end
+		| _ ->
 			fail()
 		end
+	| Un _ ->
+		assert_exact loc expected actual
 	| TFn _ ->
 		assert_upcast loc expected actual
 
@@ -72,18 +82,18 @@ and assert_upcast(loc: Loc.t)(expected: ty)(actual: ty): unit =
 		| TFn f -> f
 		| _ -> raise U.TODO (*TODO: error?*) in
 	match foo with
-	| Ft {fname = _; return_type = expected_return_type; parameters = expected_parameters} ->
+	| Ft {fname = _; return = expected_return_ty; parameters = expected_parameters} ->
 		begin match actual with
 		| Any | TPrimitive _ | Rt _ | Un _  ->
 			fail()
 		| TFn f ->
 			begin match f with
-			| Ft {fname = _; return_type = actual_return_type; parameters = actual_parameters} ->
-				assert_value_assignable loc expected_return_type actual_return_type;
+			| Ft {fname = _; return = actual_return_ty; parameters = actual_parameters} ->
+				assert_exact loc expected_return_ty actual_return_ty;
 				(* Functions are contravariant in parameter types *)
-				ArrayU.iter_zip expected_parameters actual_parameters begin fun (_, expected_param_type) (_, actual_param_type) ->
+				ArrayU.iter_zip expected_parameters actual_parameters begin fun (_, expected_param_ty) (_, actual_param_ty) ->
 					(*TODO: better error message for this case*)
-					assert_value_assignable loc actual_param_type expected_param_type
+					assert_exact loc actual_param_ty expected_param_ty
 				end
 			| Ct _ ->
 				raise U.TODO
@@ -106,23 +116,50 @@ and assert_upcast(loc: Loc.t)(expected: ty)(actual: ty): unit =
 				ArrayU.iter expected_cases begin fun (expected_return, expected_input) ->
 					let corresponding_case = ArrayU.find actual_cases @@ fun (_, actual_input) -> expected_input = actual_input in
 					let actual_return, _ = OpU.or_else corresponding_case @@ fun () -> raise U.TODO in (*TODO: appropriate compile error*)
-					assert_value_assignable loc expected_return actual_return
+					assert_exact loc expected_return actual_return
 				end
 			end
 		end
 
-let assert_parameter_assignable(loc: Loc.t)(expected: ty)(actual: ty): unit =
+(*TODO:neater*)
+and assert_exact(loc: Loc.t)(expected: ty)(actual: ty): unit =
+	(*TODO: Err.NoExact*)
+	let fail() = ErrU.raise loc @@ Err.NotExpectedType(expected, actual) in
 	match expected with
-	| Any | TPrimitive _ | Rt _ | Un _ ->
-		assert_value_assignable loc expected actual
+	| Any | TPrimitive _ ->
+		assert_convert loc expected actual
+	| Rt rt ->
+		begin match actual with
+		| Rt actual_rt ->
+			(*TODO: warn if an upcast would be a good idea*)
+			if not (rt == actual_rt) then fail()
+		| _ -> fail()
+		end
+	| Un {utys = expected_tys; _} ->
+		begin match actual with
+		| Un {utys = _actual_tys; _} ->
+			raise U.TODO
+		| TPrimitive _ | Rt _ ->
+			(* A union type is guaranteed to only contain simple types. *)
+			if not @@ ArrayU.exists expected_tys ((=) actual) then fail()
+		| Any | TFn _ ->
+			fail()
+		end
 	| TFn _ ->
 		(* Don't allow implicit upcasting of function parameters *)
 		assert_eq loc expected actual
 
-let join(loc: Loc.t)(types: ty array): ty =
-	(*TODO actual join algorithm*)
-	let t = Array.get types 0 in
-	ArrayU.iter types begin fun typ ->
-		ErrU.check (eq t typ) loc @@ Err.CombineTypes(t, typ)
+let join(loc: Loc.t)(tys: ty array): ty =
+	(*
+	TODO: actual join algorithm
+	This will only be used in the case of type inference.
+	We should require that any union types be explicitly annotated, so don't have to worry about those.
+	Some for joining functions of different types.
+	ACTUALLY, don't even *join*, just do what we're doing here...
+	error message should mention that an explicit annotation could help...
+	*)
+	let t = Array.get tys 0 in
+	ArrayU.iter tys begin fun ty ->
+		ErrU.check (eq t ty) loc @@ Err.CombineTypes(t, ty)
 	end;
 	t

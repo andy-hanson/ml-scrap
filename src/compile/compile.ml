@@ -43,6 +43,6 @@ let f(io: FileIO.t)(file_name: string): N.modul =
 	let modul_ast = io#read file_name Parse.f in
 	let bindings = Bind.bind modul_ast in
 	let modul, type_of_ast = TypeOfAst.build file_name bindings modul_ast in
-	let types = TypeCheck.f bindings type_of_ast modul_ast in
-	CodeGen.f bindings type_of_ast types modul_ast;
+	let tys = TypeCheck.f bindings type_of_ast modul_ast in
+	CodeGen.f bindings type_of_ast tys modul_ast;
 	modul

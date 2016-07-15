@@ -1,2 +1,2 @@
 val world: N.v
-val types: N.ty array
+val tys: N.ty array

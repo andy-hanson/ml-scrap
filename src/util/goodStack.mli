@@ -1,5 +1,3 @@
-exception EmptyStack
-
 type 'a t
 
 val create: unit -> 'a t

@@ -107,36 +107,33 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			assert (next = NewlineAfterStatement);
 			expr, NewlineAfterEquals pattern
 
+		| Token.Dot ->
+			let name = ParseU.parse_name l in
+			let loc = Lexer.loc_from l start in
+			ErrU.check (any_so_far()) loc Err.EqualsInExpression; (*TODO: Err.BeforeDot*)
+			let prev = MutArray.pop parts in
+			add_part (Ast.GetProperty(loc, prev, name));
+			(*TODO: duplicate code below*)
+			let start, next = Lexer.pos_next l in
+			recur start next
+
 		| Token.DotDot ->
 			let left = finish_regular() in
 			dot_dot left
 
 		| Token.TypeName _ ->
-			let typ = ParseType.f_with_start l start next in
+			let ty = ParseTy.f_with_start l start next in
 			let start, next = Lexer.pos_next l in
 			begin match next with
-			| Token.At ->
+			| Token.At | Token.AtAt ->
+				let kind = if next = Token.At then Ast.Convert else Ast.Exact in
 				let expr, next = parse_expr l ctx in
 				let loc = Lexer.loc_from l expr_start in
-				Ast.At(loc, typ, expr), next
+				Ast.At(loc, kind, ty, expr), next
 			| x ->
-				add_part (Ast.ExprType typ);
+				add_part (Ast.ExprType ty);
 				recur start x
 			end
-
-		(*TODO:KILL| Token.At ->
-			let typ =
-				match MutArray.length parts with
-				| 0 ->
-					let loc = Lexer.loc_from l expr_start in
-					ErrU.raise loc Err.EmptyExpression (*TODO: more appropriate error: expected a type left of '@'*)
-				| 1 ->
-					MutArray.get parts 0
-				| _ ->
-					unexpected() in
-			let expr, next = parse_expr l ctx in
-			let loc = Lexer.loc_from l expr_start in
-			Ast.At(loc, typ, expr), next*)
 
 		| Token.Operator name ->
 			let op = Ast.ExprAccess(Lexer.loc_from l start, name) in
@@ -241,7 +238,7 @@ and parse_cs_parts(l: Lexer.t): Ast.cs_part array =
 		| Token.Dedent ->
 			None
 		| x ->
-			let typ = ParseType.f_with_start l start x in
+			let ty = ParseTy.f_with_start l start x in
 			let pattern =
 				match Lexer.next l with
 				| Token.At ->
@@ -266,7 +263,7 @@ and parse_cs_parts(l: Lexer.t): Ast.cs_part array =
 				| x ->
 					ParseU.unexpected start l x
 				in
-			let test = Lexer.loc_from l start, typ, pattern in
+			let test = Lexer.loc_from l start, ty, pattern in
 			let result = f l in
 			Some(Lexer.loc_from l start, test, result)
 	end

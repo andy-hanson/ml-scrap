@@ -1,78 +1,75 @@
-(*TODO: combine this with builtinType.ml*)
-(*TODO: builtins should just get 'pop', not the full state.*)
-
 open N
 
-(*TODO: is this data structure really needed? We just need the lookup from name->value.*)
-type t = { name: Sym.t; value: v }
-
-let const(name: string)(value: v) =
-	{name = Sym.of_string name; value}
-
 (*TODO:RENAME*)
-let ffnn(name: string)(return_type: ty)(parameters: (string * ty) array)(exec: N.interpreter_state -> unit): t =
-	let name = Sym.of_string name in
+let fffnnn(name: string)(return: ty)(parameters: (string * ty) array)(exec: interpreter_state -> unit): builtin_fn =
 	{
-		name;
-		value = Fn(BuiltinFn {
-			builtin_ty_fn = Ft(TyU.ft name return_type @@ ArrayU.map parameters @@ fun (name, typ) -> Sym.of_string name, typ);
-			exec
-		})
+		builtin_ty_fn = Ft(TyU.ft (Sym.of_string name) return @@ ArrayU.map parameters @@ fun (name, ty) -> Sym.of_string name, ty);
+		exec
 	}
 
-let fn(name: string)(return_type: ty)(parameters: (string * ty) array)(exec: (unit -> v) -> v): t =
-	ffnn name return_type parameters @@ fun state -> State.push state @@ exec @@ fun () -> State.pop state
-
-(*TODO: this should have a generic type, meaning the action can return any value (not just Void).*)
-let do_action = ffnn "do"
+(*TODO:RENAME*)
+let do_value = fffnnn "do"
 	t_void [| "fn", BuiltinType.action |]
 	@@ fun state -> State.call state @@ State.pop state
 
-(*TODO:NEATER*)
-let do_value = match do_action.value with | Fn(BuiltinFn f) -> f | _ -> assert false
-
-let pop_int pop = ValU.int_of @@ pop()
-
-let cond = fn "cond"
+let cond_value = fffnnn "cond"
 	t_int [| "condition", t_bool; "if-true", t_int; "if-false", t_int |]
 	@@ fun _ -> raise U.TODO
-(*TODO:NEATER*)
-let cond_value = match cond.value with | Fn(BuiltinFn f) -> f | _ -> assert false
 
-let not = fn "not"
-	t_bool [| "b", t_bool |]
-	@@ fun pop -> v_bool(not @@ ValU.bool_of @@ pop())
 
-let equal = fn "=="
-	t_bool [| "a", Any; "b", Any |]
-	@@ fun pop -> v_bool(ValU.equal (pop()) (pop()))
+let pop_int(pop: unit -> v): int =
+	ValU.int_of @@ pop()
 
-let cmp(name: string)(compare: int -> int -> bool) =
-	fn name
-		t_bool [| "left", t_int; "right", t_int |]
-		@@ fun pop -> v_bool(compare (pop_int pop) (pop_int pop))
 
-let less = cmp "<" (<)
+let all = Sym.Map.build begin fun (build_sym: Sym.t -> v -> unit) ->
+	let build(s: string) = build_sym (Sym.of_string s) in
 
-let arith(name: string)(eval: int -> int -> int) =
-	fn name
-		t_int [| "left", t_int; "right", t_int |]
-		@@ fun pop -> v_int(eval (pop_int pop) (pop_int pop))
+	(*TODO:RENAME*)
+	let fnz(fn: builtin_fn): unit =
+		build_sym (ValU.builtin_fn_name fn) (Fn(BuiltinFn fn)) in
+	(*TODO:RENAME*)
+	let ffnn(name: string)(return: ty)(parameters: (string * ty) array)(exec: interpreter_state -> unit): unit =
+		fnz @@ fffnnn name return parameters exec in
+	(*TODO:RENAME*)
+	let fn(name: string)(return: ty)(parameters: (string * ty) array)(exec: (unit -> v) -> v): unit =
+		ffnn name return parameters @@ fun state -> State.push state @@ exec @@ fun () -> State.pop state in
 
-let plus = arith "+" (+)
-let minus = arith "-" (-)
-let times = arith "*" ( * )
-let div = arith "/" (/)
+	build "true" (v_bool true);
+	build "false" (v_bool false);
+	build "pi" (v_float 3.14);
 
-let int2float = fn "int->float"
-	t_float [| "i", t_int |]
-	@@ fun pop -> v_float(float_of_int @@ pop_int pop)
+	fnz do_value;
+	fnz cond_value;
 
-let tru = const "true" @@ v_bool true
-let fls = const "false" @@ v_bool false
-let pi = const "pi" @@ v_float 3.14
+	fn "not"
+		t_bool [| "b", t_bool |]
+		(fun pop -> v_bool(not @@ ValU.bool_of @@ pop()));
 
-let all = [|
-	do_action; cond; not; equal; less; plus; minus; times; div; int2float;
-	tru; fls; pi
-|]
+	fn "=="
+		t_bool [| "a", Any; "b", Any |]
+		(fun pop -> v_bool(ValU.equal (pop()) (pop())));
+
+	let cmp(name: string)(compare: int -> int -> bool) =
+		fn name
+			t_bool [| "left", t_int; "right", t_int |]
+			@@ fun pop -> v_bool(compare (pop_int pop) (pop_int pop)) in
+
+	cmp "<" (<);
+	cmp "<=" (<=);
+	cmp ">" (>);
+	cmp ">=" (>=);
+
+	let arith(name: string)(eval: int -> int -> int) =
+		fn name
+			t_int [| "left", t_int; "right", t_int |]
+			@@ fun pop -> v_int(eval (pop_int pop) (pop_int pop)) in
+
+	arith "+" (+);
+	arith "-" (-);
+	arith "*" ( * );
+	arith "/" (/);
+
+	fn "int->float"
+		t_float [| "i", t_int |]
+		@@ fun pop -> v_float(float_of_int @@ pop_int pop)
+end

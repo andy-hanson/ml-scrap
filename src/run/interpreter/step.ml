@@ -1,60 +1,98 @@
-let step(state: N.interpreter_state): bool =
+open N
+
+(*TODO:MOVE*)
+let case_test(ty: ty)(v: v): bool =
+	match ty with
+	(*TODO: TPrimitive and Rt together are TConcrete. (They have no subtypes.) This is useful because unions can only contain concrete types.*)
+	| TPrimitive tp ->
+		begin match v with
+		| Primitive p -> tp == ValU.ty_of_primitive p
+		| _ -> false
+		end
+	| Rt rt ->
+		begin match v with
+		| Rc (vrt, _) -> rt == vrt
+		| _ -> false
+		end
+	| Any | Un _ | TFn _ -> assert false (*TODO: ocaml type system should be more specific here*)
+
+let step(state: interpreter_state): bool =
 	let goto idx = State.goto state idx; false in
 	let next() = State.goto_next state; false in
 
 	match State.cur_code state with
-	| N.Call ->
+	| Call ->
 		U.returning (next()) begin fun _ ->
 			State.call state @@ State.pop state
 		end
 
-	| N.Cs parts ->
+	| Cs parts ->
 		let cased = State.peek state in
-		let matching_case = ArrayU.find_map parts begin fun (typ, idx) ->
-			OpU.op_if (Subsumes.f typ cased) @@ fun () -> idx
+		let matching_case = ArrayU.find_map parts begin fun (ty, idx) ->
+			OpU.op_if (case_test ty cased) @@ fun () -> idx
 		end in
 		goto @@ OpU.force matching_case
 
-	| N.Const value ->
+	| Const value ->
 		State.push state value;
 		next()
 
-	| N.Destruct patterns ->
-		let rec use_pattern(pattern: N.pattern)(value: N.v) =
+	| CnvRc(rt, indices) ->
+		let properties =
+			match State.pop state with
+			| Rc(_, properties) -> properties
+			| _ -> assert false in
+		let rc = Rc(rt, ArrayU.map indices @@ Array.get properties) in
+		State.push state rc;
+		next()
+
+	| Destruct patterns ->
+		let rec use_pattern(pattern: pattern)(value: v) =
 			match pattern with
-			| N.PSingle ->
+			| PSingle ->
 				State.push state value
-			| N.PDestruct patterns ->
+			| PDestruct patterns ->
 				destruct patterns value
-		and destruct(patterns: N.pattern array)(value: N.v) =
+		and destruct(patterns: pattern array)(value: v) =
 			match value with
-			| N.Rc(_, properties) ->
+			| Rc(_, properties) ->
 				ArrayU.iter_zip patterns properties use_pattern
 			| _ ->
 				assert false in
 		destruct patterns (State.pop state);
 		next()
 
-	| N.Drop ->
+	| Drop ->
 		ignore (State.pop state);
 		next()
 
-	| N.Dup ->
+	| Dup ->
 		State.push state (State.peek state);
 		next()
 
-	| N.Goto new_idx ->
+	| GetProperty property_index ->
+		let value =
+			begin match State.pop state with
+			| Rc(_, properties) ->
+				properties.(property_index)
+			| _ ->
+				assert false
+			end in
+		State.push state value;
+		next()
+
+	| Goto new_idx ->
 		goto new_idx
 
-	| N.GotoIfFalse new_idx ->
+	| GotoIfFalse new_idx ->
 		let cond = State.pop state in
 		if ValU.bool_of cond then next() else goto new_idx
 
-	| N.Load relative_index ->
+	| Load relative_index ->
 		State.push state (State.load state relative_index);
 		next()
 
-	| N.Return ->
+	| Return ->
 		(* Remove args from the stack, but leave return value. *)
 		let return_value = State.pop state in
 		State.assert_data_stack_back_to_function_start state;
@@ -64,21 +102,21 @@ let step(state: N.interpreter_state): bool =
 		State.push state return_value;
 		State.pop_fn state
 
-	| N.UnLet n ->
+	| UnLet n ->
 		(* Stack effect: `... a b` -> `... b` *)
 		State.un_let state n;
 		next()
 
-	| N.Partial arity ->
+	| Partial arity ->
 		let partially_applied =
 			match State.pop state with
-			| N.Fn f -> f
+			| Fn f -> f
 			| _ -> assert false in
 		let partial_args = State.pop_n state arity in
-		State.push state @@ N.Fn(N.PartialFn {N.partially_applied; N.partial_args});
+		State.push state @@ Fn(PartialFn {partially_applied; partial_args});
 		next()
 
-	| N.Quote strings ->
+	| Quote strings ->
 		let interpolated = State.pop_n state @@ Array.length strings - 1 in
 		let b = BatBuffer.create 16 in
 		let output = BatBuffer.output_buffer b in
@@ -87,18 +125,18 @@ let step(state: N.interpreter_state): bool =
 			ValU.output output interpolated.(i);
 			BatBuffer.add_string b strings.(i + 1)
 		done;
-		let result = N.v_string (BatBuffer.contents b) in
+		let result = v_string (BatBuffer.contents b) in
 
 		State.push state result;
 		next()
 
-	| N.Check ->
+	| Check ->
 		let checked = State.pop state in
 		if not @@ ValU.bool_of checked then
 			(*TODO Noze exception, not ocaml exeption*)
 			raise U.TODO;
-		State.push state N.v_void;
+		State.push state v_void;
 		next()
 
-	| N.Nil ->
+	| Nil ->
 		assert false

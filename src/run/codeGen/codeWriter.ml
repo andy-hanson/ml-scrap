@@ -6,7 +6,7 @@ type stack_depth = int
 type t = {
 	bindings: Bind.t;
 	type_of_ast: TypeOfAst.t;
-	types: TypeCheck.t;
+	tys: TypeCheck.t;
 	parameters: Ast.parameter array;
 
 	mutable stack_depth: int;
@@ -14,17 +14,31 @@ type t = {
 	locs: CodeLocs.builder;
 	local_depths: stack_depth AstU.LocalDeclareLookup.t
 }
-let create(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(types: TypeCheck.t)(parameters: Ast.parameter array): t = {
-	bindings;
-	type_of_ast;
-	types;
-	parameters;
 
-	stack_depth = 0;
-	code = MutArray.create();
-	locs = CodeLocs.create_builder();
-	local_depths = AstU.LocalDeclareLookup.create()
-}
+let write_bc({code; locs; _}: t)(loc: Loc.t)(bc: N.bytecode): unit =
+	MutArray.add code bc;
+	CodeLocs.write locs loc
+
+(*TODO:MOVE*)
+let write(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(tys: TypeCheck.t)(parameters: Ast.parameter array)(loc: Loc.t)(do_write: t -> unit): N.code =
+	let w: t =
+		{
+			bindings;
+			type_of_ast;
+			tys;
+			parameters;
+
+			stack_depth = 0;
+			code = MutArray.create();
+			locs = CodeLocs.create_builder();
+			local_depths = AstU.LocalDeclareLookup.create()
+		} in
+
+	do_write w;
+
+	Assert.equal w.stack_depth 1 OutputU.output_int;
+	write_bc w loc N.Return;
+	{N.bytecodes = MutArray.to_array w.code; N.locs = CodeLocs.finish w.locs}
 
 let apply_fn_to_stack_depth(w: t)(arity: int): unit =
 	(* Take off args, push return value *)
@@ -32,10 +46,6 @@ let apply_fn_to_stack_depth(w: t)(arity: int): unit =
 
 let next_code_idx({code; _}: t): int =
 	MutArray.length code
-
-let write_bc({code; locs; _}: t)(loc: Loc.t)(bc: N.bytecode): unit =
-	MutArray.add code bc;
-	CodeLocs.write locs loc
 
 let set_local_depth({local_depths; stack_depth; _}: t)(declare: Ast.local_declare): unit =
 	AstU.LocalDeclareLookup.set local_depths declare stack_depth
@@ -60,17 +70,12 @@ let access_parameter({parameters; _} as w: t)(loc: Loc.t)(parameter: Ast.paramet
 	write_bc w loc @@ N.Load(param_index - Array.length parameters);
 	incr_stack_depth w
 
-let finish({code; locs; stack_depth; _} as w: t)(loc: Loc.t): N.code =
-	Assert.equal stack_depth 1 OutputU.output_int;
-	write_bc w loc N.Return;
-	{N.bytecodes = MutArray.to_array code; N.locs = CodeLocs.finish locs}
-
 let bindings({bindings; _}: t): Bind.t =
 	bindings
 let type_of_ast({type_of_ast; _}: t): TypeOfAst.t =
 	type_of_ast
-let types({types; _}: t): TypeCheck.t =
-	types
+let tys({tys; _}: t): TypeCheck.t =
+	tys
 
 let dup(w: t)(loc: Loc.t): unit =
 	write_bc w loc N.Dup;
@@ -106,11 +111,19 @@ let quote(w: t)(loc: Loc.t)(strings: string array): unit =
 
 let check(w: t)(loc: Loc.t): unit =
 	write_bc w loc N.Check
-	(* Stack depth: pop bool, push void *)
+	(* No stack effect: pop bool, push void *)
 
 let destruct(w: t)(loc: Loc.t)(patterns: N.pattern array): unit =
 	(* Stack depth should have been handled by the caller...*)
 	write_bc w loc @@ N.Destruct patterns
+
+let get_property(w: t)(loc: Loc.t)(property_index: int): unit =
+	write_bc w loc @@ N.GetProperty property_index
+	(* No stack effect: pop record, push property *)
+
+let cnv_rc(w: t)(loc: Loc.t)(rt: N.rt)(indexes: int array): unit =
+	write_bc w loc @@ N.CnvRc(rt, indexes)
+	(* No stack effect: pop record, push record *)
 
 type placeholder = code_idx
 let placeholder(w: t)(loc: Loc.t): placeholder =

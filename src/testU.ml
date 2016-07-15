@@ -27,14 +27,14 @@ let time(f: unit -> 'a): 'a =
 	Printf.printf "Execution time: %fs\n" @@ t2 -. t1;
 	MutArray.get arr 0
 
-let fn_named({N.values; _}: N.modul)(name: string): N.declared_fn =
-	match Sym.Lookup.try_get values (Sym.of_string name) with
-	| Some(N.Fn f) ->
-		begin match f with
-		| N.DeclaredFn f -> f
-		| _ -> raise U.TODO
-		end
-	| _ -> failwith @@ OutputU.out_to_string "No function named \"%s\"" name
+let val_named({N.vals; _}: N.modul)(name: string): N.v =
+	OpU.or_else (Sym.Lookup.try_get vals (Sym.of_string name)) @@ fun () ->
+		failwith @@ OutputU.out_to_string "No value named \"%s\"" name
+
+let fn_named(modul: N.modul)(name: string): N.declared_fn =
+	match val_named modul name with
+	| N.Fn (N.DeclaredFn f) -> f
+	| _ -> raise U.TODO
 
 let call_fn(noze: Noze.t)(m: N.modul)(name: string)(vals: N.v array): N.v =
 	let debug = true in

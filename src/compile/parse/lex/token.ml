@@ -5,7 +5,9 @@ type t =
 	| Literal of N.primitive
 	(* Keywords *)
 	| At
+	| AtAt
 	| Equals
+	| Dot
 	| DotDot
 	| Import
 	(* Expression keywords *)
@@ -32,4 +34,4 @@ type t =
 
 (* Just the keywords with text names *)
 let all_keywords: t array =
-	[| At; Equals; Cs; Ck; Import; Rt; Un; Ft; Ct; Fn; Cn |]
+	[| At; AtAt; Equals; Cs; Ck; Import; Rt; Un; Ft; Ct; Fn; Cn |]

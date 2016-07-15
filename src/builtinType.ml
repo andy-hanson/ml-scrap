@@ -1,15 +1,13 @@
 open N
-(*open BuiltinTyU*)
+open BuiltinTypeU
 
-let action = TFn(Ft {
-	fname = Sym.of_string "Action";
-	return_type = t_void;
-	parameters = [||]
-})
+let action = ft0 "Action" t_void
 
-let foo = [|
-	t_bool; t_float; t_int; t_string; t_void;
-	action
-|]
+let all = ArrayU.build begin fun build ->
+	let build_all(tys: ty array): unit =
+		ArrayU.iter tys build in
 
-let all = Array.append foo World.types
+	build_all [| t_bool; t_float; t_int; t_string; t_void |];
+	build_all World.tys;
+	build action;
+end

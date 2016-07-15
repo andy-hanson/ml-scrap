@@ -1,5 +1,7 @@
 type t
-val create: Bind.t -> TypeOfAst.t -> TypeCheck.t -> Ast.parameter array -> t
+
+val write: Bind.t -> TypeOfAst.t -> TypeCheck.t -> Ast.parameter array -> Loc.t -> (t -> unit) -> N.code
+
 val apply_fn_to_stack_depth: t -> int -> unit
 
 (*TODO: rename to register_local or something*)
@@ -11,11 +13,9 @@ val decr_stack_depth: t -> unit
 val access_local: t -> Loc.t -> Ast.local_declare -> unit
 val access_parameter: t -> Loc.t -> Ast.parameter -> unit
 
-val finish: t -> Loc.t -> N.code
-
 val bindings: t -> Bind.t
 val type_of_ast: t -> TypeOfAst.t
-val types: t -> TypeCheck.t
+val tys: t -> TypeCheck.t
 
 (*TODO: ordering*)
 val dup: t -> Loc.t -> unit
@@ -27,6 +27,8 @@ val partial: t -> Loc.t -> int -> unit
 val quote: t -> Loc.t -> string array -> unit
 val check: t -> Loc.t -> unit
 val destruct: t -> Loc.t -> N.pattern array -> unit
+val get_property: t -> Loc.t -> int -> unit
+val cnv_rc: t -> Loc.t -> N.rt -> int array -> unit
 
 type placeholder
 val placeholder: t -> Loc.t -> placeholder

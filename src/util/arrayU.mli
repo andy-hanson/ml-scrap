@@ -17,6 +17,7 @@ val filter: 'a array -> ('a -> bool) -> 'a array
 val filter_map: 'a array -> ('a -> 'b option) -> 'b array
 
 val find: 'a array -> ('a -> bool) -> 'a option
+val find_index: 'a array -> ('a -> bool) -> int option
 val find_map: 'a array -> ('a -> 'b option) -> 'b option
 val exists: 'a array -> ('a -> bool) -> bool
 

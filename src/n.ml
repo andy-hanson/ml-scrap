@@ -1,5 +1,8 @@
+(*TODO: cleanup*)
+
 type ty =
 	| Any
+	(*TODO: TPrimitive and Rt together are TConcrete. (They have no subtypes.) This is useful because unions can only contain concrete types.*)
 	| TPrimitive of ty_primitive
 	| Rt of rt
 	| Un of un
@@ -26,20 +29,21 @@ and rt = {
 and un = {
 	uname: Sym.t;
 	(* These must be TBool, TFloat, TInt, TVoid, or Rt *)
-	mutable utypes: ty array
+	(*TODO: type system should ensure this?*)
+	(*TODO: darn tootin' type system should ensure this, and make sure we forbid anything else!*)
+	mutable utys: ty array
 }
 
 and parameter = Sym.t * ty
-(*TODO: this should store ft_mdl so fn doesn't have to*)
 and ft = {
 	fname: Sym.t;
 	(* Mutable for creation only *)
-	(*TODO: name just 'return'*)
-	mutable return_type: ty;
+	mutable return: ty;
 	(* Mutable for creation only *)
 	mutable parameters: parameter array
 }
 
+(*TODO: input type (2nd one) should by acceptable part of a union (not Any or Un or TFn*)
 and ct_case = ty * ty
 and ct = {
 	cname: Sym.t;
@@ -65,11 +69,19 @@ and pattern =
 
 and bytecode =
 	| Call
+	(*
+	Converts to A from B.
+	Parameters are A and a list of indexes into B to pull to A.
+	(no need to store B
+	*)
+	| CnvRc of rt * int array
 	| Cs of (ty * int) array
 	| Const of v
 	| Destruct of pattern array
 	| Drop
 	| Dup
+	(* Stores index of property *)
+	| GetProperty of int
 	(* Load a value from `int` entries earlier in the stack *)
 	| Load of int
 	(* Goto-like codes store index of bytecode to move to. *)
@@ -96,13 +108,11 @@ and fn =
 	| Ctr of rt
 
 (*TODO: we directly introspect this way too much. Create FnU.ml*)
+(* Represents either an fn or cn *)
 and declared_fn = {
-	(*TODO:RENAME*)
-	fn_type: ty_fn;
-	(*TODO:rename to fn_mdl*)
-	containing_modul: modul;
-	(*TODO:rename to fn_code*)
-	mutable code: code
+	fn_ty: ty_fn;
+	fn_mdl: modul;
+	mutable fn_code: code
 }
 
 and partial_fn = {
@@ -118,8 +128,8 @@ and builtin_fn = {
 (*TODO:rename to mdl*)
 and modul = {
 	path: FileIO.path;
-	values: v Sym.Lookup.t;
-	types: ty Sym.Lookup.t;
+	vals: v Sym.Lookup.t;
+	tys: ty Sym.Lookup.t;
 }
 
 (* These don't belong here, but ocaml hates recursion... *)

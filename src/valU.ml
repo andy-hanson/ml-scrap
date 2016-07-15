@@ -16,30 +16,30 @@ let float_of = function
 	| Primitive(Float f) -> f
 	| _ -> raise CastFail
 
-let type_of_primitive = function
+let ty_of_primitive = function
 	| Bool _ -> TBool
 	| Int _ -> TInt
 	| Float _ -> TFloat
 	| String _ -> TString
 	| Void -> TVoid
 
-let rec type_of_fn(fn: fn): ty_fn =
+let rec ty_of_fn(fn: fn): ty_fn =
 	match fn with
 	| BuiltinFn {builtin_ty_fn; _} ->
 		builtin_ty_fn
-	| DeclaredFn {fn_type; _} ->
-		fn_type
+	| DeclaredFn {fn_ty; _} ->
+		fn_ty
 	| PartialFn {partially_applied; partial_args} ->
-		Ft(TyU.partial_type (type_of_fn partially_applied) @@ ArrayU.map partial_args type_of)
+		Ft(TyU.partial_ty (ty_of_fn partially_applied) @@ ArrayU.map partial_args ty_of)
 	| Ctr _ ->
 		raise U.TODO (*TODO: I left a ctr_type helper around somewhere...*)
 
-and type_of(v: v): ty =
+and ty_of(v: v): ty =
  	match v with
 	| Primitive p ->
-		TPrimitive(type_of_primitive p)
+		TPrimitive(ty_of_primitive p)
 	| Fn fn ->
-		TFn(type_of_fn fn)
+		TFn(ty_of_fn fn)
 	| Rc(rt, _) ->
 		Rt rt
 
@@ -48,12 +48,12 @@ let ty_fn_name(ty_fn: ty_fn): Sym.t =
 	match ty_fn with
 	| Ft {fname; _} -> fname
 	| Ct {cname; _} -> cname
-let fn_name({fn_type; _}: declared_fn): Sym.t =
-	ty_fn_name fn_type
+let fn_name({fn_ty; _}: declared_fn): Sym.t =
+	ty_fn_name fn_ty
 let builtin_fn_name({builtin_ty_fn; _}: builtin_fn): Sym.t =
 	ty_fn_name builtin_ty_fn
-let fn_arity({fn_type; _}: declared_fn): int =
-	match fn_type with
+let fn_arity({fn_ty; _}: declared_fn): int =
+	match fn_ty with
 	| Ft ft -> TyU.ft_arity ft
 	| Ct _ -> 1
 
@@ -104,9 +104,9 @@ and output(out: 'o OutputU.t)(value: v): unit =
 			Sym.output rname
 			(OutputU.out_array_elements out_property) (ArrayU.zip properties property_values)
 
-and output_declared_fn(out: 'o OutputU.t)({fn_type; _}: declared_fn): unit =
+and output_declared_fn(out: 'o OutputU.t)({fn_ty; _}: declared_fn): unit =
 	OutputU.out out "Fn(%a)"
-		TyU.output_ty_fn fn_type
+		TyU.output_ty_fn fn_ty
 
 and output_pattern(out: 'o OutputU.t)(pattern: pattern): unit =
 	match pattern with
@@ -124,6 +124,10 @@ and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 		o "Cs(%a)" (OutputU.out_array @@ OutputU.out_pair TyU.output_brief OutputU.output_int) parts
 	| Const v ->
 		o "Const(%a)" output v
+	| CnvRc(rt, indices) ->
+		o "CnvRc(%a, %a)"
+			TyU.output_rt rt
+			(OutputU.out_array OutputU.output_int) indices
 	| Destruct pattern ->
 		o "Destruct(%a)" (OutputU.out_array output_pattern) pattern
 	| Drop ->
@@ -132,6 +136,8 @@ and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 		o "Dup"
 	| Load i ->
 		o "Load(%d)" i
+	| GetProperty i ->
+		o "GetProperty(%i)" i
 	| Goto i ->
 		o "Goto(%d)" i
 	| GotoIfFalse i ->

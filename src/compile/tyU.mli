@@ -10,7 +10,9 @@ val arity: ty -> int
 val ft_arity: ft -> int
 val rt_arity: rt -> int
 
-val partial_type: ty_fn -> ty array -> ft
+val partial_ty: ty_fn -> ty array -> ft
+val ct_input: ct -> un
+val ct_output: ct -> un
 
 (*TODO: NOut module*)
 val output_property: (property, 'o) OutputU.printer

@@ -2,8 +2,9 @@ open N
 
 val equal: v -> v -> bool
 
-val type_of: v -> ty
-val type_of_primitive: primitive -> ty_primitive
+val ty_of: v -> ty
+val ty_of_fn: fn -> ty_fn
+val ty_of_primitive: primitive -> ty_primitive
 
 exception CastFail
 

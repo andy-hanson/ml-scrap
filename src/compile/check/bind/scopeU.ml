@@ -38,7 +38,7 @@ let add_params(scope: t)(params: Ast.parameter array): t =
 
 let builtins =
 	{
-		vals = Sym.Map.make Builtin.all (fun ({Builtin.name; value}) -> name, Binding.Builtin value);
+		vals = Sym.Map.map_values Builtin.all (fun v -> Binding.Builtin v);
 		tys = Sym.Map.make BuiltinType.all (fun b -> TyU.name b, Binding.BuiltinType b)
 	}
 

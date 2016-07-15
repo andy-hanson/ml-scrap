@@ -45,14 +45,14 @@ let filter(a: 'a array)(f: 'a -> bool): 'a array =
 let filter_map(a: 'a array)(f: 'a -> 'b option): 'b array =
 	BatArray.filter_map f a
 
-(*let find_idx(a: 'a array)(pred: 'a -> bool): int option =
+let find(a: 'a array)(pred: 'a -> bool): 'a option =
+	try Some (BatArray.find pred a) with Not_found -> None
+
+let find_index(a: 'a array)(pred: 'a -> bool): int option =
 	try
 		Some(BatArray.findi pred a)
 	with Not_found ->
-		None*)
-
-let find(a: 'a array)(pred: 'a -> bool): 'a option =
-	try Some (BatArray.find pred a) with Not_found -> None
+		None
 
 let find_map(a: 'a array)(f: 'a -> 'b option): 'b option =
 	let rec recur(idx: int): 'b option =

@@ -1,7 +1,17 @@
 open N
 
-let rc_n(name: string)(props: (string * ty) array): ty =
-	TyU.t_rc (Sym.of_string name) @@ ArrayU.map props @@ fun (name, typ) -> Sym.of_string name, typ
+let ft_n(name: string)(return_ty: ty)(parameters: (string * ty) array): ty =
+	TyU.t_ft (Sym.of_string name) return_ty @@ ArrayU.map parameters @@ fun (name, ty) -> Sym.of_string name, ty
 
-let rc1(name: string)(prop_name: string)(typ: ty): ty =
-	rc_n name [| prop_name, typ |]
+let ft0(name: string)(return_ty: ty): ty =
+	ft_n name return_ty [| |]
+
+let ft1(name: string)(return_ty: ty)(param0_name: string)(param0_ty: ty): ty =
+	ft_n name return_ty [| param0_name, param0_ty |]
+
+
+let rc_n(name: string)(props: (string * ty) array): ty =
+	TyU.t_rc (Sym.of_string name) @@ ArrayU.map props @@ fun (name, ty) -> Sym.of_string name, ty
+
+let rc1(name: string)(prop_name: string)(ty: ty): ty =
+	rc_n name [| prop_name, ty |]

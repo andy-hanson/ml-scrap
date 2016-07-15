@@ -1,23 +1,25 @@
 type access = Loc.t * Sym.t
 type local_declare = Loc.t * Sym.t
 
-type typ =
+type ty =
 	| TypeAccess of access
 	(*| GenericTypeInstance*)
 
 type pattern =
 	| PSingle of local_declare
 	| PDestruct of Loc.t * pattern array
-(*TODO: just inline this...*)
-type cs_test = Loc.t * typ * pattern
-type cs_part = Loc.t * cs_test * expr
 
-and expr =
-	| At of Loc.t * typ * expr
-	| ExprType of typ
+type at_kind =
+	| Exact
+	| Convert
+
+type expr =
+	| At of Loc.t * at_kind * ty * expr
+	| ExprType of ty
 	| ExprAccess of access
 	| Call of Loc.t * expr * expr array
 	| Cs of Loc.t * expr * cs_part array
+	| GetProperty of Loc.t * expr * Sym.t
 	| Let of Loc.t * pattern * expr * expr
 	| Literal of Loc.t * N.primitive
 	| Seq of Loc.t * expr * expr
@@ -26,18 +28,20 @@ and expr =
 	| Quote of Loc.t * string * quote_part array
 	| Check of Loc.t * expr
 
+and cs_test = Loc.t * ty * pattern
+and cs_part = Loc.t * cs_test * expr
 and quote_part = expr * string
 
-type property = Loc.t * Sym.t * typ
-type parameter = Loc.t * Sym.t * typ
-type signature = Loc.t * typ * parameter array
+type property = Loc.t * Sym.t * ty
+type parameter = Loc.t * Sym.t * ty
+type signature = Loc.t * ty * parameter array
 
 type fn = Loc.t * Sym.t * signature * expr
-type cn = Loc.t * Sym.t * typ * cs_part array
+type cn = Loc.t * Sym.t * ty * cs_part array
 type rt = Loc.t * Sym.t * property array
-type un = Loc.t * Sym.t * typ array
+type un = Loc.t * Sym.t * ty array
 type ft = Loc.t * Sym.t * signature
-type ct = Loc.t * Sym.t * ((typ * typ) array)
+type ct = Loc.t * Sym.t * ((ty * ty) array)
 
 type decl_val =
 	| Fn of fn

@@ -1,10 +1,10 @@
 open N
 
-let entry_of({code; _} as cse_fn: declared_fn)(cur_stack_index: int): call_stack_entry =
+let entry_of({fn_code; _} as cse_fn: declared_fn)(cur_stack_index: int): call_stack_entry =
 	{
 		cse_fn;
-		cse_code = code.bytecodes;
-		cse_locs = code.locs;
+		cse_code = fn_code.bytecodes;
+		cse_locs = fn_code.locs;
 		stack_start_index = cur_stack_index;
 		code_idx = 0
 	}
@@ -47,7 +47,6 @@ let goto({cur; _}: interpreter_state)(idx: int): unit =
 let goto_next({cur = {code_idx; _}; _} as state: interpreter_state): unit =
 	goto state @@ code_idx + 1
 
-(*TODO: inline?*)
 let push_fn({call_stack; cur; data_stack; _} as state: interpreter_state)(fn: declared_fn): unit =
 	GoodStack.push call_stack cur;
 	state.cur <- entry_of fn @@ GoodStack.size data_stack
@@ -56,7 +55,7 @@ let pop_fn({call_stack; _} as state: interpreter_state): bool =
 	try
 		state.cur <- GoodStack.pop call_stack;
 		false
-	with GoodStack.EmptyStack ->
+	with MutArray.Empty ->
 		true
 
 let load({cur = {stack_start_index; _}; data_stack; _}: interpreter_state)(relative_index: int): v =

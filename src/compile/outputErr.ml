@@ -46,25 +46,38 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 			Sym.output name
 			BindingU.output_ty binding
 
-	| CanOnlyCsUnion typ ->
+	| CanOnlyCsUnion ty ->
 		o "Expected a union type, got a %a"
-			TyU.output typ
-	| CsPartType(possible_types, handled_type) ->
+			TyU.output ty
+	| CsPartType(possible_tys, handled_ty) ->
 		o "`cs` should handle one of %a, but handles %a instead"
-			(OutputU.out_array TyU.output) possible_types
-			TyU.output handled_type
-	| CasesUnhandled unhandled_types ->
+			(OutputU.out_array TyU.output) possible_tys
+			TyU.output handled_ty
+	| CantConvertRtMissingProperty(convert_to, convert_from, prop_name) ->
+		o "Can't convert to %a from %a: missing property %a"
+			TyU.output_rt convert_to
+			TyU.output_rt convert_from
+			Sym.output prop_name
+	| CasesUnhandled unhandled_tys ->
 		o "The following cases are not handled: %a"
-			(OutputU.out_array TyU.output) unhandled_types
+			(OutputU.out_array TyU.output) unhandled_tys
 	| CombineTypes(a, b) ->
 		o "Can't combine types %a and %a because they are not exactly equal and we don't infer unions yet"
 			TyU.output a
 			TyU.output b
-	| NotAFunction typ ->
+	| NotAFunction ty ->
 		o "Expected a function, got a %a"
-			TyU.output typ
+			TyU.output ty
 	| NotAValue(_, name) ->
-		o "Not a vaule: %a"
+		(*TODO: what's the first arg for then?*)
+		o "Not a value: %a"
+			Sym.output name
+	| NotARc(ty) ->
+		o "Expected a record, got: %a."
+			TyU.output ty
+	| NoSuchProperty(rt, name) ->
+		o "Type %a has no property %a"
+			TyU.output_rt rt
 			Sym.output name
 	| NotExpectedType(expected, actual) ->
 		o "Expected %a, got %a"

@@ -14,7 +14,7 @@ let ct_world = Ct {
 }
 let ty_world = TFn ct_world
 
-let types = [|
+let tys = [|
 	print; read_line;
 	ty_world
 |]
@@ -37,8 +37,8 @@ let message_handlers: handler RtLookup.t =
 		| _ -> assert false in
 
 	RtLookup.build begin fun build ->
-		let add1 typ f =
-			build (extract_rc typ) (Fn1 f) in
+		let add1(ty: ty)(f: v -> v): unit =
+			build (extract_rc ty) (Fn1 f) in
 		add1 print @@ fun v ->
 			OutputU.printf "%a\n" ValU.output v;
 			N.v_void
@@ -48,8 +48,8 @@ let call(msg: N.v): N.v =
 	match msg with
 	| N.Primitive _ | N.Fn _ ->
 		assert false
-	| N.Rc(typ, properties) ->
-		let handler = RtLookup.get message_handlers typ in
+	| N.Rc(ty, properties) ->
+		let handler = RtLookup.get message_handlers ty in
 		begin match handler with
 		| Fn1 f ->
 			f @@ ArrayU.single_of properties
@@ -61,6 +61,7 @@ let call(msg: N.v): N.v =
 			f a b c*)
 		end
 
+(*TODO: helper for this?*)
 let world = N.Fn(N.BuiltinFn {
 	N.builtin_ty_fn = ct_world;
 	N.exec = fun state -> State.push state @@ call @@ State.pop state

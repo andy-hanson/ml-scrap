@@ -226,9 +226,12 @@ let rec next(l: t): Token.t =
 		take_operator ch
 
 	| '.' ->
-		begin match read_char() with
-		| '.' -> Token.DotDot
-		| _ -> raise U.TODO (*TODO: error message*)
+		begin match l.peek with
+		| '.' ->
+			skip();
+			Token.DotDot
+		| _ ->
+			Token.Dot
 		end
 
 	| '"' ->

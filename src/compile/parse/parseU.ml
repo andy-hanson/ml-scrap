@@ -20,7 +20,7 @@ let parse_name_with_loc(l: Lexer.t): Loc.t * Sym.t =
 let parse_name(l: Lexer.t): Sym.t =
 	snd @@ parse_name_with_loc l
 
-let parse_type_name(l: Lexer.t): Sym.t =
+let parse_ty_name(l: Lexer.t): Sym.t =
 	let start, next = Lexer.pos_next l in
 	match next with
 	| Token.TypeName name ->

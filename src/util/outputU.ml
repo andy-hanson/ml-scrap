@@ -18,6 +18,7 @@ let out_array_elements ?(delimeter=", ")(output: ('a, 'o) printer)(out: 'o t)(ar
 			str out delimeter
 	end
 
+(*TODO: ArrayU*)
 let out_array(output: ('a, 'o) printer)(out_channel: 'o t)(arr: 'a array): unit =
 	out out_channel "[%a]" (out_array_elements output) arr
 
