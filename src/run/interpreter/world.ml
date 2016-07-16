@@ -1,6 +1,33 @@
 open N
 open BuiltinTypeU
 
+(*TODO: ensure that types match up with values, e.g. print type to print value*)
+
+let print = ft1 "Print" t_void "printed" t_string
+let ty = rc_n "World" [|
+	"print", print(*;
+	"read-line", ft0 "read-line" t_string*)
+|]
+(*TODO:BETTER*)
+let rt_world = match ty with | Rt rt -> rt | _ -> assert false
+let ft_print = match print with | Ft ft -> ft | _ -> assert false
+
+let builtin(ft: ft)(exec: interpreter_state -> unit): v =
+	Fn(BuiltinFn {
+		builtin_fn_ty = ft;
+		exec
+	})
+
+let world = Rc(rt_world, [|
+	builtin ft_print @@ fun state ->
+		let v = State.pop state in
+		OutputU.printf "%a\n" ValU.output v;
+		State.push state v_void
+|])
+
+let tys = [| ty; print |]
+
+(*
 let print = rc1 "Print" "value" Any
 (*TODO use a singleton (N.tySn)*)
 let read_line = rc1 "ReadLine" "value" t_void
@@ -66,3 +93,4 @@ let world = N.Fn(N.BuiltinFn {
 	N.builtin_ty_fn = ct_world;
 	N.exec = fun state -> State.push state @@ call @@ State.pop state
 })
+*)

@@ -1,21 +1,30 @@
-rt PointOne
-	y Int
-rt PointTwo
-	x Int
-	y Int
+fn main Void world World
+	p = world.print
+	say-hello p
+	say-hello p
 
-fn main Int world World
-	(PointOne @ PointTwo 2 3).y
+fn say-hello Void printer Print
+	printer "Hello world!"
 
-un IntOrBool
-	Int
-	Bool
+|| rt PointOne
+||	y Int
+|| rt PointTwo
+||	x Int
+||	y Int
 
-ft Foo
-	IntOrBool x Int
+|| fn main Int world World
+||	(PointOne @ PointTwo 2 3).y
 
-fn f Int x IntOrBool
-	123
+|| un IntOrBool
+||	Int
+||	Bool
+
+|| ft Foo
+||	IntOrBool x Int
+
+|| fn f Int x IntOrBool
+||	123
+
 
 || fn main Void world World
 ||	say-hello: Printer @ world

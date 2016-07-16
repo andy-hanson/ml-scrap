@@ -1,16 +1,11 @@
 (*TODO: cleanup*)
 
 type ty =
-	| Any
 	(*TODO: TPrimitive and Rt together are TConcrete. (They have no subtypes.) This is useful because unions can only contain concrete types.*)
 	| TPrimitive of ty_primitive
 	| Rt of rt
 	| Un of un
-	| TFn of ty_fn
-
-and ty_fn =
 	| Ft of ft
-	| Ct of ct
 
 and ty_primitive =
 	| TBool
@@ -41,14 +36,6 @@ and ft = {
 	mutable return: ty;
 	(* Mutable for creation only *)
 	mutable parameters: parameter array
-}
-
-(*TODO: input type (2nd one) should by acceptable part of a union (not Any or Un or TFn*)
-and ct_case = ty * ty
-and ct = {
-	cname: Sym.t;
-	(* Mutable for creation only *)
-	mutable ct_cases: ct_case array
 }
 
 type v =
@@ -110,7 +97,7 @@ and fn =
 (*TODO: we directly introspect this way too much. Create FnU.ml*)
 (* Represents either an fn or cn *)
 and declared_fn = {
-	fn_ty: ty_fn;
+	fn_ty: ft;
 	fn_mdl: modul;
 	mutable fn_code: code
 }
@@ -121,7 +108,7 @@ and partial_fn = {
 }
 
 and builtin_fn = {
-	builtin_ty_fn: ty_fn;
+	builtin_fn_ty: ft;
 	exec: interpreter_state -> unit
 }
 

@@ -3,7 +3,7 @@ open N
 (*TODO:RENAME*)
 let fffnnn(name: string)(return: ty)(parameters: (string * ty) array)(exec: interpreter_state -> unit): builtin_fn =
 	{
-		builtin_ty_fn = Ft(TyU.ft (Sym.of_string name) return @@ ArrayU.map parameters @@ fun (name, ty) -> Sym.of_string name, ty);
+		builtin_fn_ty = (TyU.ft (Sym.of_string name) return @@ ArrayU.map parameters @@ fun (name, ty) -> Sym.of_string name, ty);
 		exec
 	}
 
@@ -46,7 +46,7 @@ let all = Sym.Map.build begin fun (build_sym: Sym.t -> v -> unit) ->
 		(fun pop -> v_bool(not @@ ValU.bool_of @@ pop()));
 
 	fn "=="
-		t_bool [| "a", Any; "b", Any |]
+		t_bool [| "a", t_int; "b", t_int |]
 		(fun pop -> v_bool(ValU.equal (pop()) (pop())));
 
 	let cmp(name: string)(compare: int -> int -> bool) =

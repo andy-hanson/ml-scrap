@@ -3,7 +3,7 @@ open N
 val equal: v -> v -> bool
 
 val ty_of: v -> ty
-val ty_of_fn: fn -> ty_fn
+val ty_of_fn: fn -> ft
 val ty_of_primitive: primitive -> ty_primitive
 
 exception CastFail

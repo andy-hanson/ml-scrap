@@ -126,28 +126,6 @@ fn incr Int x Int
 };;
 
 run_test {
-	name = "Ct";
-	src = "
-fn main Void
-	ck convert 0.0 == 0
-	ck convert 0 == 0.0
-	ck (FloatOfIntConverter @ convert) 0 == 0.0
-
-ct Converter
-	Float Int
-	Int Float
-
-ct FloatOfIntConverter
-	Float Int
-
-cn convert Converter
-	Int @ i
-		0.0
-	Float @ f
-		0"
-};;
-
-run_test {
 	name = "String interpolation";
 	src = "
 fn main Void

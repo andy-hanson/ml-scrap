@@ -71,7 +71,7 @@ let check_ty_as_expr(ctx: ctx)(expected: expected)(ty_ast: Ast.ty): ty =
 				(*TODO: Factor out to fn_of_rc helper somewhere in TyU*)
 				let {rname; properties} as rt = rt_of_ast ctx rt_ast in
 				TyU.t_ft rname (Rt rt) properties
-			| Ast.Un _ | Ast.Ft _ | Ast.Ct _ ->
+			| Ast.Un _ | Ast.Ft _ ->
 				raise U.TODO (*TODO: these types are not useable as values; have an error message saying this*)
 			end
 		| Binding.BuiltinType t ->
@@ -114,8 +114,7 @@ let property_ty(loc: Loc.t)(ty: ty)(property: Sym.t): ty =
 		OpU.or_else prop_ty begin fun () ->
 			ErrU.raise loc @@ Err.NoSuchProperty(rt, property)
 		end
-
-	| Any | TPrimitive _ | Un _ | TFn _ ->
+	| _ ->
 		ErrU.raise loc @@ Err.NotARc(ty)
 
 let rec assert_exact(ctx: ctx)(expected: ty)(expr: Ast.expr): unit =
@@ -156,9 +155,7 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 				| Binding.VDeclared d ->
 					begin match d with
 					| Ast.Fn fn ->
-						TFn(Ft(ft_of_fn ctx fn))
-					| Ast.Cn(_, _, ty, _) ->
-						declared_ty ctx ty
+						Ft(ft_of_fn ctx fn)
 					end
 				| Binding.Local declare ->
 					get_local_ty ctx declare
@@ -171,24 +168,13 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 			let called_ty = check_and_infer ctx called in
 			let t =
 				begin match called_ty with
-				| TFn f ->
-					begin match f with
-					| Ft {fname = _; return; parameters} ->
-						let n_params = Array.length parameters in
-						let n_args = Array.length args in
-						ErrU.check (n_params = n_args) loc @@ Err.NumArgs(n_params, n_args);
-						(*TODO: use parameter name for helpful error info*)
-						ArrayU.iter_zip parameters args (assert_parameter ctx);
-						return
-					| Ct {cname = _; ct_cases} ->
-						ErrU.check (Array.length args = 1) loc @@ Err.NumArgs(1, Array.length args);
-						let arg = args.(0) in
-						let arg_ty = check_and_infer ctx arg in
-						let found = ArrayU.find_map ct_cases begin fun (return, input) ->
-							OpU.op_if (TypeCheckU.eq input arg_ty) @@ fun () -> return
-						end in
-						OpU.or_else found @@ fun () -> raise U.TODO(*TODO: appropriate error*)
-					end
+				| Ft {fname = _; return; parameters} ->
+					let n_params = Array.length parameters in
+					let n_args = Array.length args in
+					ErrU.check (n_params = n_args) loc @@ Err.NumArgs(n_params, n_args);
+					(*TODO: use parameter name for helpful error info*)
+					ArrayU.iter_zip parameters args (assert_parameter ctx);
+					return
 				| _ ->
 					ErrU.raise loc @@ Err.NotAFunction called_ty
 				end in
@@ -218,19 +204,14 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 			let fn_ty = check_and_infer ctx fn in
 			let t =
 				begin match fn_ty with
-				| TFn f ->
-					begin TFn begin Ft begin match f with
-					| Ft {fname; return; parameters} ->
-						assert (Array.length parameters >= Array.length args); (*TODO: proper error message*)
-						let remaining_parameters = ArrayU.partial parameters args (assert_parameter ctx) in
-						(*
-						TODO: it should have a different name, or some indication that it's partial now...
-						(TODO: don't just manipulate strings! replace `fname` with structured data tracing the type's origin.
-						*)
-						{fname; return; parameters = remaining_parameters}
-					| Ct _ ->
-						raise U.TODO
-					end end end
+				| Ft {fname; return; parameters} ->
+					assert (Array.length parameters >= Array.length args); (*TODO: proper error message*)
+					let remaining_parameters = ArrayU.partial parameters args (assert_parameter ctx) in
+					(*
+					TODO: it should have a different name, or some indication that it's partial now...
+					(TODO: don't just manipulate strings! replace `fname` with structured data tracing the type's origin.
+					*)
+					Ft {fname; return; parameters = remaining_parameters}
 				| _ ->
 					raise U.TODO (*TODO: error message*)
 				end in
@@ -239,8 +220,7 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 		| Ast.Quote(loc, _, parts) ->
 			U.returning (assert_foo loc expected t_string) begin fun _ ->
 				ArrayU.iter parts begin fun (interpolated, _) ->
-					(*TODO: should be a String*)
-					assert_exact ctx Any interpolated
+					assert_exact ctx t_string interpolated
 				end
 			end
 
@@ -278,21 +258,6 @@ and check_cs(ctx: ctx)(expected: expected)(loc: Loc.t)(cased: Ast.expr)(parts: A
 	| Infer ->
 		TypeCheckU.join loc part_tys
 
-(*TODO: share code with check_cs*)
-let check_cn(ctx: ctx)(_loc: Loc.t)(cases: ct_case array)(parts: Ast.cs_part array): unit =
-	let remaining_cases = ArrayU.fold cases parts begin fun remaining_cases (_, (_, test_ty_ast, pattern), result) ->
-		let test_ty = declared_ty ctx test_ty_ast in
-		check_pattern ctx test_ty pattern;
-		let (_, return), remaining_cases =
-			match ArrayU.try_remove_where remaining_cases @@ fun (input, _) -> TypeCheckU.eq input test_ty with
-			| Some(x) -> x
-			| None -> raise U.TODO (*TODO: CasePartType-like error*) in
-		assert_exact ctx return result;
-		remaining_cases
-	end in
-	(*TODO: ErrU.check (ArrayU.empty remaining_cases) loc @@ Err.CasesUnhandled remaining_cases*)
-	assert (ArrayU.empty remaining_cases)
-
 let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 	let expr_tys: expr_tys = ExprTys.create() in
 	let local_tys: local_tys = LocalTys.create() in
@@ -304,12 +269,6 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 				| Ast.Fn((_, _, _, body) as fn) ->
 					let return = (TypeOfAst.ft_of_fn type_of_ast fn).return in
 					assert_exact ctx return body
-				| Ast.Cn((loc, _, ty_ast, parts) as _cn) ->
-					let case_tys =
-						match declared_ty ctx ty_ast with
-						| TFn(Ct {ct_cases; _}) -> ct_cases
-						| _ -> raise U.TODO (*TODO: an appropriate error*) in
-					check_cn ctx loc case_tys parts
 				end
 			| Ast.DeclTy _ ->
 				()

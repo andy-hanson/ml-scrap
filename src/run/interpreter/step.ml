@@ -14,7 +14,7 @@ let case_test(ty: ty)(v: v): bool =
 		| Rc (vrt, _) -> rt == vrt
 		| _ -> false
 		end
-	| Any | Un _ | TFn _ -> assert false (*TODO: ocaml type system should be more specific here*)
+	| Un _ | Ft _ -> assert false (*TODO: ocaml type system should be more specific here*)
 
 let step(state: interpreter_state): bool =
 	let goto idx = State.goto state idx; false in

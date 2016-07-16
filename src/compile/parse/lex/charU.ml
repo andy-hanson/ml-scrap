@@ -6,7 +6,7 @@ let is_digit(ch: char): bool =
 
 let is_operator_char(ch: char): bool =
 	match ch with
-	| '@' | '+' | '*' | '/' | '^' | '?' | '<' | '>' | '=' ->
+	| '@' | '+' | '-' | '*' | '/' | '^' | '?' | '<' | '>' | '=' ->
 		true
 	| _ ->
 		false

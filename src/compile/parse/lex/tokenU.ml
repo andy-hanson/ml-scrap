@@ -9,11 +9,9 @@ let keyword_to_string(keyword: t): string =
 	| Cs -> "cs"
 	| Ck -> "ck"
 	| Fn -> "fn"
-	| Cn -> "cn"
 	| Rt -> "rt"
 	| Un -> "un"
 	| Ft -> "ft"
-	| Ct -> "ct"
 	| Sn -> "sn"
 	| _ -> assert false
 

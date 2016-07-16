@@ -37,20 +37,16 @@ type parameter = Loc.t * Sym.t * ty
 type signature = Loc.t * ty * parameter array
 
 type fn = Loc.t * Sym.t * signature * expr
-type cn = Loc.t * Sym.t * ty * cs_part array
 type rt = Loc.t * Sym.t * property array
 type un = Loc.t * Sym.t * ty array
 type ft = Loc.t * Sym.t * signature
-type ct = Loc.t * Sym.t * ((ty * ty) array)
 
 type decl_val =
 	| Fn of fn
-	| Cn of cn
 type decl_ty =
 	| Rt of rt
 	| Un of un
 	| Ft of ft
-	| Ct of ct
 type decl =
 	| DeclVal of decl_val
 	| DeclTy of decl_ty

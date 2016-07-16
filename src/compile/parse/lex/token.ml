@@ -16,11 +16,9 @@ type t =
 	| Ck
 	(* Declaration keywords *)
 	| Fn
-	| Cn
 	| Rt
 	| Un
 	| Ft
-	| Ct
 	| Sn
 	(* Grouping *)
 	| Indent
@@ -34,4 +32,4 @@ type t =
 
 (* Just the keywords with text names *)
 let all_keywords: t array =
-	[| At; AtAt; Equals; Cs; Ck; Import; Rt; Un; Ft; Ct; Fn; Cn |]
+	[| At; AtAt; Equals; Cs; Ck; Import; Rt; Un; Ft; Fn |]

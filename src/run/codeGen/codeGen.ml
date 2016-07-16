@@ -30,7 +30,7 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 				| _ ->
 					assert false
 				end
-			| N.TFn _ ->
+			| N.Ft _ ->
 				raise U.TODO
 			| _ ->
 				assert false
@@ -204,13 +204,6 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(tys: TypeCheck.t)((_, decls): 
 			| Ast.Fn((_, _, (_, _, parameters), body) as fn_ast) ->
 				let fn = TypeOfAst.fn_of_ast type_of_ast fn_ast in
 				fn.N.fn_code <- W.write bindings type_of_ast tys parameters (AstU.expr_loc body) @@ fun w -> write_expr w body
-			| Ast.Cn((loc, _, _, parts) as cn_ast) ->
-				let fn = TypeOfAst.cn_of_ast type_of_ast cn_ast in
-				fn.N.fn_code <- W.write bindings type_of_ast tys [||] loc begin fun w ->
-					(* Keep the original cased value on the stack. *)
-					W.dup w loc;
-					write_cs_body w loc parts
-				end
 			end
 		| Ast.DeclTy _ ->
 			()

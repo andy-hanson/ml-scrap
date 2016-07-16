@@ -6,11 +6,9 @@ val decl_loc_name: decl -> Loc.t * Sym.t
 module AccessLookup: Lookup.S with type key = access
 module ExprLookup: Lookup.S with type key = expr
 module FnLookup: Lookup.S with type key = fn
-module CnLookup: Lookup.S with type key = cn
 module RtLookup: Lookup.S with type key = rt
 module UnLookup: Lookup.S with type key = un
 module FtLookup: Lookup.S with type key = ft
-module CtLookup: Lookup.S with type key = ct
 module LocalDeclareLookup: Lookup.S with type key = local_declare
 module ParameterLookup: Lookup.S with type key = parameter
 

@@ -85,25 +85,15 @@ let bind((_, decls): modul): t =
 				bind_signature signature;
 				let scope = ScopeU.add_params base_scope params in
 				bind_expr {ctx with scope} body
-
-			| Cn((_, _, ty, cases)) ->
-				add_ty ctx ty;
-				bind_cases ctx cases
 			end
 		| DeclTy t ->
 			begin match t with
 			| Rt((_, _, properties)) ->
 				ArrayU.iter properties @@ fun (_, _, ty) -> add_ty ctx ty
-
 			| Un((_, _, tys)) ->
 				ArrayU.iter tys @@ add_ty ctx
 			| Ft((_, _, signature)) ->
 				bind_signature signature
-
-			| Ct((_, _, cases)) ->
-				ArrayU.iter cases @@ fun (return, input) ->
-					add_ty ctx return;
-					add_ty ctx input
 			end
 		end
 	end

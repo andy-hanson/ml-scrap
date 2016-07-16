@@ -17,8 +17,6 @@ let decl_loc_name = function
 		begin match v with
 		| Fn((loc, name, _, _)) ->
 			loc, name
-		| Cn((loc, name, _, _)) ->
-			loc, name
 		end
 	| DeclTy t ->
 		begin match t with
@@ -27,8 +25,6 @@ let decl_loc_name = function
 		| Un((loc, name, _)) ->
 			loc, name
 		| Ft((loc, name, _)) ->
-			loc, name
-		| Ct((loc, name, _)) ->
 			loc, name
 		end
 
@@ -54,10 +50,6 @@ module FnLookup = AstLookup(struct
 	type t = fn
 	let loc(loc, _, _, _) = loc
 end)
-module CnLookup = AstLookup(struct
-	type t = cn
-	let loc(loc, _, _, _) = loc
-end)
 module RtLookup = AstLookup(struct
 	type t = rt
 	let loc(loc, _, _) = loc
@@ -68,10 +60,6 @@ module UnLookup = AstLookup(struct
 end)
 module FtLookup = AstLookup(struct
 	type t = ft
-	let loc(loc, _, _) = loc
-end)
-module CtLookup = AstLookup(struct
-	type t = ct
 	let loc(loc, _, _) = loc
 end)
 module LocalDeclareLookup = AstLookup(struct
@@ -169,9 +157,6 @@ let output_fn(out: 'o OutputU.t)((_, name, sign, body): Ast.fn): unit =
 		OutputU.out out "%a %a" output_ty ty (OutputU.out_array out_param) params in
 	OutputU.out out "fn %a %a %a" Sym.output name out_sig sign output_expr body
 
-let output_cn(_out: 'o OutputU.t)((_, _, _, _): Ast.cn): unit =
-	raise U.TODO
-
 let output_rt(_out: 'o OutputU.t)((_, _, _): Ast.rt): unit =
 	raise U.TODO
 
@@ -181,13 +166,9 @@ let output_un(_out: 'o OutputU.t)((_, _, _): Ast.un): unit =
 let output_ft(_out: 'o OutputU.t)((_, _, _): Ast.ft): unit =
 	raise U.TODO
 
-let output_ct(_out: 'o OutputU.t)((_, _, _): Ast.ct): unit =
-	raise U.TODO
-
 let output_decl_val(out: 'o OutputU.t)(decl: decl_val): unit =
 	begin match decl with
 	| Fn fn -> output_fn out fn
-	| Cn cn -> output_cn out cn
 	end
 
 let output_decl_ty(out: 'o OutputU.t)(decl: decl_ty): unit =
@@ -195,7 +176,6 @@ let output_decl_ty(out: 'o OutputU.t)(decl: decl_ty): unit =
 	| Rt rt -> output_rt out rt
 	| Un un -> output_un out un
 	| Ft ft -> output_ft out ft
-	| Ct ct -> output_ct out ct
 	end
 
 let output_decl(out: 'o OutputU.t)(decl: decl): unit =
