@@ -62,8 +62,7 @@ let parse_un(l: Lexer.t)(start: Loc.pos): Ast.un =
 	Lexer.loc_from l start, name, tys
 
 let parse_ft(l: Lexer.t)(start: Loc.pos): Ast.ft =
-	let name = ParseU.parse_ty_name l in
-	ParseU.must_skip l Token.Indent;
+	let name = ParseTy.parse_ty_name_or_generic l in
 	let signature, next = parse_signature l in
 	begin match next with
 	| Token.Indent | Token.Newline ->

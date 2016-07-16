@@ -12,6 +12,7 @@ let name = function
 	| Rt {rname; _} -> rname
 	| Un {uname; _} -> uname
 	| Ft {fname; _} -> fname
+	| TyGen _ | TyVar _ | TyInst _ -> raise U.TODO
 
 let ft(fname: Sym.t)(return: ty)(parameters: parameter array): ft =
 	{fname; return; parameters}
@@ -53,9 +54,6 @@ and output_ft(out: 'o OutputU.t)({fname; return; parameters}: ft): unit =
 and output_rt(out: 'o OutputU.t)({rname; properties}: rt): unit =
 	OutputU.out out "Record(%a, %a)" Sym.output rname (OutputU.out_array output_property) properties
 
-and output_short(out: 'o OutputU.t)(t: ty): unit =
-	OutputU.str out @@ Sym.string_of @@ name t
-
 and output_brief(out: 'o OutputU.t)(t: ty): unit =
 	OutputU.str out @@ Sym.string_of @@ name t
 
@@ -71,3 +69,5 @@ and output(out: 'o OutputU.t)(t: ty): unit =
 			(OutputU.out_array output) utys
 	| Ft ft ->
 		output_ft out ft
+	| TyGen _ | TyVar _ | TyInst _ ->
+		raise U.TODO

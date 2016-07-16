@@ -71,5 +71,9 @@ let all = Sym.Map.build begin fun (build_sym: Sym.t -> v -> unit) ->
 
 	fn "int->float"
 		t_float [| "i", t_int |]
-		@@ fun pop -> v_float(float_of_int @@ pop_int pop)
+		(fun pop -> v_float(float_of_int @@ pop_int pop));
+
+	fn "int->string"
+		t_string [| "i", t_int |]
+		(fun pop -> v_string(string_of_int @@ pop_int pop))
 end

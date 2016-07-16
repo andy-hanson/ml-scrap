@@ -100,7 +100,7 @@ let next_quote_part(l: t): string * bool =
 (*TODO: inline*)
 let take_string(l: t): Token.t =
 	let str, is_done = next_quote_part l in
-	if is_done then Token.Literal(N.String str) else Token.QuoteStart(str)
+	if is_done then Token.Literal(Ast.String str) else Token.QuoteStart(str)
 
 let rec next(l: t): Token.t =
 	let loc_from = loc_from l in
@@ -122,12 +122,12 @@ let rec next(l: t): Token.t =
 				let s = BatBuffer.contents b in
 				let f = float_of_string s in
 				let f = if negate then -.f else f in
-				N.Float f
+				Ast.Float f
 			end else
 				let s = BatBuffer.contents b in
 				let i = int_of_string s in
 				let i = if negate then -i else i in
-				N.Int i in
+				Ast.Int i in
 		Token.Literal value in
 
 	let take_symbol(fst: char)(pred: char -> bool)(make_token: Sym.t -> Token.t): Token.t =
@@ -203,6 +203,10 @@ let rec next(l: t): Token.t =
 		Token.Lparen
 	| ')' ->
 		Token.Rparen
+	| '[' ->
+		Token.Lbracket
+	| ']' ->
+		Token.Rbracket
 
 	| '-' ->
 		let next = read_char() in
@@ -220,7 +224,7 @@ let rec next(l: t): Token.t =
 
 	| 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'
 	| 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z' ->
-		take_symbol ch CharU.is_name_char @@ fun s -> Token.TypeName s
+		take_symbol ch CharU.is_name_char @@ fun s -> Token.TyName s
 
 	| '@' | '+' | '*' | '/' | '^' | '?' | '<' | '>' | '=' ->
 		take_operator ch

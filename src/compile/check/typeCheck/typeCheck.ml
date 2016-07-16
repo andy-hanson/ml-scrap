@@ -36,11 +36,14 @@ let parameter_ty({type_of_ast; _}: ctx): Ast.parameter -> ty =
 	TypeOfAst.parameter_ty type_of_ast
 
 
+
+
 type expected =
-	(* Expression is used as an argument. Explicit upcast is mandated for functions. *)
+	(* Value must be exactly of the given type or, if ty is a union, a member of that union. *)
 	| Exact of ty
+	(* Expression is in `A @ e`, so it must be a value convertible to A. *)
 	| Convert of ty
-	(* Any type OK *)
+	(* Nothing particular is expected. *)
 	| Infer
 
 (*TODO:NAME*)
@@ -62,7 +65,9 @@ Returns the 'type' of the type when used as a value.
 For example, an rt may be used as a function.
 *)
 let check_ty_as_expr(ctx: ctx)(expected: expected)(ty_ast: Ast.ty): ty =
-	let Ast.TypeAccess((loc, _) as access) = ty_ast in
+	let loc, access = match ty_ast with
+		| Ast.TyAccess((loc, _) as access) -> loc, access
+		| _ -> raise U.TODO in
 	let t =
 		begin match ty_binding ctx access with
 		| Binding.TDeclared d ->
@@ -123,15 +128,10 @@ let rec assert_exact(ctx: ctx)(expected: ty)(expr: Ast.expr): unit =
 and assert_parameter(ctx: ctx)((_, expected): parameter)(expr: Ast.expr): unit =
 	assert_exact ctx expected expr
 
-(* Expr must be a *subtype* of the expected type *)
-(*TODO:KILLand assert_parameter_assignable(ctx: ctx)((_, parameter_ty): parameter)(expr: Ast.expr): unit =
-	ignore @@ check_worker ctx (Parameter parameter_ty) expr*)
-
 and check_and_infer(ctx: ctx)(expr: Ast.expr): ty =
 	check_worker ctx Infer expr
 
 and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
-	(*TODO: factor out some code -- this function is just too long!*)
 	let expr_ty =
 		match expr with
 		| Ast.At(loc, kind, ty_ast, expr) ->
@@ -141,6 +141,7 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 				match kind with
 				| Ast.Exact -> Exact ty
 				| Ast.Convert -> Convert ty in
+			(*TODO: get converted type and assert that we actually performed a conversion somewhere.*)
 			ignore @@ check_worker ctx expected expr;
 			ty
 
@@ -194,7 +195,12 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 			check_worker ctx expected expr
 
 		| Ast.Literal(loc, v) ->
-			assert_foo loc expected @@ TPrimitive(ValU.ty_of_primitive v)
+			let prim = begin match v with
+				| Ast.Int _ -> TInt
+				| Ast.Float _ -> TFloat
+				| Ast.String _ -> TString
+				end in
+			assert_foo loc expected @@ TPrimitive(prim)
 
 		| Ast.Seq(_, a, b) ->
 			assert_exact ctx t_void a;
@@ -226,7 +232,10 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 
 		| Ast.Check(loc, checked) ->
 			assert_exact ctx t_bool checked;
-			assert_foo loc expected t_void in
+			assert_foo loc expected t_void
+
+		| Ast.GenInst(_loc, _expr, _tys) ->
+			raise U.TODO in
 
 	set_expr_ty ctx expr expr_ty;
 	expr_ty

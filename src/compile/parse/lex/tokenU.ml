@@ -23,12 +23,12 @@ let output(out: 'o OutputU.t)(token: t) =
 	let o fmt = OutputU.out out fmt in
 	let s = OutputU.str out in
 	match token with
-	| Name s | TypeName s | Operator s ->
+	| Name s | TyName s | Operator s ->
 		OutputU.out out "'%a'" Sym.output s
 	| QuoteStart s ->
 		o "QuoteStart(\"%s\")" @@ String.escaped s
 	| Literal value ->
-		ValU.output_primitive out value
+		AstU.output_literal out value
 	| Colon -> s ":"
 	| DotDot -> s ".."
 	| Indent -> s "indent"
@@ -36,6 +36,8 @@ let output(out: 'o OutputU.t)(token: t) =
 	| Newline -> s "newline"
 	| Lparen -> s "("
 	| Rparen -> s ")"
+	| Lbracket -> s "["
+	| Rbracket -> s "]"
 	| RCurly -> s "}"
 	| EOF -> s "EOF"
 	| keyword ->

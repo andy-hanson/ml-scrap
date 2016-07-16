@@ -1,18 +1,26 @@
 open Ast
 
-let ty_loc = function
-	| TypeAccess(loc, _) ->
+let ty_loc(ty: ty): Loc.t =
+ 	match ty with
+	| TyAccess(loc, _) | TyInst(loc, _, _) ->
 		loc
 
-let expr_loc = function
+let expr_loc(expr: expr): Loc.t =
+	match expr with
 	| ExprType(ty) ->
 		ty_loc ty
 	| At(loc, _, _, _) | ExprAccess(loc, _) | Call(loc, _, _) | Cs(loc, _, _) | GetProperty(loc, _, _)
 	| Let(loc, _, _, _) | Literal(loc, _) | Seq(loc, _, _) | Partial(loc, _, _) | Quote(loc, _, _)
-	| Check(loc, _) ->
+	| Check(loc, _) | GenInst(loc, _, _) ->
 		loc
 
-let decl_loc_name = function
+let name_sym(n: ty_name): Sym.t =
+	match n with
+	| Plain n -> n
+	| Generic(n, _) -> n
+
+let decl_loc_name(decl: decl): Loc.t * Sym.t =
+	match decl with
 	| DeclVal v ->
 		begin match v with
 		| Fn((loc, name, _, _)) ->
@@ -25,7 +33,7 @@ let decl_loc_name = function
 		| Un((loc, name, _)) ->
 			loc, name
 		| Ft((loc, name, _)) ->
-			loc, name
+			loc, name_sym name
 		end
 
 module type SimpleKey = sig
@@ -77,14 +85,24 @@ let output_access(out: 'o OutputU.t)((_, name): Ast.access): unit =
 
 let output_ty(out: 'o OutputU.t)(ty: ty): unit =
 	match ty with
-	| TypeAccess(access) ->
+	| TyAccess(access) ->
 		output_access out access
+	| TyInst(_, _, _) ->
+		raise U.TODO
 
 let output_parameter(out: 'o OutputU.t)((_, name, ty): Ast.parameter): unit =
 	OutputU.out out "%a %a" Sym.output name output_ty ty
 
 let output_local_declare(out: 'o OutputU.t)((_, name): Ast.local_declare): unit =
 	OutputU.out out "%a" Sym.output name
+
+let output_literal(out: 'o OutputU.t)(v: Ast.literal_value): unit =
+	let o fmt = OutputU.out out fmt in
+	begin match v with
+	| Int i -> o "%i" i
+	| Float f -> o "%f" f
+	| String s -> o "\"%s\"" @@ String.escaped s
+	end
 
 let rec output_pattern(out: 'o OutputU.t)(pattern: pattern): unit =
 	let o fmt = OutputU.out out fmt in
@@ -130,7 +148,7 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 			output_expr value
 			output_expr expr
 	| Literal(_, v) ->
-		ValU.output_primitive out v
+		output_literal out v
 	| Seq(_, a, b) ->
 		o "Seq(%a, %a)"
 			output_expr a
@@ -149,6 +167,10 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 			(OutputU.out_array output_part) parts
 	| Check(_, checked) ->
 		o "Check(%a)" output_expr checked
+	| GenInst(_, expr, tys) ->
+		o "GenInst(%a, %a)"
+			output_expr expr
+			(OutputU.out_array output_ty) tys
 
 let output_fn(out: 'o OutputU.t)((_, name, sign, body): Ast.fn): unit =
 	let out_sig(out: 'o OutputU.t)((_, ty, params): Ast.signature): unit =

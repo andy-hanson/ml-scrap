@@ -1,8 +1,8 @@
 type t =
 	| Name of Sym.t
-	| TypeName of Sym.t
+	| TyName of Sym.t
 	| Operator of Sym.t
-	| Literal of N.primitive
+	| Literal of Ast.literal_value
 	(* Keywords *)
 	| At
 	| AtAt
@@ -26,6 +26,8 @@ type t =
 	| Newline
 	| Lparen
 	| Rparen
+	| Lbracket
+	| Rbracket
 	| RCurly
 	| QuoteStart of string
 	| EOF

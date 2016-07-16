@@ -13,10 +13,15 @@ type ctx = {
 	add_ty: access -> Binding.ty -> unit;
 }
 
+(*TODO: should be called bind_ty*)
 let add_ty({scope; add_ty; _}: ctx)(ty: ty): unit = (*TODO:NAME*)
-	match ty with
-	| TypeAccess((loc, name) as access) ->
-		add_ty access @@ ScopeU.get_ty scope loc name
+	let rec recur = function
+		| TyAccess((loc, name) as access) ->
+			add_ty access @@ ScopeU.get_ty scope loc name
+		| TyInst(_, gen, arguments) ->
+			recur gen;
+			ArrayU.iter arguments recur in
+	recur ty
 
 let rec add_pattern_to_scope(scope: Scope.t)(pattern: Ast.pattern): Scope.t =
 	match pattern with
@@ -65,6 +70,9 @@ and bind_expr({scope; add_v; _} as ctx: ctx)(expr: expr): unit =
 		ArrayU.iter parts @@ fun (expr, _) -> recur expr
 	| Check(_, expr) ->
 		recur expr
+	| GenInst(_, expr, tys) ->
+		recur expr;
+		ArrayU.iter tys @@ add_ty ctx
 
 let bind((_, decls): modul): t =
 	let vals = AstU.AccessLookup.create() in

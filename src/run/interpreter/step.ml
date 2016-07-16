@@ -14,6 +14,7 @@ let case_test(ty: ty)(v: v): bool =
 		| Rc (vrt, _) -> rt == vrt
 		| _ -> false
 		end
+	| TyGen _ | TyVar _ | TyInst _ -> raise U.TODO
 	| Un _ | Ft _ -> assert false (*TODO: ocaml type system should be more specific here*)
 
 let step(state: interpreter_state): bool =

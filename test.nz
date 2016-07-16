@@ -1,10 +1,31 @@
-fn main Void world World
-	p = world.print
-	say-hello p
-	say-hello p
+|| rt List A
+||	head A
+||	tail List A
 
-fn say-hello Void printer Print
-	printer "Hello world!"
+ft F
+	Int input Int
+
+|| fn [id A] a A
+||	a
+
+|| fn foo Int
+||	[id Int] 2
+
+|| un IntOrFloat
+||	Int
+||	Float
+
+
+|| fn foo IntOrFloat x IntOrFloat
+||	cs x
+||		Int @@ i
+||			1.0
+||		Float @@ f
+||			1
+
+
+
+
 
 || rt PointOne
 ||	y Int

@@ -21,16 +21,6 @@ type next =
 	| EndNestedBlock
 	| CtxEnded
 
-let parse_single(l: Lexer.t)(start: Loc.pos)(t: Token.t): Ast.expr =
-	let loc = Lexer.loc_from l start in
-	match t with
-		| Token.Name name (*| Token.TypeName name*) ->
-			Ast.ExprAccess(loc, name)
-		| Token.Literal value ->
-			Ast.Literal(loc, value)
-		| _ ->
-			ParseU.unexpected start l t
-
 let parts_to_pattern(loc: Loc.t)(parts: Ast.expr MutArray.t): Ast.pattern =
 	let fail() = ErrU.raise loc Err.PrecedingEquals in
 	let part_to_pattern(part: Ast.expr): Ast.pattern =
@@ -121,7 +111,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			let left = finish_regular() in
 			dot_dot left
 
-		| Token.TypeName _ ->
+		| Token.TyName _ ->
 			let ty = ParseTy.f_with_start l start next in
 			let start, next = Lexer.pos_next l in
 			begin match next with
@@ -134,6 +124,14 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 				add_part (Ast.ExprType ty);
 				recur start x
 			end
+
+		| Token.Lbracket ->
+			let expr = Ast.ExprAccess(ParseU.parse_name_with_loc l) in
+			let tys = ParseTy.parse_gen_inst l in
+			add_part (Ast.GenInst(Lexer.loc_from l start, expr, tys));
+			(*TODO: duplicate code below*)
+			let start, next = Lexer.pos_next l in
+			recur start next
 
 		| Token.Operator name ->
 			let op = Ast.ExprAccess(Lexer.loc_from l start, name) in
@@ -209,8 +207,17 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			| _ -> unexpected()
 			end
 
-		| x ->
-			add_part (parse_single l start x);
+		| t ->
+			let loc = Lexer.loc_from l start in
+			let e =
+				match t with
+				| Token.Name name (*| Token.TypeName name*) ->
+					Ast.ExprAccess(loc, name)
+				| Token.Literal value ->
+					Ast.Literal(loc, value)
+				| _ ->
+					ParseU.unexpected start l t in
+			add_part e;
 			(*TODO: duplicate code below*)
 			let start, next = Lexer.pos_next l in
 			recur start next in
@@ -241,7 +248,7 @@ and parse_cs_parts(l: Lexer.t): Ast.cs_part array =
 			let ty = ParseTy.f_with_start l start x in
 			let pattern =
 				match Lexer.next l with
-				| Token.At ->
+				| Token.AtAt ->
 					let declare = ParseU.parse_name_with_loc l in
 					let pattern = Ast.PSingle declare in
 					ParseU.must_skip l Token.Indent;

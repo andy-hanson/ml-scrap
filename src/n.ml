@@ -1,11 +1,35 @@
 (*TODO: cleanup*)
 
+(*
+type origin =
+	| Decl of Sym.t (*TODO: link to the Ast*)
+	| Partial of ft * ty array
+	| Inst of origin
+*)
+
 type ty =
 	(*TODO: TPrimitive and Rt together are TConcrete. (They have no subtypes.) This is useful because unions can only contain concrete types.*)
 	| TPrimitive of ty_primitive
 	| Rt of rt
 	| Un of un
 	| Ft of ft
+	(* Generics *)
+	| TyGen of ty ty_gen
+	| TyVar of ty_var
+	| TyInst of ty ty_inst
+
+(* ∀ *)
+and 'a ty_gen = {
+	ty_params: ty_var array;
+	gen_ty: 'a
+}
+
+and ty_var = Ast.local_declare
+
+and 'a ty_inst = {
+	inst_gen: 'a ty_gen;
+	inst_with: ty array
+}
 
 and ty_primitive =
 	| TBool

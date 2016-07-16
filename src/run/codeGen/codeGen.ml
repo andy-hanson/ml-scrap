@@ -37,7 +37,9 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 			end
 		end
 	| Ast.ExprType(ty_ast) ->
-		let Ast.TypeAccess((loc, _) as access) = ty_ast in
+		let loc, access = match ty_ast with
+			| Ast.TyAccess((loc, _) as access) -> loc, access
+			| _ -> raise U.TODO in
 		let rt =
 			begin match Bind.ty_binding (W.bindings w) access with
 			| Binding.TDeclared d ->
@@ -114,7 +116,11 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		W.un_let w loc pattern_size
 
 	| Ast.Literal(loc, value) ->
-		W.const w loc @@ N.Primitive value
+		W.const w loc @@ N.Primitive begin match value with
+			| Ast.Int i -> N.Int i
+			| Ast.Float f -> N.Float f
+			| Ast.String s -> N.String s
+			end
 
 	| Ast.Seq(loc, a, b) ->
 		recur a;
@@ -134,6 +140,10 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 	| Ast.Check(loc, expr) ->
 		recur expr;
 		W.check w loc
+
+	| Ast.GenInst(_loc, _expr, _tys) ->
+		(*TODO: this will need a runtime component since we need to alter the type of the function.*)
+		raise U.TODO
 
 and write_cond(w: W.t)(loc: Loc.t)(args: Ast.expr array): unit =
 	let condition, if_true, if_false = ArrayU.triple_of args in

@@ -74,9 +74,9 @@ un FloatOrInt
 
 fn is-float? Bool x FloatOrInt
 	cs x
-		Float @ f
+		Float @@ f
 			true
-		Int @ i
+		Int @@ i
 			false"
 };;
 
@@ -101,7 +101,7 @@ un IntOrPoint
 
 fn sum Int ip IntOrPoint
 	cs ip
-		Int @ i
+		Int @@ i
 			i
 		Point x y
 			x + y"
@@ -125,11 +125,13 @@ fn incr Int x Int
 	x + 1"
 };;
 
+(* Requires polymorphic equality
 run_test {
 	name = "String interpolation";
 	src = "
 fn main Void
-	ck \"1 + 1 = {1 + 1}!\" == \"1 + 1 = 2!\""
+	ck \"1 + 1 = {int->string: 1 + 1}!\" == \"1 + 1 = 2!\""
 };;
+*)
 
 (*TODO: World tests w/ mock world*)

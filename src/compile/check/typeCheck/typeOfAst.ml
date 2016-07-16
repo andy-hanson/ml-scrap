@@ -56,13 +56,15 @@ let ty_of_ast(type_of_ast: t)(ast: Ast.decl_ty): ty =
 
 let declared_ty(bindings: Bind.t)(t: t)(typ: Ast.ty): ty =
 	match typ with
-	| Ast.TypeAccess(access) ->
+	| Ast.TyAccess(access) ->
 		begin match Bind.ty_binding bindings access with
 		| Binding.BuiltinType b ->
 			b
 		| Binding.TDeclared d ->
 			ty_of_ast t d
 		end
+	| _ ->
+		raise U.TODO
 
 let dummy_ft(fname: Sym.t): ft =
 	{fname; return = t_void; parameters = [||]}
@@ -89,7 +91,13 @@ let build(path: FileIO.path)(bindings: Bind.t)((_, decls): Ast.modul): modul * t
 				| Ast.Un((_, uname, _) as u) ->
 					Uns.set uns u {uname; utys = [||]}
 				| Ast.Ft((_, fname, _) as f) ->
-					Fts.set fts f {fname; return = t_void; parameters = [||]}
+					let dummy(fname: Sym.t): ft =
+						{fname; return = t_void; parameters = [||]} in
+					let fname =
+						match fname with
+						| Ast.Plain f -> f
+						| Ast.Generic(_, _) -> raise U.TODO in
+					Fts.set fts f @@ dummy fname
 				end
 		end;
 		set_type_by_name modul.tys type_of_ast;
@@ -104,6 +112,7 @@ let build(path: FileIO.path)(bindings: Bind.t)((_, decls): Ast.modul): modul * t
 		Uns.iter uns begin fun (_, _, tys) un ->
 			un.utys <- ArrayU.map tys declared_ty
 		end;
+
 		let fill_in_ft((_, return, parameters): Ast.signature)(ft: ft): unit =
 			ft.return <- declared_ty return;
 			ft.parameters <- ArrayU.map parameters begin fun ((_, name, ty) as param) ->
