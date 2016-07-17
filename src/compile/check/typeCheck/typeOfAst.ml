@@ -58,7 +58,7 @@ let declared_ty(bindings: Bind.t)(t: t)(typ: Ast.ty): ty =
 	match typ with
 	| Ast.TyAccess(access) ->
 		begin match Bind.ty_binding bindings access with
-		| Binding.BuiltinType b ->
+		| Binding.ExternalTy b ->
 			b
 		| Binding.TDeclared d ->
 			ty_of_ast t d
@@ -71,8 +71,8 @@ let dummy_ft(fname: Sym.t): ft =
 let dummy_code: code =
 	{bytecodes = [||]; locs = CodeLocs.empty}
 
-let build(path: FileIO.path)(bindings: Bind.t)((_, decls): Ast.modul): modul * t =
-	let modul = {path; vals = Sym.Lookup.create(); tys = Sym.Lookup.create()} in
+let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.modul): modul * t =
+	let modul = {path; full_path; vals = Sym.Lookup.create(); tys = Sym.Lookup.create()} in
 	let rts, uns, fts, fns, parameter_tys =
 		Rts.create(), Uns.create(), Fts.create(), Fns.create(), ParameterTys.create() in
 

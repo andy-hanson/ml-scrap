@@ -1,5 +1,5 @@
 type t
-val build: FileIO.path -> Bind.t -> Ast.modul -> N.modul * t
+val build: Path.t -> Path.t -> Bind.t -> Ast.modul -> N.modul * t
 val rt_of_ast: t -> Ast.rt -> N.rt
 val val_of_ast: t -> Ast.decl_val -> N.v
 val ty_of_ast: t -> Ast.decl_ty -> N.ty

@@ -1,4 +1,8 @@
 type message =
+	(* module loader *)
+	| CircularDependency of Path.t
+	| CantFindLocalModule of Path.rel * Path.t * Path.t
+
 	(* lexer *)
 	| LeadingSpace
 	| NumberMustHaveDigitsAfterDecimalPoint
@@ -19,6 +23,7 @@ type message =
 	(* bind *)
 	| CantBind of Sym.t
 	| CantUseTypeAsValue
+	| ModuleHasNoMember of N.modul * Sym.t
 	| NameAlreadyBound of Sym.t * Binding.v
 	| TypeNameAlreadyBound of Sym.t * Binding.ty
 

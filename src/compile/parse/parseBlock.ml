@@ -43,7 +43,7 @@ let parts_to_pattern(loc: Loc.t)(parts: Ast.expr MutArray.t): Ast.pattern =
 (*TODO: neater*)
 let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx: ctx): Ast.expr * next =
 	let parts: Ast.expr MutArray.t = MutArray.create() in
-	let add_part = MutArray.add parts in
+	let add_part = MutArray.push parts in
 
 	let any_so_far(): bool =
 		not @@ MutArray.empty parts in

@@ -1,7 +1,5 @@
-(*TODO: BuiltinTy*)
-
 open N
-open BuiltinTypeU
+open BuiltinTyU
 
 let action = ft0 "Action" t_void
 

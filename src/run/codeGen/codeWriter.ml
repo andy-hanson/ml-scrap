@@ -16,7 +16,7 @@ type t = {
 }
 
 let write_bc({code; locs; _}: t)(loc: Loc.t)(bc: N.bytecode): unit =
-	MutArray.add code bc;
+	MutArray.push code bc;
 	CodeLocs.write locs loc
 
 (*TODO:MOVE*)

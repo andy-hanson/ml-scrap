@@ -1,17 +1,17 @@
 open N
 
-let debug_print(noze: Noze.t)(path: FileIO.path)(state: interpreter_state): unit =
+let debug_print(noze: Noze.t)(full_path: Path.t)(state: interpreter_state): unit =
 	let {cur = {stack_start_index; _}; data_stack; _} = state in
 	OutputU.printf "Stack: %a (start_idx: %i)\n"
-		(GoodStack.output_with_max 3 ValU.output) data_stack
+		(MutArray.output_with_max 3 ValU.output) data_stack
 		stack_start_index;
-	let lc_loc = Noze.lc_loc noze path (State.cur_loc state) in
-	OutputU.printf "Executing: %a at %s:%a\n"
+	let lc_loc = Noze.lc_loc noze full_path @@ State.cur_loc state in
+	OutputU.printf "Executing: %a at %a:%a\n"
 		ValU.output_bytecode (State.cur_code state)
-		path
+		Path.output full_path
 		Loc.output_lc_loc lc_loc
 
-let debug_step(noze: Noze.t)(path: FileIO.path)(state: interpreter_state): bool =
+let debug_step(noze: Noze.t)(path: Path.t)(state: interpreter_state): bool =
 	debug_print noze path state;
 	Step.step state
 
@@ -25,4 +25,4 @@ let call_fn(fn: declared_fn)(args: v array): v =
 	call_fn_helper fn args Step.step
 
 let debug_call_fn(noze: Noze.t)(fn: declared_fn)(args: v array): v =
-	call_fn_helper fn args @@ debug_step noze fn.fn_mdl.path
+	call_fn_helper fn args @@ debug_step noze fn.fn_mdl.full_path

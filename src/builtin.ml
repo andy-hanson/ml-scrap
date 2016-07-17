@@ -9,7 +9,7 @@ let fffnnn(name: string)(return: ty)(parameters: (string * ty) array)(exec: inte
 
 (*TODO:RENAME*)
 let do_value = fffnnn "do"
-	t_void [| "fn", BuiltinType.action |]
+	t_void [| "fn", BuiltinTy.action |]
 	@@ fun state -> State.call state @@ State.pop state
 
 let cond_value = fffnnn "cond"

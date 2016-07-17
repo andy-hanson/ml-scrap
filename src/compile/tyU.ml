@@ -49,10 +49,10 @@ and output_ft(out: 'o OutputU.t)({fname; return; parameters}: ft): unit =
 	OutputU.out out "Fn(%a, %a, %a)"
 		Sym.output fname
 		output return
-		(OutputU.out_array output_parameter) parameters
+		(ArrayU.output output_parameter) parameters
 
 and output_rt(out: 'o OutputU.t)({rname; properties}: rt): unit =
-	OutputU.out out "Record(%a, %a)" Sym.output rname (OutputU.out_array output_property) properties
+	OutputU.out out "Record(%a, %a)" Sym.output rname (ArrayU.output output_property) properties
 
 and output_brief(out: 'o OutputU.t)(t: ty): unit =
 	OutputU.str out @@ Sym.string_of @@ name t
@@ -66,7 +66,7 @@ and output(out: 'o OutputU.t)(t: ty): unit =
 	| Un {uname; utys} ->
 		OutputU.out out "Un(%a, %a)"
 			Sym.output uname
-			(OutputU.out_array output) utys
+			(ArrayU.output output) utys
 	| Ft ft ->
 		output_ft out ft
 	| TyGen _ | TyVar _ | TyInst _ ->

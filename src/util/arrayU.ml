@@ -11,7 +11,7 @@ let iteri(a: 'a array)(f: int -> 'a -> unit): unit =
 	Array.iteri f a
 
 let iter_zip(a: 'a array)(b: 'b array)(f: 'a -> 'b -> unit): unit =
-	assert (Array.length a = Array.length b);
+	assert (same_length a b);
 	for i = 0 to (Array.length a) - 1 do
 		f a.(i) b.(i)
 	done
@@ -27,8 +27,20 @@ let map_zip(a: 'a array)(b: 'b array)(f: 'a -> 'b -> 'c): 'c array =
 	a |> Array.mapi begin fun i a_em ->
 		f a_em @@ Array.get b i
 	end
+
 let zip(a: 'a array)(b: 'b array): 'c array =
 	map_zip a b @@ fun x y -> x, y
+
+let find_zip(a: 'a array)(b: 'b array)(find: 'a -> 'b -> 'c option): 'c option =
+	assert (same_length a b);
+	let rec recur(i: int): 'c option =
+		if i > Array.length a then
+			None
+		else
+			match find a.(i) b.(i) with
+			| None -> recur @@ i + 1
+			| some -> some in
+	recur 0
 
 let fold_map(start: 'b)(a: 'a array)(f: 'b -> 'a -> 'b * 'c): 'b * 'c array =
 	let acc = ref start in
@@ -82,9 +94,25 @@ let triple_of(arr: 'a array): 'a * 'a * 'a =
 	arr.(0), arr.(1), arr.(2)
 
 let build_and_return(f: ('a -> unit) -> 'b): 'a array * 'b =
-	let arr = MutArray.create() in
-	let res = f @@ MutArray.add arr in
-	MutArray.to_array arr, res
+	let arr = BatDynArray.create() in
+	let res = f @@ BatDynArray.add arr in
+	BatDynArray.to_array arr, res
+
+type ('a, 'b) builder =
+	| Cont of 'a
+	| Done of 'b
+let build_with_first(a: 'a)(f: unit -> ('a, 'b) builder): 'a array * 'b =
+	build_and_return begin fun build ->
+		build a;
+		let rec recur(): 'b =
+			match f() with
+			| Cont a ->
+				build a;
+				recur()
+			| Done b ->
+				b in
+		recur()
+	end
 
 let build(f: ('a -> unit) -> unit): 'a array =
 	fst @@ build_and_return f
@@ -150,3 +178,24 @@ let partial(a: 'a array)(b: 'b array)(iter: 'a -> 'b -> unit): 'a array =
 		iter a.(n_remaining + i) b.(i)
 	done;
 	Array.sub a 0 n_remaining
+
+let rtail(a: 'a array): 'a array =
+	Array.sub a 0 (Array.length a - 1)
+let last(a: 'a array): 'a =
+	Array.get a (Array.length a - 1)
+
+
+let output_elements ?(delimeter=", ")(output_element: ('a, 'o) OutputU.printer)(out: 'o OutputU.t)(arr: 'a array): unit =
+	iteri arr begin fun idx em ->
+		output_element out em;
+		if idx != Array.length arr - 1 then
+			OutputU.str out delimeter
+	end
+
+(*TODO: Use BatArray.print*)
+let output(output: ('a, 'o) OutputU.printer)(out_channel: 'o OutputU.t)(arr: 'a array): unit =
+	OutputU.out out_channel "[%a]" (output_elements output) arr
+
+let eq(a: 'a array)(b: 'b array)(eq: 'a -> 'b -> bool): bool =
+	same_length a b &&
+		not @@ OpU.empty @@ find_zip a b @@ fun a b -> OpU.op_if (eq a b) @@ fun () -> ()

@@ -1,9 +1,13 @@
+import
+	.x incr
+
+fn main Int world World
+	incr 1
+
+
 || rt List A
 ||	head A
 ||	tail List A
-
-ft F
-	Int input Int
 
 || fn [id A] a A
 ||	a

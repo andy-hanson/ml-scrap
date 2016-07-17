@@ -2,6 +2,8 @@ type pos = int
 (* Storing Loc.t as int results in fewer heap allocations during lexing. *)
 type t = int
 
+let zero  = 0
+
 (* 1 bit of each integer is reserved, so allow 30 bits per pos. So max_pos is 2^30. *)
 let max_pos = 1024 * 1024 * 1024
 

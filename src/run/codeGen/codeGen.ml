@@ -19,13 +19,13 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 				begin match e_ty with
 				| N.Rt {N.properties = e_properties; _} ->
 					let indexes = ArrayU.map properties begin fun (name, _) ->
-						OutputU.printf "%a\n" (OutputU.out_array (fun out (n, _) -> Sym.output out n)) e_properties;
+						OutputU.printf "%a\n" (ArrayU.output @@ fun out (n, _) -> Sym.output out n) e_properties;
 
 						OpU.force @@ ArrayU.find_index e_properties @@ fun (e_name, _) ->
 							OutputU.printf "%a %a\n" Sym.output name Sym.output e_name;
 							Sym.eq name e_name
 					end in
-					OutputU.printf "%a\n" (OutputU.out_array OutputU.output_int) indexes ;
+					OutputU.printf "%a\n" (ArrayU.output OutputU.output_int) indexes ;
 					W.cnv_rc w loc rt indexes
 				| _ ->
 					assert false
@@ -49,7 +49,7 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 				| _ ->
 					assert false
 				end
-			| Binding.BuiltinType t ->
+			| Binding.ExternalTy t ->
 				begin match t with
 				| N.Rt rt -> rt
 				| _ -> assert false
@@ -59,7 +59,7 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 
 	| Ast.ExprAccess((loc, _) as access) ->
 		begin match Bind.binding (W.bindings w) access with
-		| Binding.Builtin v ->
+		| Binding.External v ->
 			W.const w loc v
 		| Binding.VDeclared decl ->
 			let v = TypeOfAst.val_of_ast (W.type_of_ast w) decl in
@@ -78,15 +78,12 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		begin match called with
 		| Ast.ExprAccess(access) ->
 			begin match Bind.binding (W.bindings w) access with
-			| Binding.Builtin b ->
+			| Binding.External b ->
 				begin match b with
-				| N.Fn N.BuiltinFn(fn) ->
-					if fn == Builtin.cond_value then
-						write_cond w loc args
-					else
-						eager()
+				| N.Fn N.BuiltinFn(fn) when fn == Builtin.cond_value ->
+					write_cond w loc args
 				| _ ->
-					assert false
+					eager()
 				end
 			| _ ->
 				eager()

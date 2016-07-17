@@ -1,0 +1,2 @@
+fn incr Int x Int
+	x + 1

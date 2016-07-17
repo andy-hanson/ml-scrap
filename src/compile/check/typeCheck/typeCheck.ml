@@ -79,7 +79,7 @@ let check_ty_as_expr(ctx: ctx)(expected: expected)(ty_ast: Ast.ty): ty =
 			| Ast.Un _ | Ast.Ft _ ->
 				raise U.TODO (*TODO: these types are not useable as values; have an error message saying this*)
 			end
-		| Binding.BuiltinType t ->
+		| Binding.ExternalTy t ->
 			(*TODO: type-as-value helper*)
 			begin match t with
 			| Rt({rname; properties} as rt) ->
@@ -151,7 +151,7 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 		| Ast.ExprAccess((loc, _) as access) ->
 			let t =
 				begin match binding ctx access with
-				| Binding.Builtin value ->
+				| Binding.External value ->
 					ValU.ty_of value
 				| Binding.VDeclared d ->
 					begin match d with

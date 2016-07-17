@@ -2,6 +2,8 @@ type pos = int
 (* Stores start and rear positions. *)
 type t
 
+val zero: t
+
 val start: t -> pos
 val rear: t -> t
 

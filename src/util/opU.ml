@@ -1,3 +1,10 @@
+let empty(op: 'a option): bool =
+	match op with
+	| Some _ ->
+		false
+	| None ->
+		true
+
 let force(op: 'a option): 'a =
 	match op with
 	| Some value ->

@@ -1,8 +1,18 @@
 open Err
+open N
 
 let output_message(out: 'o OutputU.t)(m: message): unit =
 	let o fmt = OutputU.out out fmt in
 	match m with
+	| CircularDependency path ->
+		o "There is a circular dependency involving %a"
+			Path.output path
+	| CantFindLocalModule(rel_path, regular_path, main_path) ->
+		o "Can't find any module %a. Tried %a and %a."
+			Path.output_rel rel_path
+			Path.output regular_path
+			Path.output main_path
+
 	| LeadingSpace ->
 		o "Line may not begin with a space"
 	| NumberMustHaveDigitsAfterDecimalPoint ->
@@ -37,6 +47,10 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 			Sym.output name
 	| CantUseTypeAsValue ->
 		o "Attempted to use a type as a value"
+	| ModuleHasNoMember({path; _}, name) ->
+		o "Module %a has no member %a"
+			Path.output path
+			Sym.output name
 	| NameAlreadyBound(name, binding) ->
 		o "Attempt to redeclare %a; already defined at %a"
 			Sym.output name
@@ -51,7 +65,7 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 			TyU.output ty
 	| CsPartType(possible_tys, handled_ty) ->
 		o "`cs` should handle one of %a, but handles %a instead"
-			(OutputU.out_array TyU.output) possible_tys
+			(ArrayU.output TyU.output) possible_tys
 			TyU.output handled_ty
 	| CantConvertRtMissingProperty(convert_to, convert_from, prop_name) ->
 		o "Can't convert to %a from %a: missing property %a"
@@ -60,7 +74,7 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 			Sym.output prop_name
 	| CasesUnhandled unhandled_tys ->
 		o "The following cases are not handled: %a"
-			(OutputU.out_array TyU.output) unhandled_tys
+			(ArrayU.output TyU.output) unhandled_tys
 	| CombineTypes(a, b) ->
 		o "Can't combine types %a and %a because they are not exactly equal and we don't infer unions yet"
 			TyU.output a

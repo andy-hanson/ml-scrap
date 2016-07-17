@@ -17,16 +17,18 @@ module type S = sig
 	val get: 'v t -> key -> 'v
 	val get_or_update: 'v t -> key -> (unit -> 'v) -> 'v
 	val try_get: 'v t -> key -> 'v option
+	val has_key: 'v t -> key -> bool
 
 	val iter: 'v t -> (key -> 'v -> unit) -> unit
 	val iter_keys: 'v t -> (key -> unit) -> unit
 	val iter_values: 'v t -> ('v -> unit) -> unit
 	val keys: 'v t -> key array
 	val values: 'v t -> 'v array
-	val output: ((key, 'o) OutputU.printer) -> (('v, 'o) OutputU.printer) -> ('o OutputU.t) -> 'v t -> unit
+	val output: ((key, 'o) OutputU.printer) -> (('v, 'o) OutputU.printer) -> ('v t, 'o) OutputU.printer
 end
 
 module Make(K: Key): S with type key = K.t = struct
+	(*TODO: type annotations in here*)
 	module H = Hashtbl.Make(K)
 
 	type key = K.t
@@ -70,7 +72,8 @@ module Make(K: Key): S with type key = K.t = struct
 			Some (get m key)
 		with
 			Not_found -> None
-
+	let has_key m key =
+		H.mem m key
 
 	let iter(tbl: 'v t)(f: key -> 'v -> unit): unit =
 		H.iter f tbl

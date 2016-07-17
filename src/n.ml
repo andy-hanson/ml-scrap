@@ -138,7 +138,10 @@ and builtin_fn = {
 
 (*TODO:rename to mdl*)
 and modul = {
-	path: FileIO.path;
+	(* Logical path, e.g. "a/b" *)
+	path: Path.t;
+	(* e.g. "a/b.nz" or "a/b/main.nz" *)
+	full_path: Path.t;
 	vals: v Sym.Lookup.t;
 	tys: ty Sym.Lookup.t;
 }
@@ -156,8 +159,8 @@ and call_stack_entry = {
 }
 
 and interpreter_state = {
-	data_stack: v GoodStack.t;
-	call_stack: call_stack_entry GoodStack.t;
+	data_stack: v MutArray.t;
+	call_stack: call_stack_entry MutArray.t;
 	(* Currently executing fn. *Not* stored on stack. *)
 	mutable cur: call_stack_entry;
 }

@@ -1,2 +1,2 @@
 let f(source: BatIO.input): Ast.modul =
-	ParseModule.f @@ Lexer.make source
+	ParseModul.f @@ Lexer.make source

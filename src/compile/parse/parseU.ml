@@ -1,5 +1,4 @@
 let unexpected(start: Loc.pos)(l: Lexer.t)(token: Token.t): 'a =
-	raise U.TODO;
 	ErrU.raise (Lexer.loc_from l start) @@ Err.Unexpected token
 
 let expect(start: Loc.pos)(l: Lexer.t)(expected: Token.t)(actual: Token.t): unit =

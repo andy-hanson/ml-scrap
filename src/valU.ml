@@ -75,7 +75,7 @@ let rec output_fn(out: 'o OutputU.t)(fn: fn): unit =
 	| PartialFn {partially_applied; partial_args} ->
 		OutputU.out out "PartialFn(%a, %a)"
 			output_fn partially_applied
-			(OutputU.out_array output) partial_args
+			(ArrayU.output output) partial_args
 	| Ctr {rname; _} ->
 		OutputU.out out "Ctr(%a)"
 			Sym.output rname
@@ -95,7 +95,7 @@ and output(out: 'o OutputU.t)(value: v): unit =
 				output value in
 		o "%a(%a)"
 			Sym.output rname
-			(OutputU.out_array_elements out_property) (ArrayU.zip properties property_values)
+			(ArrayU.output_elements out_property) (ArrayU.zip properties property_values)
 
 and output_declared_fn(out: 'o OutputU.t)({fn_ty; _}: declared_fn): unit =
 	OutputU.out out "Fn(%a)"
@@ -106,7 +106,7 @@ and output_pattern(out: 'o OutputU.t)(pattern: pattern): unit =
 	| PSingle ->
 		OutputU.str out "PSingle"
 	| PDestruct patterns ->
-		OutputU.out_array output_pattern out patterns
+		ArrayU.output output_pattern out patterns
 
 and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 	let o fmt = OutputU.out out fmt in
@@ -114,15 +114,15 @@ and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 	| Call ->
 		o "Call"
 	| Cs parts ->
-		o "Cs(%a)" (OutputU.out_array @@ OutputU.out_pair TyU.output_brief OutputU.output_int) parts
+		o "Cs(%a)" (ArrayU.output @@ OutputU.out_pair TyU.output_brief OutputU.output_int) parts
 	| Const v ->
 		o "Const(%a)" output v
 	| CnvRc(rt, indices) ->
 		o "CnvRc(%a, %a)"
 			TyU.output_rt rt
-			(OutputU.out_array OutputU.output_int) indices
+			(ArrayU.output OutputU.output_int) indices
 	| Destruct pattern ->
-		o "Destruct(%a)" (OutputU.out_array output_pattern) pattern
+		o "Destruct(%a)" (ArrayU.output output_pattern) pattern
 	| Drop ->
 		o "Drop"
 	| Dup ->
@@ -143,14 +143,14 @@ and output_bytecode(out: 'o OutputU.t)(c: bytecode): unit =
 		o "Partial(%i)" arity
 	| Quote strings ->
 		o "Quote(%a)"
-			(OutputU.out_array OutputU.output_string_escaped) strings
+			(ArrayU.output OutputU.output_string_escaped) strings
 	| Check ->
 		o "Check"
 	| Nil ->
 		o "Nil"
 and output_code(out: 'o OutputU.t)({bytecodes; locs}: code): unit =
 	OutputU.out out "Code(%a, %a)"
-		(OutputU.out_array output_bytecode) bytecodes
+		(ArrayU.output output_bytecode) bytecodes
 		CodeLocs.output locs
 
 let to_string(v: v): string =

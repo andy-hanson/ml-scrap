@@ -38,12 +38,28 @@ let add_params(scope: t)(params: Ast.parameter array): t =
 
 let builtins =
 	{
-		vals = Sym.Map.map_values Builtin.all (fun v -> Binding.Builtin v);
-		tys = Sym.Map.make BuiltinType.all (fun b -> TyU.name b, Binding.BuiltinType b)
+		vals = Sym.Map.map_values Builtin.all (fun v -> Binding.External v);
+		tys = Sym.Map.make BuiltinTy.all (fun b -> TyU.name b, Binding.ExternalTy b)
 	}
 
-let get_base(decls: Ast.decl array): t =
-	ArrayU.fold builtins decls begin fun scope decl ->
+let add_modul_imports(scope: t)(modul: N.modul)(imported_declares: Ast.local_declare array): t =
+	(*TODO: add_many helper*)
+	ArrayU.fold scope imported_declares begin fun scope (loc, name) ->
+		match ModulU.get_export loc modul name with
+		| N.Ty ty -> add_ty scope loc name @@ Binding.ExternalTy ty
+		| N.V v -> add_v scope loc name @@ Binding.External v
+	end
+
+let get_base(get_modul: Path.rel -> N.modul)(imports: Ast.imports array)(decls: Ast.decl array): t =
+	let base_with_imports = ArrayU.fold builtins imports begin fun scope import ->
+		let (_, import_path, imported_declares) = import in
+		match import_path with
+		| Ast.Global _ -> raise U.TODO
+		| Ast.Relative rel_path ->
+			let modul = get_modul rel_path in
+			add_modul_imports scope modul imported_declares
+	end in
+	ArrayU.fold base_with_imports decls begin fun scope decl ->
 		let loc, name = AstU.decl_loc_name decl in
 		match decl with
 		| Ast.DeclVal v ->

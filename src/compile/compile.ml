@@ -1,6 +1,6 @@
-(*TODO: this needs to be changed to deal with interpolation.*)
-let lex(io: FileIO.t)(file_name: string): (Token.t * Loc.t) array =
-	io#read file_name begin fun source ->
+(*TODO: this is just for debugging, so move it to elsewhre.*)
+let lex(io: FileIo.t)(path: Path.t): (Token.t * Loc.t) array =
+	FileIoU.read io path begin fun source ->
 		let l = Lexer.make source in
 		ArrayU.build begin fun build ->
 			let rec recur() =
@@ -39,10 +39,9 @@ let lex(io: FileIO.t)(file_name: string): (Token.t * Loc.t) array =
 		end
 	end
 
-let f(io: FileIO.t)(file_name: string): N.modul =
-	let modul_ast = io#read file_name Parse.f in
-	let bindings = Bind.bind modul_ast in
-	let modul, type_of_ast = TypeOfAst.build file_name bindings modul_ast in
-	let tys = TypeCheck.f bindings type_of_ast modul_ast in
-	CodeGen.f bindings type_of_ast tys modul_ast;
+let check_and_generate(get_modul: Path.rel -> N.modul)(path: Path.t)(full_path: Path.t)(ast: Ast.modul): N.modul =
+	let bindings = Bind.bind get_modul ast in
+	let modul, type_of_ast = TypeOfAst.build path full_path bindings ast in
+	let tys = TypeCheck.f bindings type_of_ast ast in
+	CodeGen.f bindings type_of_ast tys ast;
 	modul

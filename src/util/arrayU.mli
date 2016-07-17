@@ -27,6 +27,12 @@ val single_of: 'a array -> 'a
 val pair_of: 'a array -> 'a * 'a
 val triple_of: 'a array -> 'a * 'a * 'a
 
+type ('a, 'b) builder =
+	| Cont of 'a
+	| Done of 'b
+val build_with_first: 'a -> (unit -> ('a, 'b) builder) -> 'a array * 'b
+
+(* More specific builds*)
 val build_and_return: (('a -> unit) -> 'b) -> 'a array * 'b
 val build: (('a -> unit) -> unit) -> 'a array
 val build_loop: (unit -> 'a * bool) -> 'a array
@@ -38,3 +44,11 @@ val try_remove: 'a array -> 'a -> 'a array option
 val try_remove_where: 'a array -> ('a -> bool) -> ('a * 'a array) option
 
 val partial: 'a array -> 'b array -> ('a -> 'b -> unit) -> 'a array
+
+val rtail: 'a array -> 'a array
+val last: 'a array -> 'a
+
+val output_elements: ?delimeter:string -> ('a, 'o) OutputU.printer -> ('a array, 'o) OutputU.printer
+val output: ('a, 'o) OutputU.printer -> ('a array, 'o) OutputU.printer
+
+val eq: 'a array -> 'b array -> ('a -> 'b -> bool) -> bool

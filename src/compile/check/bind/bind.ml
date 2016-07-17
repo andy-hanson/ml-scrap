@@ -74,12 +74,12 @@ and bind_expr({scope; add_v; _} as ctx: ctx)(expr: expr): unit =
 		recur expr;
 		ArrayU.iter tys @@ add_ty ctx
 
-let bind((_, decls): modul): t =
+let bind(get_modul: Path.rel -> N.modul)((imports, decls): modul): t =
 	let vals = AstU.AccessLookup.create() in
 	let tys = AstU.AccessLookup.create() in
 
 	U.returning {vals; tys} begin fun _ ->
-		let base_scope = ScopeU.get_base decls in
+		let base_scope = ScopeU.get_base get_modul imports decls in
 		let ctx = {scope = base_scope; add_v = AstU.AccessLookup.set vals; add_ty = AstU.AccessLookup.set tys} in
 
 		let bind_signature((_, return_ty, parameters): signature): unit =

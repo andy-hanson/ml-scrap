@@ -5,8 +5,8 @@ let empty = [||]
 type builder = Loc.t MutArray.t
 
 let create_builder = MutArray.create
-let write = MutArray.add
+let write = MutArray.push
 let finish = MutArray.to_array
 
 let output(out: 'o OutputU.t)(locs: t): unit =
-	(OutputU.out_array Loc.output) out locs
+	(ArrayU.output Loc.output) out locs

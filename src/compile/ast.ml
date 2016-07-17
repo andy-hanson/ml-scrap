@@ -63,5 +63,9 @@ type decl =
 	| DeclVal of decl_val
 	| DeclTy of decl_ty
 
-type imports = unit
-type modul = imports * decl array
+(* Imported values for a single module. *)
+type import_path =
+	| Global of Sym.t array
+	| Relative of Path.rel
+type imports = Loc.t * import_path * local_declare array
+type modul = imports array * decl array
