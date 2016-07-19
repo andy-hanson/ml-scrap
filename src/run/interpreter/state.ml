@@ -63,24 +63,22 @@ let load({cur = {stack_start_index; _}; data_stack; _}: interpreter_state)(relat
 	MutArray.get data_stack index
 
 let call(state: interpreter_state)(called: v): unit =
-	begin match called with
+	match called with
 	| Primitive _ | Rc _ ->
 		assert false
 	| Fn f ->
-		let rec call_fn = function
+		U.loop f @@ fun loop -> function
 			| BuiltinFn {exec; _} ->
 				exec state
 			| DeclaredFn fn ->
 				push_fn state fn
 			| PartialFn {partially_applied; partial_args} ->
 				push_many state partial_args;
-				call_fn partially_applied
+				loop partially_applied
 			| Ctr rt ->
 				(*TODO: check property types*)
 				let properties = pop_n state @@ TyU.rt_arity rt in
-				push state @@ N.Rc(rt, properties) in
-		call_fn f
-	end
+				push state @@ N.Rc(rt, properties)
 
 let assert_data_stack_back_to_function_start({cur = {stack_start_index; _}; data_stack; _}: interpreter_state): unit =
 	Assert.equal (MutArray.length data_stack) stack_start_index OutputU.output_int

@@ -69,8 +69,11 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			let right, next = parse_expr_with_next l right_start next ctx in
 			Ast.Partial(Lexer.loc_from l expr_start, left, [| right |]), next in
 
-	let rec recur(start: Loc.pos)(next: Token.t) =
+	U.loop2 expr_start next @@ fun loop start next ->
 		let unexpected() = ParseU.unexpected start l next in
+		let read_and_loop() =
+			let start, next = Lexer.pos_next l in
+			loop start next in
 		match next with
 		| Token.Cs ->
 			ErrU.check (ctx = Line) (Lexer.loc_from l start) Err.CsMustBeInLineContext;
@@ -103,9 +106,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			ErrU.check (any_so_far()) loc Err.EqualsInExpression; (*TODO: Err.BeforeDot*)
 			let prev = MutArray.pop parts in
 			add_part (Ast.GetProperty(loc, prev, name));
-			(*TODO: duplicate code below*)
-			let start, next = Lexer.pos_next l in
-			recur start next
+			read_and_loop()
 
 		| Token.DotDot ->
 			let left = finish_regular() in
@@ -122,16 +123,14 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 				Ast.At(loc, kind, ty, expr), next
 			| x ->
 				add_part (Ast.ExprType ty);
-				recur start x
+				loop start x
 			end
 
 		| Token.Lbracket ->
 			let expr = Ast.ExprAccess(ParseU.parse_name_with_loc l) in
 			let tys = ParseTy.parse_gen_inst l in
 			add_part (Ast.GenInst(Lexer.loc_from l start, expr, tys));
-			(*TODO: duplicate code below*)
-			let start, next = Lexer.pos_next l in
-			recur start next
+			read_and_loop()
 
 		| Token.Operator name ->
 			let op = Ast.ExprAccess(Lexer.loc_from l start, name) in
@@ -166,8 +165,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			let a, next = parse_expr l Paren in
 			add_part a;
 			assert (next = CtxEnded);
-			let start, next = Lexer.pos_next l in
-			recur start next
+			read_and_loop()
 
 		| Token.Rparen ->
 			finish_regular(), begin match ctx with
@@ -198,8 +196,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 
 		| Token.QuoteStart s ->
 			add_part (parse_quote l start s);
-			let start, next = Lexer.pos_next l in
-			recur start next
+			read_and_loop()
 
 		| Token.RCurly ->
 			finish_regular(), begin match ctx with
@@ -218,11 +215,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 				| _ ->
 					ParseU.unexpected start l t in
 			add_part e;
-			(*TODO: duplicate code below*)
-			let start, next = Lexer.pos_next l in
-			recur start next in
-
-	recur expr_start next
+			read_and_loop()
 
 and parse_quote(l: Lexer.t)(start: Loc.pos)(head: string): Ast.expr =
 	let parts =

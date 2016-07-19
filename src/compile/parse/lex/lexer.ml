@@ -30,12 +30,15 @@ let skip(l: t): unit =
 
 let skip_while({peek; source; _} as l: t)(pred: char -> bool): unit =
 	if pred peek then begin
-		(* Returns the first char that's not skipped. *)
-		let rec recur() =
-			let ch = BatIO.read source in
-			l.pos <- l.pos + 1;
-			if pred ch then recur() else ch in
-		l.peek <- try recur() with BatIO.No_more_input -> '\x00'
+		l.peek <-
+			try
+				(* Returns the first char that's not skipped. *)
+				U.loop0 @@ fun loop ->
+					let ch = BatIO.read source in
+					l.pos <- l.pos + 1;
+					if pred ch then loop() else ch
+			with BatIO.No_more_input ->
+				'\x00'
 	end
 
 let buffer_while({peek; source; _} as l: t)(b: BatBuffer.t)(pred: char -> bool): unit =
@@ -43,15 +46,18 @@ let buffer_while({peek; source; _} as l: t)(b: BatBuffer.t)(pred: char -> bool):
 	if pred peek then begin
 		BatBuffer.add_char b peek;
 		(* Returns the first char that's not skipped. *)
-		let rec recur() =
-			let ch = BatIO.read source in
-			l.pos <- l.pos + 1;
-			if pred ch then begin
-				BatBuffer.add_char b ch;
-				recur()
-			end else
-				ch in
-		l.peek <- try recur() with BatIO.No_more_input -> '\x00'
+		l.peek <-
+			try
+				U.loop0 @@ fun loop ->
+					let ch = BatIO.read source in
+					l.pos <- l.pos + 1;
+					if pred ch then begin
+						BatBuffer.add_char b ch;
+						loop()
+					end else
+						ch
+				with BatIO.No_more_input ->
+					'\x00'
 	end
 
 let skip_newlines(l: t): unit =
@@ -68,33 +74,33 @@ let make(source: BatIO.input): t =
 	U.returning l skip_newlines
 
 let next_quote_part(l: t): string * bool =
+	(*TODO: BatBuffer.build helper*)
 	let b = BatBuffer.create 16 in
-	(*buffer_while b (fun ch -> ch != '"' && ch != '\n' && ch != '{');*)
-	let rec recur(): bool =
-		match read_char l with
-		| '"' ->
-			true
-		| '{' ->
-			false
-		| '\n' ->
-			raise U.TODO (*TODO: unterminated quote error*)
-		| '\\' ->
-			let ch = read_char l in
-			BatBuffer.add_char b begin match ch with
-			| '"' | '{' ->
-				ch
-			| 'n' ->
-				'\n'
-			| 't' ->
-				'\t'
-			| _ ->
-				raise U.TODO (*TODO: bad escape error*)
-			end;
-			recur()
-		| ch ->
-			BatBuffer.add_char b ch;
-			recur() in
-	let is_done = recur() in
+	let is_done =
+		U.loop0 @@ fun loop ->
+			match read_char l with
+			| '"' ->
+				true
+			| '{' ->
+				false
+			| '\n' ->
+				raise U.TODO (*TODO: unterminated quote error*)
+			| '\\' ->
+				let ch = read_char l in
+				BatBuffer.add_char b begin match ch with
+				| '"' | '{' ->
+					ch
+				| 'n' ->
+					'\n'
+				| 't' ->
+					'\t'
+				| _ ->
+					raise U.TODO (*TODO: bad escape error*)
+				end;
+				loop()
+			| ch ->
+				BatBuffer.add_char b ch;
+				loop() in
 	BatBuffer.contents b, is_done
 
 (*TODO: inline*)

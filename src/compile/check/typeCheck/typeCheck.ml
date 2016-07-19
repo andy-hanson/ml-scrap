@@ -92,21 +92,19 @@ let check_ty_as_expr(ctx: ctx)(expected: expected)(ty_ast: Ast.ty): ty =
 	assert_foo loc expected t
 
 (*TODO: MOVE TO UTIL*)
-let check_pattern(ctx: ctx)(ty: ty)(pattern: Ast.pattern) =
-	let rec recur(ty: ty) = function
+let check_pattern(ctx: ctx)(ty: ty)(pattern: Ast.pattern): unit =
+	U.loop2 ty pattern @@ fun loop ty -> function
 		| Ast.PSingle declare ->
-			set_local_ty ctx declare ty;
+			set_local_ty ctx declare ty
 		| Ast.PDestruct(_, patterns) ->
 			begin match ty with
 			| Rt {properties; _} ->
 				if (Array.length properties != Array.length patterns) then raise U.TODO;(*TODO: appropriate error*)
-				ArrayU.iter_zip properties patterns begin fun (_, property_ty) pattern ->
-					recur property_ty pattern
-				end
+				ArrayU.iter_zip properties patterns @@ fun (_, property_ty) pattern ->
+					loop property_ty pattern
 			| _ ->
 				raise U.TODO (*TODO: Error: can only destructure rt*)
-			end in
-	recur ty pattern
+			end
 
 (*TODO:MOVE TO UTIL*)
 let property_ty(loc: Loc.t)(ty: ty)(property: Sym.t): ty =

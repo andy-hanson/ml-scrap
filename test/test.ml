@@ -1,9 +1,9 @@
-let mock = FileIO.mock()
+let mock = FileIo.mock()
 
-let test_noze = Noze.create (mock :> FileIO.t)
+let test_noze = Noze.create (mock :> FileIo.t)
 
-let compile_str(path: FileIO.path)(content: string): N.modul =
-	mock#add_file path content;
+let compile_str(path: Path.t)(content: string): N.modul =
+	mock#add_file (Path.add_extension path ".nz") content;
 	Noze.compile test_noze path
 
 type test_result =
@@ -16,7 +16,7 @@ type test = {
 }
 
 let run_test({name; src}: test): unit =
-	let mdl = compile_str name src in
+	let mdl = compile_str [| Sym.of_string name |] src in
 	let fn = TestU.fn_named mdl "main" in
 	let actual = Interpreter.call_fn fn [| |] in
 	assert (actual = N.v_void);;

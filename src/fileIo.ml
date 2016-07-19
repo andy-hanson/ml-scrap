@@ -28,7 +28,7 @@ let mock(): mock = object (_: mock)
 	method add_file(path: Path.t)(content: string): unit =
 		Path.Lookup.set files path content
 
-	method open_in(path: Path.t): BatIO.input =
+	method open_in(path: Path.t): BatIO.input =	
 		let text =
 			try
 				Path.Lookup.get files path

@@ -8,5 +8,6 @@ val output_rel: (rel, 'o) OutputU.printer
 
 val resolve: t -> rel -> t
 val add: t -> Sym.t -> t
+val add_extension: t -> string -> t
 
 module Lookup: Lookup.S with type key = t

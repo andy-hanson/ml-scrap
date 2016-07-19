@@ -1,9 +1,8 @@
 let count(f: unit -> 'a option): int * 'a =
-	let rec recur(n: int): int * 'a =
+	U.loop 0 @@ fun loop n ->
 		match f() with
 		| Some a -> n, a
-		| None -> recur @@ n + 1 in
-	recur 0
+		| None -> loop @@ n + 1
 
 let parse_import_path_and_first_import(l: Lexer.t)(start: Loc.pos)(next: Token.t): Ast.import_path * Ast.local_declare =
 	let n_leading_dots, start_name =

@@ -64,9 +64,7 @@ let access_local(w: t)(loc: Loc.t)(local: Ast.local_declare): unit =
 	incr_stack_depth w
 
 let access_parameter({parameters; _} as w: t)(loc: Loc.t)(parameter: Ast.parameter): unit =
-	(*TODO: Array.find_index helper*)
-	let rec get_idx(i: int) = if parameters.(i) == parameter then i else get_idx (i + 1) in
-	let param_index = get_idx 0 in
+	let param_index = OpU.force @@ ArrayU.find_index parameters @@ (==) parameter in
 	write_bc w loc @@ N.Load(param_index - Array.length parameters);
 	incr_stack_depth w
 

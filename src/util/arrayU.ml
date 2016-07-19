@@ -33,14 +33,13 @@ let zip(a: 'a array)(b: 'b array): 'c array =
 
 let find_zip(a: 'a array)(b: 'b array)(find: 'a -> 'b -> 'c option): 'c option =
 	assert (same_length a b);
-	let rec recur(i: int): 'c option =
+	U.loop 0 @@ fun loop i ->
 		if i > Array.length a then
 			None
 		else
 			match find a.(i) b.(i) with
-			| None -> recur @@ i + 1
-			| some -> some in
-	recur 0
+			| None -> loop @@ i + 1
+			| some -> some
 
 let fold_map(start: 'b)(a: 'a array)(f: 'b -> 'a -> 'b * 'c): 'b * 'c array =
 	let acc = ref start in
@@ -67,12 +66,11 @@ let find_index(a: 'a array)(pred: 'a -> bool): int option =
 		None
 
 let find_map(a: 'a array)(f: 'a -> 'b option): 'b option =
-	let rec recur(idx: int): 'b option =
+	U.loop 0 @@ fun loop idx ->
 		if idx = Array.length a then
 			None
 		else
-			OpU.or_try (f a.(idx)) @@ fun () -> recur @@ idx + 1 in
-	recur 0
+			OpU.or_try (f a.(idx)) @@ fun () -> loop @@ idx + 1
 
 let exists(a: 'a array)(f: 'a -> bool): bool =
 	Array.exists f a
@@ -104,69 +102,63 @@ type ('a, 'b) builder =
 let build_with_first(a: 'a)(f: unit -> ('a, 'b) builder): 'a array * 'b =
 	build_and_return begin fun build ->
 		build a;
-		let rec recur(): 'b =
+		U.loop0 @@ fun loop ->
 			match f() with
 			| Cont a ->
 				build a;
-				recur()
+				loop()
 			| Done b ->
-				b in
-		recur()
+				b
 	end
 
 let build(f: ('a -> unit) -> unit): 'a array =
 	fst @@ build_and_return f
 
 let build_loop(f: unit -> 'a * bool): 'a array =
-	build begin fun build ->
-		let rec recur() =
+	build @@ fun build ->
+		U.loop0 @@ fun loop ->
 			let x, continue = f() in
 			build x;
-			if continue then recur() in
-		recur();
-	end
+			if continue then loop()
 
-let rec build_until_none_worker(f: unit -> 'a option)(build: 'a -> unit): unit =
-	match f() with
-	| Some x ->
-		build x;
-		build_until_none_worker f build
-	| None ->
-		()
+let build_until_none_worker(f: unit -> 'a option)(build: 'a -> unit): unit =
+	U.loop0 @@ fun loop ->
+		match f() with
+		| Some x ->
+			build x;
+			loop()
+		| None ->
+			()
 
 let build_until_none(f: unit -> 'a option): 'a array =
 	build @@ build_until_none_worker f
 
 let build_until_none_with_first(first: 'a)(f: unit -> 'a option): 'a array =
-	build begin fun build ->
+	build @@ fun build ->
 		build first;
 		build_until_none_worker f build
-	end
 
 let build_fold(start: 'f)(fold: 'f -> 'a option * 'f option): 'a array =
-	build begin fun build ->
-		let rec recur(x) =
+	build @@ fun build ->
+		U.loop start @@ fun loop x ->
 			let here, next = fold x in
 			OpU.may here build;
-			OpU.may next recur in
-		recur start
-	end
+			OpU.may next loop
 
 let try_remove_where(a: 'a array)(pred: 'a -> bool): ('a * 'a array) option =
 	let out: 'a array = Array.make (Array.length a - 1) a.(0) in
-	let rec recur(i: int) =
+	U.loop 0 @@ fun loop i ->
 		if i = Array.length a then
 			None
 		else if pred a.(i) then begin
 			for i2 = i to Array.length a - 2 do
 				out.(i2) <- a.(i2 + 1)
 			done;
-			Some(a.(i), out)
+			Some (a.(i), out)
 		end else begin
 			out.(i) <- a.(i);
-			recur (i + 1)
-		end in
-	recur 0
+			loop @@ i + 1
+		end
 
 let try_remove(a: 'a array)(element: 'a): 'a array option =
 	OpU.map (try_remove_where a @@ (=) element) @@ fun (_, remaining) -> remaining

@@ -33,6 +33,12 @@ let resolve(path: t)((parents, rel_path) as rel: rel): t =
 let add(path: t)(next: Sym.t): t =
 	Array.append path [| next |]
 
+let parent: t -> t = ArrayU.rtail
+
+let add_extension(path: t)(extension: string): t =
+	let l = ArrayU.last path in
+	add (parent path) @@ Sym.of_string @@ Sym.string_of l ^ extension
+
 type path = t
 module Lookup = Lookup.Make(struct
 	type t = path

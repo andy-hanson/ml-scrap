@@ -37,8 +37,8 @@ let linearize_modul_dependencies(io: FileIo.t)(err: err)(start_path: Path.t): (P
 	(* This also functions as `visited` *)
 	let map: ((Loc.t * Path.rel) array * Ast.modul) Moduls.t = Moduls.create() in
 
-	ArrayU.build begin fun build ->
-		let rec recur(from: Path.t)(from_loc: Loc.t)(rel: Path.rel): unit =
+	ArrayU.build @@ fun build ->
+		U.loop3 [||] Loc.zero (0, start_path) @@ fun loop from from_loc rel ->
 			let path = Path.resolve from rel in
 			if Moduls.has_key map path then
 				err.err from (from_loc, Err.CircularDependency path)
@@ -61,11 +61,7 @@ let linearize_modul_dependencies(io: FileIo.t)(err: err)(start_path: Path.t): (P
 				(* Mark this node as visited *)
 				Moduls.set map path (imports, modul);
 				ArrayU.iter imports begin fun (loc, rel) ->
-					recur path loc rel
+					loop path loc rel
 				end;
 				build (path, full_path, modul)
-			end in
-
-		(*TODO: duplicate code*)
-		recur [||] Loc.zero (0, start_path)
-	end
+			end

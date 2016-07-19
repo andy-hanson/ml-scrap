@@ -15,13 +15,12 @@ type ctx = {
 
 (*TODO: should be called bind_ty*)
 let add_ty({scope; add_ty; _}: ctx)(ty: ty): unit = (*TODO:NAME*)
-	let rec recur = function
+	U.loop ty @@ fun loop -> function
 		| TyAccess((loc, name) as access) ->
 			add_ty access @@ ScopeU.get_ty scope loc name
 		| TyInst(_, gen, arguments) ->
-			recur gen;
-			ArrayU.iter arguments recur in
-	recur ty
+			loop gen;
+			ArrayU.iter arguments loop
 
 let rec add_pattern_to_scope(scope: Scope.t)(pattern: Ast.pattern): Scope.t =
 	match pattern with
