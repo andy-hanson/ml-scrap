@@ -23,15 +23,13 @@ let step(state: interpreter_state): bool =
 
 	match State.cur_code state with
 	| Call ->
-		U.returning (next()) begin fun _ ->
+		U.returning (next()) @@ fun _ ->
 			State.call state @@ State.pop state
-		end
 
 	| Cs parts ->
 		let cased = State.peek state in
-		let matching_case = ArrayU.find_map parts begin fun (ty, idx) ->
-			OpU.op_if (case_test ty cased) @@ fun () -> idx
-		end in
+		let matching_case = ArrayU.find_map parts @@ fun (ty, idx) ->
+			OpU.op_if (case_test ty cased) @@ fun () -> idx in
 		goto @@ OpU.force matching_case
 
 	| Const value ->

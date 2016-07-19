@@ -2,20 +2,16 @@ let parse_signature(l: Lexer.t): Ast.signature * Token.t =
 	let start = Lexer.pos l in
 	let return = ParseTy.f l in
 	let params, next =
-		ArrayU.build_and_return begin fun build ->
-			let rec recur(): Token.t =
-				let start, next = Lexer.pos_next l in
-				match next with
-				| Token.Indent | Token.Newline | Token.Dedent ->
-					next
-				| Token.Name name ->
-					let ty = ParseTy.f l in
-					build (Lexer.loc_from l start, name, ty);
-					recur()
-				| t ->
-					ParseU.unexpected start l t in
-			recur()
-		end in
+		ArrayU.build_loop0 @@ fun () ->
+			let start, next = Lexer.pos_next l in
+			match next with
+			| Token.Indent | Token.Newline | Token.Dedent ->
+				ArrayU.Done(next)
+			| Token.Name name ->
+				let ty = ParseTy.f l in
+				ArrayU.Cont (Lexer.loc_from l start, name, ty)
+			| t ->
+				ParseU.unexpected start l t in
 	(Lexer.loc_from l start, return, params), next
 
 let parse_fn(l: Lexer.t)(start: Loc.pos): Ast.fn =
@@ -28,7 +24,7 @@ let parse_fn(l: Lexer.t)(start: Loc.pos): Ast.fn =
 let parse_rt(l: Lexer.t)(start: Loc.pos): Ast.rt =
 	let name = ParseU.parse_ty_name l in
 	ParseU.must_skip l Token.Indent;
-	let props = ArrayU.build_loop begin fun () ->
+	let props = ArrayU.build_loop @@ fun () ->
 		let prop =
 			let start = Lexer.pos l in
 			let name = ParseU.parse_name l in
@@ -41,14 +37,13 @@ let parse_rt(l: Lexer.t)(start: Loc.pos): Ast.rt =
 		| Token.Newline ->
 			true
 		| x ->
-			ParseU.unexpected start l x
-	end in
+			ParseU.unexpected start l x in
 	Lexer.loc_from l start, name, props
 
 let parse_un(l: Lexer.t)(start: Loc.pos): Ast.un =
 	let name = ParseU.parse_ty_name l in
 	ParseU.must_skip l Token.Indent;
-	let tys = ArrayU.build_loop begin fun () ->
+	let tys = ArrayU.build_loop @@ fun () ->
 		let ty = ParseTy.f l in
 		let start, next = Lexer.pos_next l in
 		ty, match next with
@@ -57,8 +52,7 @@ let parse_un(l: Lexer.t)(start: Loc.pos): Ast.un =
 		| Token.Newline ->
 			true
 		| x ->
-			ParseU.unexpected start l x
-	end in
+			ParseU.unexpected start l x in
 	Lexer.loc_from l start, name, tys
 
 let parse_ft(l: Lexer.t)(start: Loc.pos): Ast.ft =

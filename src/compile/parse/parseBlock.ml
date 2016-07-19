@@ -219,12 +219,11 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 
 and parse_quote(l: Lexer.t)(start: Loc.pos)(head: string): Ast.expr =
 	let parts =
-		ArrayU.build_loop begin fun () ->
+		ArrayU.build_loop @@ fun () ->
 			let interpolated, next = parse_expr l Quote in
 			assert (next = CtxEnded);
 			let s, is_done = Lexer.next_quote_part l in
-			(interpolated, s), not is_done
-		end in
+			(interpolated, s), not is_done in
 	Ast.Quote(Lexer.loc_from l start, head, parts)
 
 and parse_expr(l: Lexer.t)(ctx: ctx): Ast.expr * next =
@@ -232,7 +231,7 @@ and parse_expr(l: Lexer.t)(ctx: ctx): Ast.expr * next =
 	parse_expr_with_next l start next ctx
 
 and parse_cs_parts(l: Lexer.t): Ast.cs_part array =
-	ArrayU.build_until_none begin fun () ->
+	ArrayU.build_until_none @@ fun () ->
 		let start, next = Lexer.pos_next l in
 		match next with
 		| Token.Dedent ->
@@ -249,7 +248,7 @@ and parse_cs_parts(l: Lexer.t): Ast.cs_part array =
 				(*TODO: Lparen to parse nested destructures...*)
 				| Token.Name n ->
 					let patterns =
-						ArrayU.build_until_none_with_first (Ast.PSingle(Lexer.loc_from l start, n)) begin fun () ->
+						ArrayU.build_until_none_with_first (Ast.PSingle(Lexer.loc_from l start, n)) @@ fun () ->
 							let start, next = Lexer.pos_next l in
 							match next with
 							| Token.Name n ->
@@ -257,8 +256,7 @@ and parse_cs_parts(l: Lexer.t): Ast.cs_part array =
 							| Token.Indent ->
 								None
 							| x ->
-								ParseU.unexpected start l x
-						end in
+								ParseU.unexpected start l x in
 					Ast.PDestruct(Lexer.loc_from l start, patterns)
 				| x ->
 					ParseU.unexpected start l x
@@ -266,7 +264,6 @@ and parse_cs_parts(l: Lexer.t): Ast.cs_part array =
 			let test = Lexer.loc_from l start, ty, pattern in
 			let result = f l in
 			Some(Lexer.loc_from l start, test, result)
-	end
 
 and parse_cs(l: Lexer.t)(start: Loc.pos): Ast.expr =
 	let cased, next = parse_expr l CsHead in

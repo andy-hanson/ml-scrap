@@ -18,13 +18,12 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 			| N.Rt({N.properties; _} as rt) ->
 				begin match e_ty with
 				| N.Rt {N.properties = e_properties; _} ->
-					let indexes = ArrayU.map properties begin fun (name, _) ->
+					let indexes = ArrayU.map properties @@ fun (name, _) ->
 						OutputU.printf "%a\n" (ArrayU.output @@ fun out (n, _) -> Sym.output out n) e_properties;
 
 						OpU.force @@ ArrayU.find_index e_properties @@ fun (e_name, _) ->
 							OutputU.printf "%a %a\n" Sym.output name Sym.output e_name;
-							Sym.eq name e_name
-					end in
+							Sym.eq name e_name in
 					OutputU.printf "%a\n" (ArrayU.output OutputU.output_int) indexes ;
 					W.cnv_rc w loc rt indexes
 				| _ ->
@@ -191,7 +190,7 @@ and write_cs_body(w: W.t)(loc: Loc.t)(parts: Ast.cs_part array): unit =
 	let cases = W.cs w loc @@ Array.length parts in
 
 	let bottom_placeholders =
-		ArrayU.mapi parts begin fun idx (loc, (_, ty, pattern), result) ->
+		ArrayU.mapi parts @@ fun idx (loc, (_, ty, pattern), result) ->
 			W.resolve_cs_part w cases idx (declared_ty w ty);
 			let pattern_size = write_pattern w pattern in
 			write_expr w result;
@@ -199,13 +198,12 @@ and write_cs_body(w: W.t)(loc: Loc.t)(parts: Ast.cs_part array): unit =
 			(* Like for cond, we don't want the stack depth increased for every individual case, just for the whole. *)
 			(*if idx != Array.length parts - 1 then W.decr_stack_depth w;*)
 			(*TODO: very last one doesn't need goto bottom, it's already at the bottom*)
-			W.placeholder w loc
-		end in
+			W.placeholder w loc in
 
 	ArrayU.iter bottom_placeholders @@ W.resolve_goto w
 
 let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(tys: TypeCheck.t)((_, decls): Ast.modul): unit =
-	ArrayU.iter decls begin function
+	ArrayU.iter decls @@ function
 		| Ast.DeclVal v ->
 			begin match v with
 			| Ast.Fn((_, _, (_, _, parameters), body) as fn_ast) ->
@@ -214,4 +212,3 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(tys: TypeCheck.t)((_, decls): 
 			end
 		| Ast.DeclTy _ ->
 			()
-	end;

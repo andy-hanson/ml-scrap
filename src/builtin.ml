@@ -21,7 +21,7 @@ let pop_int(pop: unit -> v): int =
 	ValU.int_of @@ pop()
 
 
-let all = Sym.Map.build begin fun (build_sym: Sym.t -> v -> unit) ->
+let all = Sym.Map.build @@ fun (build_sym: Sym.t -> v -> unit) ->
 	let build(s: string) = build_sym (Sym.of_string s) in
 
 	(*TODO:RENAME*)
@@ -76,4 +76,3 @@ let all = Sym.Map.build begin fun (build_sym: Sym.t -> v -> unit) ->
 	fn "int->string"
 		t_string [| "i", t_int |]
 		(fun pop -> v_string(string_of_int @@ pop_int pop))
-end

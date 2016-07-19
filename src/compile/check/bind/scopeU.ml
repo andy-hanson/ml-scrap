@@ -32,9 +32,8 @@ let add_local(scope: t)((loc, name) as local: Ast.local_declare): t =
 	add_v scope loc name @@ Binding.Local local
 
 let add_params(scope: t)(params: Ast.parameter array): t =
-	ArrayU.fold scope params begin fun scope ((loc, name, _) as parameter) ->
+	ArrayU.fold scope params @@ fun scope ((loc, name, _) as parameter) ->
 		add_v scope loc name @@ Binding.Parameter parameter
-	end
 
 let builtins =
 	{
@@ -44,26 +43,23 @@ let builtins =
 
 let add_modul_imports(scope: t)(modul: N.modul)(imported_declares: Ast.local_declare array): t =
 	(*TODO: add_many helper*)
-	ArrayU.fold scope imported_declares begin fun scope (loc, name) ->
+	ArrayU.fold scope imported_declares @@ fun scope (loc, name) ->
 		match ModulU.get_export loc modul name with
 		| N.Ty ty -> add_ty scope loc name @@ Binding.ExternalTy ty
 		| N.V v -> add_v scope loc name @@ Binding.External v
-	end
 
 let get_base(get_modul: Path.rel -> N.modul)(imports: Ast.imports array)(decls: Ast.decl array): t =
-	let base_with_imports = ArrayU.fold builtins imports begin fun scope import ->
+	let base_with_imports = ArrayU.fold builtins imports @@ fun scope import ->
 		let (_, import_path, imported_declares) = import in
 		match import_path with
 		| Ast.Global _ -> raise U.TODO
 		| Ast.Relative rel_path ->
 			let modul = get_modul rel_path in
-			add_modul_imports scope modul imported_declares
-	end in
-	ArrayU.fold base_with_imports decls begin fun scope decl ->
+			add_modul_imports scope modul imported_declares in
+	ArrayU.fold base_with_imports decls @@ fun scope decl ->
 		let loc, name = AstU.decl_loc_name decl in
 		match decl with
 		| Ast.DeclVal v ->
 			add_v scope loc name @@ Binding.VDeclared v
 		| Ast.DeclTy t ->
 			add_ty scope loc name @@ Binding.TDeclared t
-	end

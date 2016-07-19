@@ -77,7 +77,7 @@ let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.mod
 		Rts.create(), Uns.create(), Fts.create(), Fns.create(), ParameterTys.create() in
 
 	(*TODO: rename type_of_ast to something more appropriate*)
-	U.returning (modul, {rts; uns; fts; fns; parameter_tys}) begin fun (modul, type_of_ast) ->
+	U.returning (modul, {rts; uns; fts; fns; parameter_tys}) @@ fun (modul, type_of_ast) ->
 		ArrayU.iter decls begin function
 			| Ast.DeclVal v ->
 				begin match v with
@@ -115,16 +115,14 @@ let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.mod
 
 		let fill_in_ft((_, return, parameters): Ast.signature)(ft: ft): unit =
 			ft.return <- declared_ty return;
-			ft.parameters <- ArrayU.map parameters begin fun ((_, name, ty) as param) ->
-				name, U.returning (declared_ty ty) @@ ParameterTys.set parameter_tys param
-			end in
+			ft.parameters <- ArrayU.map parameters @@ fun ((_, name, ty) as param) ->
+				name, U.returning (declared_ty ty) @@ ParameterTys.set parameter_tys param in
 		Fts.iter fts (fun (_, _, signature) -> fill_in_ft signature);
 
 		(* Fill in types of values *)
 		Fns.iter fns begin fun (_, _, signature, _) {fn_ty; _} ->
 			fill_in_ft signature fn_ty
 		end
-	end
 
 (*TODO:output everything!*)
 let output(out: 'o OutputU.t)({fns; _}: t): unit =

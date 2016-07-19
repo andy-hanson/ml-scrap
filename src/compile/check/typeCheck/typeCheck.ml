@@ -111,12 +111,10 @@ let property_ty(loc: Loc.t)(ty: ty)(property: Sym.t): ty =
 	match ty with
 	| Rt({properties; _} as rt) ->
 		(*property = Sym.t * ty*)
-		let prop_ty = ArrayU.find_map properties begin fun (name, ty) ->
-			OpU.op_if (Sym.eq name property) @@ fun () -> ty
-		end in
-		OpU.or_else prop_ty begin fun () ->
+		let prop_ty = ArrayU.find_map properties @@ fun (name, ty) ->
+			OpU.op_if (Sym.eq name property) @@ fun () -> ty in
+		OpU.or_else prop_ty @@ fun () ->
 			ErrU.raise loc @@ Err.NoSuchProperty(rt, property)
-		end
 	| _ ->
 		ErrU.raise loc @@ Err.NotARc(ty)
 
@@ -222,11 +220,9 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 			assert_foo loc expected t
 
 		| Ast.Quote(loc, _, parts) ->
-			U.returning (assert_foo loc expected t_string) begin fun _ ->
-				ArrayU.iter parts begin fun (interpolated, _) ->
+			U.returning (assert_foo loc expected t_string) @@ fun _ ->
+				ArrayU.iter parts @@ fun (interpolated, _) ->
 					assert_exact ctx t_string interpolated
-				end
-			end
 
 		| Ast.Check(loc, checked) ->
 			assert_exact ctx t_bool checked;
@@ -244,7 +240,7 @@ and check_cs(ctx: ctx)(expected: expected)(loc: Loc.t)(cased: Ast.expr)(parts: A
 		| Un {utys; _} -> utys
 		| t -> ErrU.raise (AstU.expr_loc cased) (Err.CanOnlyCsUnion t) in
 	let remaining_tys, part_tys =
-		ArrayU.fold_map cased_tys parts begin fun remaining_tys (_, (test_loc, test_ty_ast, pattern), result) ->
+		ArrayU.fold_map cased_tys parts @@ fun remaining_tys (_, (test_loc, test_ty_ast, pattern), result) ->
 			let test_ty = declared_ty ctx test_ty_ast in
 			check_pattern ctx test_ty pattern;
 			let remaining_tys =
@@ -253,8 +249,7 @@ and check_cs(ctx: ctx)(expected: expected)(loc: Loc.t)(cased: Ast.expr)(parts: A
 					tys
 				| None ->
 					ErrU.raise test_loc @@ Err.CsPartType(remaining_tys, test_ty) in
-			remaining_tys, check_worker ctx expected result
-		end in
+			remaining_tys, check_worker ctx expected result in
 	ErrU.check (ArrayU.empty remaining_tys) loc @@ Err.CasesUnhandled remaining_tys;
 	match expected with
 	| Exact ty ->
@@ -268,9 +263,9 @@ and check_cs(ctx: ctx)(expected: expected)(loc: Loc.t)(cased: Ast.expr)(parts: A
 let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 	let expr_tys: expr_tys = ExprTys.create() in
 	let local_tys: local_tys = LocalTys.create() in
-	U.returning {expr_tys; local_tys} begin fun res ->
+	U.returning {expr_tys; local_tys} @@ fun res ->
 		let ctx = {res; bindings; type_of_ast} in
-		ArrayU.iter decls begin function
+		ArrayU.iter decls @@ function
 			| Ast.DeclVal v ->
 				begin match v with
 				| Ast.Fn((_, _, _, body) as fn) ->
@@ -279,5 +274,3 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
 				end
 			| Ast.DeclTy _ ->
 				()
-		end
-	end

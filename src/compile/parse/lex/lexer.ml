@@ -20,10 +20,9 @@ let safe_read(input: BatIO.input): char =
 		'\x00'
 
 let read_char(l: t): char =
-	U.returning l.peek begin fun _ ->
+	U.returning l.peek @@ fun _ ->
 		l.peek <- safe_read l.source;
 		l.pos <- l.pos + 1
-	end
 
 let skip(l: t): unit =
 	ignore @@ read_char l
@@ -156,9 +155,8 @@ let rec next(l: t): Token.t =
 
 	let lex_indent(): int =
 		let start = l.pos in
-		U.returning (count_while ((=) '\t')) begin fun _ ->
-			ErrU.check (l.peek != ' ') (loc_from start) Err.LeadingSpace
-		end in
+		U.returning (count_while ((=) '\t')) @@ fun _ ->
+			ErrU.check (l.peek != ' ') (loc_from start) Err.LeadingSpace in
 
 	let handle_newline(indent_only: bool): Token.t =
 		(* We only want to output 1 newline, so skip all others. *)

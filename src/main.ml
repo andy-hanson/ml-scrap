@@ -55,7 +55,6 @@ let () = OutputU.printf "%a\n" ValU.output result
 (* let () = OutputU.printf "%a\n" AstU.output_modul @@ TestU.parse "test.nz" *)
 
 (*let () =
-	let _ = TestU.time begin fun () ->
-		TestU.parse "test.nz"
-	end in
+	let _ = TestU.time @@ fun () ->
+		TestU.parse "test.nz" in
 	()*)

@@ -30,10 +30,9 @@ let rec add_pattern_to_scope(scope: Scope.t)(pattern: Ast.pattern): Scope.t =
 		ArrayU.fold scope patterns add_pattern_to_scope
 
 let rec bind_cases({scope; _} as ctx: ctx)(cases: cs_part array): unit =
-	ArrayU.iter cases begin fun (_, (_, ty, pattern), result) ->
+	ArrayU.iter cases @@ fun (_, (_, ty, pattern), result) ->
 		add_ty ctx ty;
 		bind_expr {ctx with scope = add_pattern_to_scope scope pattern} result
-	end
 
 and bind_expr({scope; add_v; _} as ctx: ctx)(expr: expr): unit =
 	let recur = bind_expr ctx in
@@ -77,7 +76,7 @@ let bind(get_modul: Path.rel -> N.modul)((imports, decls): modul): t =
 	let vals = AstU.AccessLookup.create() in
 	let tys = AstU.AccessLookup.create() in
 
-	U.returning {vals; tys} begin fun _ ->
+	U.returning {vals; tys} @@ fun _ ->
 		let base_scope = ScopeU.get_base get_modul imports decls in
 		let ctx = {scope = base_scope; add_v = AstU.AccessLookup.set vals; add_ty = AstU.AccessLookup.set tys} in
 
@@ -85,25 +84,23 @@ let bind(get_modul: Path.rel -> N.modul)((imports, decls): modul): t =
 			add_ty ctx return_ty;
 			ArrayU.iter parameters @@ fun (_, _, ty) -> add_ty ctx ty in
 
-		ArrayU.iter decls begin function
-		| DeclVal v ->
-			begin match v with
-			| Fn((_, _, ((_, _, params) as signature), body)) ->
-				bind_signature signature;
-				let scope = ScopeU.add_params base_scope params in
-				bind_expr {ctx with scope} body
-			end
-		| DeclTy t ->
-			begin match t with
-			| Rt((_, _, properties)) ->
-				ArrayU.iter properties @@ fun (_, _, ty) -> add_ty ctx ty
-			| Un((_, _, tys)) ->
-				ArrayU.iter tys @@ add_ty ctx
-			| Ft((_, _, signature)) ->
-				bind_signature signature
-			end
-		end
-	end
+		ArrayU.iter decls @@ function
+			| DeclVal v ->
+				begin match v with
+				| Fn((_, _, ((_, _, params) as signature), body)) ->
+					bind_signature signature;
+					let scope = ScopeU.add_params base_scope params in
+					bind_expr {ctx with scope} body
+				end
+			| DeclTy t ->
+				begin match t with
+				| Rt((_, _, properties)) ->
+					ArrayU.iter properties @@ fun (_, _, ty) -> add_ty ctx ty
+				| Un((_, _, tys)) ->
+					ArrayU.iter tys @@ add_ty ctx
+				| Ft((_, _, signature)) ->
+					bind_signature signature
+				end
 
 let output(out: 'o OutputU.t)({vals; tys}: t): unit =
 	OutputU.out out "Bind(%a, %a)"

@@ -4,9 +4,8 @@ let test_noze = Noze.create FileIo.file_system
 
 let print_tokens(path: Path.t): unit =
 	let tokens = Noze.lex test_noze path in
-	ArrayU.iter tokens begin fun (token, loc) ->
+	ArrayU.iter tokens @@ fun (token, loc) ->
 		OutputU.printf "%a @ %a\n" TokenU.output token Loc.output loc
-	end
 
 let lex(path: Path.t): Token.t array =
 	ArrayU.map (Noze.lex test_noze path) @@ fun (token, _) -> token

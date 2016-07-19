@@ -1,10 +1,9 @@
 let rec parse_gen_inst(l: Lexer.t): Ast.ty array =
-	ArrayU.build_until_none begin fun () ->
+	ArrayU.build_until_none @@ fun () ->
 		let start, next = Lexer.pos_next l in
 		match next with
 		| Token.Rbracket -> None
 		| x -> Some(f_with_start l start x)
-	end
 
 and f_with_start(l: Lexer.t)(start: Loc.pos)(next: Token.t): Ast.ty =
 	match next with
@@ -26,11 +25,10 @@ and f(l: Lexer.t): Ast.ty =
 let parse_ty_name_or_generic(l: Lexer.t): Ast.ty_name =
 	let name = ParseU.parse_ty_name l in
 	let params =
-	ArrayU.build_until_none begin fun () ->
+	ArrayU.build_until_none @@ fun () ->
 		let start, next = Lexer.pos_next l in
 		match next with
 		| Token.TyName n -> Some(Lexer.loc_from l start, n)
 		| Token.Indent -> None
-		| t -> ParseU.unexpected start l t
-	end in
+		| t -> ParseU.unexpected start l t in
 	if ArrayU.empty params then Ast.Plain name else Ast.Generic(name, params)

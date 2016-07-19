@@ -42,21 +42,17 @@ module Make(K: Key): S with type key = K.t = struct
 		U.returning (create()) @@ fun m -> builder @@ H.add m
 
 	let build_from_keys_with_index(keys: key array)(get_value: int -> key -> 'v): 'v t =
-		U.returning (create_with_size @@ Array.length keys) begin fun m ->
-			ArrayU.iteri keys begin fun i key ->
+		U.returning (create_with_size @@ Array.length keys) @@ fun m ->
+			ArrayU.iteri keys @@ fun i key ->
 				H.add m key @@ get_value i key
-			end
-		end
 
 	let build_from_keys keys get_value =
 		build_from_keys_with_index keys @@ fun _ key -> get_value key
 
 	let build_from_values(values: 'v array)(get_key: 'v -> key): 'v t =
-		U.returning (create_with_size @@ Array.length values) begin fun m ->
-			ArrayU.iter values begin fun v ->
+		U.returning (create_with_size @@ Array.length values) @@ fun m ->
+			ArrayU.iter values @@ fun v ->
 				H.add m (get_key v) v
-			end
-		end
 
 	let size = H.length
 
@@ -86,10 +82,9 @@ module Make(K: Key): S with type key = K.t = struct
 
 	let iteri(tbl: 'v t)(f: (int -> 'k -> 'v -> unit)): unit =
 		let i = ref 0 in
-		iter tbl begin fun k v ->
+		iter tbl @@ fun k v ->
 			f !i k v;
 			incr i
-		end
 
 	let keys m =
 		ArrayU.build (iter_keys m)

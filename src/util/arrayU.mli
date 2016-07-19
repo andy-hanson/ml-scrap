@@ -30,7 +30,8 @@ val triple_of: 'a array -> 'a * 'a * 'a
 type ('a, 'b) builder =
 	| Cont of 'a
 	| Done of 'b
-val build_with_first: 'a -> (unit -> ('a, 'b) builder) -> 'a array * 'b
+val build_loop0_with_first: 'a -> (unit -> ('a, 'b) builder) -> 'a array * 'b
+val build_loop0: (unit -> ('a, 'b) builder) -> 'a array * 'b
 
 (* More specific builds*)
 val build_and_return: (('a -> unit) -> 'b) -> 'a array * 'b

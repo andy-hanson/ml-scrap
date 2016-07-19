@@ -18,13 +18,10 @@ let resolve({err}: err)(io: FileIo.t)(from: Path.t)(from_loc: Loc.t)(rel: Path.r
 		with FileIo.FileNotFound _ ->
 			on_fail() in
 
-	attempt regular_path begin fun () ->
+	attempt regular_path @@ fun () ->
 		let main_path = Array.append base [| main |] in
-		attempt main_path begin fun () ->
+		attempt main_path @@ fun () ->
 			err from (from_loc, Err.CantFindLocalModule(rel, regular_path, main_path))
-		end
-	end
-
 
 module Moduls = Path.Lookup
 
@@ -49,19 +46,16 @@ let linearize_modul_dependencies(io: FileIo.t)(err: err)(start_path: Path.t): (P
 
 				(* Calculate dependencies *)
 				let imports: (Loc.t * Path.rel) array =
-					ArrayU.filter_map importses begin fun (loc, imported, _) ->
+					ArrayU.filter_map importses @@ fun (loc, imported, _) ->
 						match imported with
 						| Ast.Global _ ->
 							(*TODO: global module resolution*)
 							(*For now, just assume it's a builtin.*)
 							None
 						| Ast.Relative r ->
-							Some(loc, r)
-					end in
+							Some(loc, r) in
 				(* Mark this node as visited *)
 				Moduls.set map path (imports, modul);
-				ArrayU.iter imports begin fun (loc, rel) ->
-					loop path loc rel
-				end;
+				ArrayU.iter imports (fun (loc, rel) -> loop path loc rel);
 				build (path, full_path, modul)
 			end

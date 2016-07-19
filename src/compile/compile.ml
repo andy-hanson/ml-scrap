@@ -1,8 +1,8 @@
 (*TODO: this is just for debugging, so move it to elsewhre.*)
 let lex(io: FileIo.t)(path: Path.t): (Token.t * Loc.t) array =
-	FileIoU.read io path begin fun source ->
+	FileIoU.read io path @@ fun source ->
 		let l = Lexer.make source in
-		ArrayU.build begin fun build ->
+		ArrayU.build @@ fun build ->
 			let rec lex_plain() =
 				let start, next = Lexer.pos_next l in
 				match next with
@@ -17,7 +17,7 @@ let lex(io: FileIo.t)(path: Path.t): (Token.t * Loc.t) array =
 
 			and lex_quote() =
 				let is_done =
-					U.loop0 begin fun loop ->
+					U.loop0 @@ fun loop ->
 						(*TODO: lexer.loc_next*)
 						let start, next = Lexer.pos_next l in
 						let loc = Lexer.loc_from l start in
@@ -29,17 +29,15 @@ let lex(io: FileIo.t)(path: Path.t): (Token.t * Loc.t) array =
 							false
 						| token ->
 							build (token, loc);
-							loop()
-					end in
+							loop() in
 				if is_done then
 					()
 				else begin
 					let _, quote_done = Lexer.next_quote_part l in
 					if quote_done then lex_plain() else lex_quote()
 				end in
+
 			lex_plain()
-		end
-	end
 
 let check_and_generate(get_modul: Path.rel -> N.modul)(path: Path.t)(full_path: Path.t)(ast: Ast.modul): N.modul =
 	let bindings = Bind.bind get_modul ast in

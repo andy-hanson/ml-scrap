@@ -50,9 +50,8 @@ let rec assert_exact(loc: Loc.t)(expected: ty)(actual: ty): unit =
 		| Ft {N.fname = _; N.return = actual_return; N.parameters = actual_params} ->
 			assert_exact loc expected_return actual_return;
 			if (not @@ ArrayU.same_length expected_params actual_params) then fail(); (*TODO: error message*)
-			ArrayU.iter_zip expected_params actual_params begin fun (_, expected) (_, actual) ->
+			ArrayU.iter_zip expected_params actual_params @@ fun (_, expected) (_, actual) ->
 				assert_exact loc expected actual
-			end
 		| _ ->
 			fail()
 		end
@@ -75,16 +74,15 @@ and assert_convert(loc: Loc.t)(expected: ty)(actual: ty): unit =
 		begin match actual with
 		| Rt({properties = a_props; _} as a_rt) ->
 			(* Must have all the fields. *)
-			ArrayU.iter e_props begin fun (e_name, e_ty) ->
-				let matching_prop_ty = ArrayU.find_map a_props begin fun (a_name, a_ty) ->
-					OpU.op_if (Sym.eq e_name a_name) @@ fun () -> a_ty
-				end in
-				match matching_prop_ty with
+			ArrayU.iter e_props @@ fun (e_name, e_ty) ->
+				let matching_prop_ty = ArrayU.find_map a_props @@ fun (a_name, a_ty) ->
+					OpU.op_if (Sym.eq e_name a_name) @@ fun () -> a_ty in
+				begin match matching_prop_ty with
 				| Some a_ty ->
 					assert_exact loc e_ty a_ty
 				| None ->
 					ErrU.raise loc @@ Err.CantConvertRtMissingProperty(e_rt, a_rt, e_name)
-			end
+				end
 		| _ ->
 			fail()
 		end
@@ -97,8 +95,6 @@ and assert_convert(loc: Loc.t)(expected: ty)(actual: ty): unit =
 		raise U.TODO
 
 let join(loc: Loc.t)(tys: ty array): ty =
-	U.returning (Array.get tys 0) begin fun ty0 ->
-		ArrayU.iter tys begin fun ty ->
+	U.returning (Array.get tys 0) @@ fun ty0 ->
+		ArrayU.iter tys @@ fun ty ->
 			ErrU.check (eq ty0 ty) loc @@ Err.CombineTypes(ty0, ty)
-		end
-	end

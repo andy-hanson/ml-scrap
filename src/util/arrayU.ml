@@ -24,9 +24,8 @@ let mapi(a: 'a array)(f: int -> 'a -> 'b): 'b array =
 
 let map_zip(a: 'a array)(b: 'b array)(f: 'a -> 'b -> 'c): 'c array =
 	assert (Array.length a = Array.length b);
-	a |> Array.mapi begin fun i a_em ->
+	a |> Array.mapi @@ fun i a_em ->
 		f a_em @@ Array.get b i
-	end
 
 let zip(a: 'a array)(b: 'b array): 'c array =
 	map_zip a b @@ fun x y -> x, y
@@ -43,11 +42,10 @@ let find_zip(a: 'a array)(b: 'b array)(find: 'a -> 'b -> 'c option): 'c option =
 
 let fold_map(start: 'b)(a: 'a array)(f: 'b -> 'a -> 'b * 'c): 'b * 'c array =
 	let acc = ref start in
-	let result_array = map a begin fun em ->
+	let result_array = map a @@ fun em ->
 		let next_acc, result_em = f !acc em in
 		acc := next_acc;
-		result_em
-	end in
+		result_em in
 	!acc, result_array
 
 let filter(a: 'a array)(f: 'a -> bool): 'a array =
@@ -99,8 +97,8 @@ let build_and_return(f: ('a -> unit) -> 'b): 'a array * 'b =
 type ('a, 'b) builder =
 	| Cont of 'a
 	| Done of 'b
-let build_with_first(a: 'a)(f: unit -> ('a, 'b) builder): 'a array * 'b =
-	build_and_return begin fun build ->
+let build_loop0_with_first(a: 'a)(f: unit -> ('a, 'b) builder): 'a array * 'b =
+	build_and_return @@ fun build ->
 		build a;
 		U.loop0 @@ fun loop ->
 			match f() with
@@ -109,7 +107,16 @@ let build_with_first(a: 'a)(f: unit -> ('a, 'b) builder): 'a array * 'b =
 				loop()
 			| Done b ->
 				b
-	end
+
+let build_loop0(f: unit -> ('a, 'b) builder): 'a array * 'b =
+	build_and_return @@ fun build ->
+		U.loop0 @@ fun loop ->
+			match f() with
+			| Cont a ->
+				build a;
+				loop()
+			| Done b ->
+				b
 
 let build(f: ('a -> unit) -> unit): 'a array =
 	fst @@ build_and_return f
@@ -178,11 +185,10 @@ let last(a: 'a array): 'a =
 
 
 let output_elements ?(delimeter=", ")(output_element: ('a, 'o) OutputU.printer)(out: 'o OutputU.t)(arr: 'a array): unit =
-	iteri arr begin fun idx em ->
+	iteri arr @@ fun idx em ->
 		output_element out em;
 		if idx != Array.length arr - 1 then
 			OutputU.str out delimeter
-	end
 
 (*TODO: Use BatArray.print*)
 let output(output: ('a, 'o) OutputU.printer)(out_channel: 'o OutputU.t)(arr: 'a array): unit =
