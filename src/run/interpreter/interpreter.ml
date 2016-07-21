@@ -5,7 +5,7 @@ let debug_print(noze: Noze.t)(full_path: Path.t)(state: interpreter_state): unit
 	OutputU.printf "Stack: %a (start_idx: %i)\n"
 		(MutArray.output_with_max 3 ValU.output) data_stack
 		stack_start_index;
-	let lc_loc = Noze.lc_loc noze full_path @@ State.cur_loc state in
+	let lc_loc = Lwt_main.run @@ Noze.lc_loc noze full_path @@ State.cur_loc state in
 	OutputU.printf "Executing: %a at %a:%a\n"
 		ValU.output_bytecode (State.cur_code state)
 		Path.output full_path

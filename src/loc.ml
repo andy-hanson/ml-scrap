@@ -52,7 +52,8 @@ let start_lc = {line = 1; column = 1}
 let lc_pos(source: BatIO.input)(pos: pos): lc_pos =
 	walk_to source start_lc pos
 
-let lc_loc(source: BatIO.input)(loc: t): lc_loc =
+let lc_loc(source: string)(loc: t): lc_loc =
+	let source = BatIO.input_string source in
 	let a = walk_to source start_lc (start loc) in
 	let b = walk_to source a (rear loc - start loc) in
 	{lc_start = a; lc_rear = b}

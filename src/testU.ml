@@ -1,19 +1,20 @@
 Printexc.record_backtrace true
 
-let test_noze = Noze.create FileIo.file_system
+let test_noze = Noze.create NativeFileIo.v
 
-let print_tokens(path: Path.t): unit =
-	let tokens = Noze.lex test_noze path in
-	ArrayU.iter tokens @@ fun (token, loc) ->
+let print_tokens(path: Path.t): unit Lwt.t =
+	let%lwt tokens = Noze.lex test_noze path in
+	Lwt.return @@ ArrayU.iter tokens @@ fun (token, loc) ->
 		OutputU.printf "%a @ %a\n" TokenU.output token Loc.output loc
 
-let lex(path: Path.t): Token.t array =
-	ArrayU.map (Noze.lex test_noze path) @@ fun (token, _) -> token
+let lex(path: Path.t): Token.t array Lwt.t =
+	let%lwt tokens = Noze.lex test_noze path in
+	Lwt.return @@ ArrayU.map tokens @@ fun (token, _) -> token
 
-let parse(path: Path.t): Ast.modul =
+let parse(path: Path.t): Ast.modul Lwt.t =
 	Noze.parse test_noze path
 
-let compile(path: Path.t): N.modul =
+let compile(path: Path.t): N.modul Lwt.t =
 	Noze.compile test_noze path
 
 let time(f: unit -> 'a): 'a =
@@ -26,13 +27,9 @@ let time(f: unit -> 'a): 'a =
 	Printf.printf "Execution time: %fs\n" @@ t2 -. t1;
 	MutArray.get arr 0
 
-let val_named({N.vals; _}: N.modul)(name: string): N.v =
-	OpU.or_else (Sym.Lookup.try_get vals (Sym.of_string name)) @@ fun () ->
-		failwith @@ OutputU.out_to_string "No value named \"%s\"" name
-
 let fn_named(modul: N.modul)(name: string): N.declared_fn =
-	match val_named modul name with
-	| N.Fn (N.DeclaredFn f) -> f
+	match ModulU.get_export Loc.zero modul @@ Sym.of_string name with
+	| N.V (N.Fn (N.DeclaredFn f)) -> f
 	| _ -> raise U.TODO
 
 let call_fn(noze: Noze.t)(m: N.modul)(name: string)(vals: N.v array): N.v =

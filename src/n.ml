@@ -142,8 +142,7 @@ and modul = {
 	path: Path.t;
 	(* e.g. "a/b.nz" or "a/b/main.nz" *)
 	full_path: Path.t;
-	vals: v Sym.Lookup.t;
-	tys: ty Sym.Lookup.t;
+	members: ty_or_v Sym.Lookup.t
 }
 
 (* These don't belong here, but ocaml hates recursion... *)
@@ -165,6 +164,10 @@ and interpreter_state = {
 	mutable cur: call_stack_entry;
 }
 
+and ty_or_v =
+	| Ty of ty
+	| V of v
+
 let t_bool = TPrimitive TBool
 let t_float = TPrimitive TFloat
 let t_int = TPrimitive TInt
@@ -176,7 +179,3 @@ let v_float f = Primitive(Float f)
 let v_int i = Primitive(Int i)
 let v_string s = Primitive(String s)
 let v_void = Primitive Void
-
-type ty_or_v =
-	| Ty of ty
-	| V of v

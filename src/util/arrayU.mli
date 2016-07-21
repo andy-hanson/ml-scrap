@@ -9,6 +9,7 @@ val iter_zip: 'a array -> 'b array -> ('a -> 'b -> unit) -> unit
 val map: 'a array -> ('a -> 'b) -> 'b array
 val mapi: 'a array -> (int -> 'a -> 'b) -> 'b array
 val map_zip: 'a array -> 'b array -> ('a -> 'b -> 'c) -> 'c array
+val map_to_list: 'a array -> ('a -> 'b) -> 'b list
 val zip: 'a array -> 'b array -> ('a * 'b) array
 
 val fold_map: 'b -> 'a array -> ('b -> 'a -> 'b * 'c) -> 'b * 'c array

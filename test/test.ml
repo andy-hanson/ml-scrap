@@ -1,8 +1,8 @@
-let mock = FileIo.mock()
+let mock = FileIoMock.v()
 
 let test_noze = Noze.create (mock :> FileIo.t)
 
-let compile_str(path: Path.t)(content: string): N.modul =
+let compile_str(path: Path.t)(content: string): N.modul Lwt.t =
 	mock#add_file (Path.add_extension path ".nz") content;
 	Noze.compile test_noze path
 
@@ -15,11 +15,12 @@ type test = {
 	src: string
 }
 
-let run_test({name; src}: test): unit =
-	let mdl = compile_str [| Sym.of_string name |] src in
+let run_test({name; src}: test): unit Lwt.t =
+	let%lwt mdl = compile_str [| Sym.of_string name |] src in
 	let fn = TestU.fn_named mdl "main" in
 	let actual = Interpreter.call_fn fn [| |] in
-	assert (actual = N.v_void);;
+	assert (actual = N.v_void);
+	Lwt.return_unit;;
 
 run_test {
 	name = "1 + 1";

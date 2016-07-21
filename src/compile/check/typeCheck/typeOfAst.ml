@@ -27,15 +27,12 @@ let ft_of_fn(t: t)(fn: Ast.fn): ft =
 let parameter_ty({parameter_tys; _}: t): Ast.parameter -> ty =
 	ParameterTys.get parameter_tys
 
-let set_type_by_name(type_by_name: ty Sym.Lookup.t)({rts; uns; fts; fns = _; parameter_tys = _}: t): unit =
-	let set = Sym.Lookup.set type_by_name in
-	Rts.iter_values rts (fun ({rname; _} as r) -> set rname @@ Rt r);
-	Uns.iter_values uns (fun ({uname; _} as u) -> set uname @@ Un u);
-	Fts.iter_values fts (fun ({fname; _} as f) -> set fname @@ Ft f)
-
-let set_value_by_name(value_by_name: v Sym.Lookup.t)({fns; rts = _; uns = _; fts = _; parameter_tys = _}: t): unit =
-	let set = Sym.Lookup.set value_by_name in
-	Fns.iter_values fns (fun fn -> set (ValU.fn_name fn) @@ Fn(DeclaredFn fn))
+let set_members(members: ty_or_v Sym.Lookup.t)({fns; rts; uns; fts; parameter_tys = _}: t): unit =
+	let set = Sym.Lookup.set members in
+	Fns.iter_values fns (fun f -> set (ValU.fn_name f) @@ V(Fn(DeclaredFn f)));
+	Rts.iter_values rts (fun r -> set r.rname @@ Ty(Rt r));
+	Uns.iter_values uns (fun u -> set u.uname @@ Ty(Un u));
+	Fts.iter_values fts (fun f -> set f.fname @@ Ty(Ft f))
 
 let val_of_ast(type_of_ast: t)(ast: Ast.decl_val): v =
 	let fn =
@@ -72,7 +69,7 @@ let dummy_code: code =
 	{bytecodes = [||]; locs = CodeLocs.empty}
 
 let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.modul): modul * t =
-	let modul = {path; full_path; vals = Sym.Lookup.create(); tys = Sym.Lookup.create()} in
+	let modul = {path; full_path; members = Sym.Lookup.create()} in
 	let rts, uns, fts, fns, parameter_tys =
 		Rts.create(), Uns.create(), Fts.create(), Fns.create(), ParameterTys.create() in
 
@@ -100,8 +97,7 @@ let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.mod
 					Fts.set fts f @@ dummy fname
 				end
 		end;
-		set_type_by_name modul.tys type_of_ast;
-		set_value_by_name modul.vals type_of_ast;
+		set_members modul.members type_of_ast;
 
 		let declared_ty = declared_ty bindings type_of_ast in
 

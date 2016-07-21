@@ -27,6 +27,13 @@ let map_zip(a: 'a array)(b: 'b array)(f: 'a -> 'b -> 'c): 'c array =
 	a |> Array.mapi @@ fun i a_em ->
 		f a_em @@ Array.get b i
 
+let map_to_list(a: 'a array)(f: 'a -> 'b): 'b list =
+	U.loop2 (Array.length a - 1) [] @@ fun loop idx lst ->
+		if idx < 0 then
+			lst
+		else
+			loop (idx - 1) @@ (f a.(idx)) :: lst
+
 let zip(a: 'a array)(b: 'b array): 'c array =
 	map_zip a b @@ fun x y -> x, y
 
