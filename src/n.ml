@@ -7,6 +7,7 @@ type origin =
 	| Inst of origin
 *)
 
+(*TODO: ty.ml*)
 type ty =
 	(*TODO: TPrimitive and Rt together are TConcrete. (They have no subtypes.) This is useful because unions can only contain concrete types.*)
 	| TPrimitive of ty_primitive
@@ -62,6 +63,7 @@ and ft = {
 	mutable parameters: parameter array
 }
 
+(* V *)
 type v =
 	| Primitive of primitive
 	| Rc of rt * v array
@@ -136,6 +138,19 @@ and builtin_fn = {
 	exec: interpreter_state -> unit
 }
 
+
+
+(*** COMPILER ***)
+
+and compiler = {
+	io: FileIo.t;
+	moduls: modul Path.Lookup.t
+}
+
+and ty_or_v =
+	| Ty of ty
+	| V of v
+
 (*TODO:rename to mdl*)
 and modul = {
 	(* Logical path, e.g. "a/b" *)
@@ -144,6 +159,10 @@ and modul = {
 	full_path: Path.t;
 	members: ty_or_v Sym.Lookup.t
 }
+
+
+(*** RUNTIME ***)
+
 
 (* These don't belong here, but ocaml hates recursion... *)
 and call_stack_entry = {
@@ -157,6 +176,7 @@ and call_stack_entry = {
 	mutable code_idx: int
 }
 
+(*TODO: rename to stack_state*)
 and interpreter_state = {
 	data_stack: v MutArray.t;
 	call_stack: call_stack_entry MutArray.t;
@@ -164,16 +184,43 @@ and interpreter_state = {
 	mutable cur: call_stack_entry;
 }
 
-and ty_or_v =
-	| Ty of ty
-	| V of v
+and step_result =
+	| NotDone
+	| Done of v
+	| AwaitingIo of Thread.t
+	| AwaitingThread of thread
 
+and waiting_on =
+	| NotWaiting
+	| Io of Thread.t
+	| Thread of thread
+	| Threads of thread MutArray.t
+
+and thread = {
+	state: interpreter_state;
+	mutable waiting_on: waiting_on;
+	(* Threads to enqueue when this one completes. *)
+	waited_on_by: thread MutArray.t
+}
+
+and runtime = {
+	mutable current_thread: thread option;
+	(* All of these threads should have no `waiting_on`. *)
+	thread_queue: thread Queue.t;
+	(* These threads all have other `waiting_on` threads OR will be resumed by an Lwt after it completes. *)
+	waiting_threads: thread MutArray.t;
+	compiler: compiler
+}
+
+
+(*TODO:TyU*)
 let t_bool = TPrimitive TBool
 let t_float = TPrimitive TFloat
 let t_int = TPrimitive TInt
 let t_string = TPrimitive TString
 let t_void = TPrimitive TVoid
 
+(*TODO:ValU*)
 let v_bool b = Primitive(Bool b)
 let v_float f = Primitive(Float f)
 let v_int i = Primitive(Int i)

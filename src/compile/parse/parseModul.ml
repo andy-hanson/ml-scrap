@@ -64,7 +64,7 @@ let f(l: Lexer.t): Ast.modul =
 		| Token.EOF ->
 			None, None
 		| next ->
-			let decl = ParseDecl.parse_decl l start next in
+			let decl = ParseDecl.f l start next in
 			Some(decl), Some(Lexer.pos_next l) in
 
 	imports, decls

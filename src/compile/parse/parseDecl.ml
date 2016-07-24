@@ -68,7 +68,7 @@ let parse_ft(l: Lexer.t)(start: Loc.pos): Ast.ft =
 	end;
 	Lexer.loc_from l start, name, signature
 
-let parse_decl(l: Lexer.t)(start: Loc.pos)(next: Token.t): Ast.decl =
+let f(l: Lexer.t)(start: Loc.pos)(next: Token.t): Ast.decl =
 	match next with
 	| Token.Fn ->
 		Ast.DeclVal(Ast.Fn(parse_fn l start))

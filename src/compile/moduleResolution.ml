@@ -4,17 +4,17 @@ let extension = ".nz"
 let main = Sym.of_string @@ "main" ^ extension
 
 (* Returns the resolved path, with '.nz' included *)
-let resolve({err}: err)(io: FileIo.t)(from: Path.t)(from_loc: Loc.t)(rel: Path.rel): (Path.t * string) Lwt.t =
+let resolve({err}: err)(io: FileIo.t)(from: Path.t)(from_loc: Loc.t)(rel: Path.rel): Path.t * BatIO.input =
 	let base = Path.resolve from rel in
 
 	(* Normally, just add the '.nz' extension. *)
 	let pre, last = ArrayU.rtail base, ArrayU.last base in
 	let regular_path = Array.append pre [| Sym.of_string @@ (Sym.string_of last) ^ extension |] in
 
-	let attempt(path: Path.t)(on_fail: unit -> (Path.t * string) Lwt.t): (Path.t * string) Lwt.t =
-		try%lwt
-			let%lwt source = io#read path in
-			Lwt.return (path, source)
+	let attempt(path: Path.t)(on_fail: unit -> Path.t * BatIO.input): Path.t * BatIO.input =
+		try
+			let source = io#open_in path in
+			path, source
 		with FileIo.FileNotFound _ ->
 			on_fail() in
 
@@ -30,18 +30,23 @@ Loads modules and produces a linear compilation order.
 https://en.wikipedia.org/wiki/Topological_sorting#Depth-first_search
 *)
 (*TODO: passing in `err` as a parameter is ugly...*)
-let linearize_modul_dependencies(io: FileIo.t)(err: err)(start_path: Path.t): (Path.t * Path.t * Ast.modul) array Lwt.t =
+let linearize_modul_dependencies(io: FileIo.t)(err: err)(start_path: Path.t): (Path.t * Path.t * Ast.modul) array =
 	(* This also functions as `visited` *)
 	let map: ((Loc.t * Path.rel) array * Ast.modul) Moduls.t = Moduls.create() in
 
-	LwtU.build @@ fun build ->
+	ArrayU.build @@ fun build ->
 		U.loop3 [||] Loc.zero (0, start_path) @@ fun loop from from_loc rel ->
 			let path = Path.resolve from rel in
 			if Moduls.has_key map path then
 				err.err from (from_loc, Err.CircularDependency path)
 			else begin
-				let%lwt full_path, source = resolve err io from from_loc rel in
-				let (importses, _) as modul = Parse.f @@ BatIO.input_string source in
+				let full_path, source = resolve err io from from_loc rel in
+				let (importses, _) as modul =
+					try
+						Parse.f source
+					with Err.Exn error ->
+						err.err full_path error in
+				io#close_in source;
 
 				(* Calculate dependencies *)
 				let imports: (Loc.t * Path.rel) array =
@@ -55,7 +60,7 @@ let linearize_modul_dependencies(io: FileIo.t)(err: err)(start_path: Path.t): (P
 							Some(loc, r) in
 				(* Mark this node as visited *)
 				Moduls.set map path (imports, modul);
-				let%lwt () = LwtU.join @@ ArrayU.map imports @@ fun (loc, rel) -> loop path loc rel in
-				build (path, full_path, modul);
-				Lwt.return_unit
+				let () = ThreadU.do_in_parallel imports @@ fun (loc, rel) -> loop path loc rel in
+				(* We are linearizing, so can't write out this module until all of its dependencies are written. *)
+				build (path, full_path, modul)
 			end

@@ -51,12 +51,13 @@ let push_fn({call_stack; cur; data_stack; _} as state: interpreter_state)(fn: de
 	MutArray.push call_stack cur;
 	state.cur <- entry_of fn @@ MutArray.length data_stack
 
+(* Returns true if there is another function left. *)
 let pop_fn({call_stack; _} as state: interpreter_state): bool =
 	try
 		state.cur <- MutArray.pop call_stack;
-		false
-	with MutArray.Empty ->
 		true
+	with MutArray.Empty ->
+		false
 
 let load({cur = {stack_start_index; _}; data_stack; _}: interpreter_state)(relative_index: int): v =
 	let index = stack_start_index + relative_index in

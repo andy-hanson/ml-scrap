@@ -17,9 +17,18 @@ let case_test(ty: ty)(v: v): bool =
 	| TyGen _ | TyVar _ | TyInst _ -> raise U.TODO
 	| Un _ | Ft _ -> assert false (*TODO: ocaml type system should be more specific here*)
 
-let step(state: interpreter_state): bool =
-	let goto idx = State.goto state idx; false in
-	let next() = State.goto_next state; false in
+
+(*
+and step_result =
+	| NotDone
+	| Done of v
+	| AwaitingIo of v Lwt.t
+	| AwaitingThread of thread
+*)
+
+let step(state: interpreter_state): step_result =
+	let goto idx = State.goto state idx; NotDone in
+	let next() = State.goto_next state; NotDone in
 
 	match State.cur_code state with
 	| Call ->
@@ -95,11 +104,14 @@ let step(state: interpreter_state): bool =
 		(* Remove args from the stack, but leave return value. *)
 		let return_value = State.pop state in
 		State.assert_data_stack_back_to_function_start state;
-		U.do_times (ValU.fn_arity @@ State.cur_fn state) begin fun () ->
-			ignore (State.pop state)
-		end;
-		State.push state return_value;
-		State.pop_fn state
+		if State.pop_fn state then begin
+			U.do_times (ValU.fn_arity @@ State.cur_fn state) begin fun () ->
+				ignore (State.pop state)
+			end;
+			State.push state return_value;
+			NotDone
+		end else
+			Done return_value
 
 	| UnLet n ->
 		(* Stack effect: `... a b` -> `... b` *)

@@ -1,3 +1,6 @@
+let choose(threads: 'a Lwt.t array): 'a Lwt.t =
+	Lwt.choose @@ Array.to_list threads
+
 let join(threads: unit Lwt.t array): unit Lwt.t =
 	Lwt.join @@ Array.to_list threads
 

@@ -1,5 +1,8 @@
 open N
 
+
+
+(*TODO:KILL
 let debug_print(noze: Noze.t)(full_path: Path.t)(state: interpreter_state): unit =
 	let {cur = {stack_start_index; _}; data_stack; _} = state in
 	OutputU.printf "Stack: %a (start_idx: %i)\n"
@@ -26,3 +29,4 @@ let call_fn(fn: declared_fn)(args: v array): v =
 
 let debug_call_fn(noze: Noze.t)(fn: declared_fn)(args: v array): v =
 	call_fn_helper fn args @@ debug_step noze fn.fn_mdl.full_path
+*)

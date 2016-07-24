@@ -1,6 +1,6 @@
 (*TODO: this is just for debugging, so move it to elsewhre.*)
-let lex(source: string): (Token.t * Loc.t) array =
-	let l = Lexer.make @@ BatIO.input_string source in
+let lex(source: BatIO.input): (Token.t * Loc.t) array =
+	let l = Lexer.make source in
 	ArrayU.build @@ fun build ->
 		let rec lex_plain() =
 			let start, next = Lexer.pos_next l in

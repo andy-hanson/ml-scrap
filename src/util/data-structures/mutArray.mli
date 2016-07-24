@@ -18,6 +18,7 @@ val delete_last: 'a t -> unit
 val delete_last_n: 'a t -> int -> unit
 (* Takes start and length *)
 val delete_range: 'a t -> int -> int -> unit
+val remove: 'a t -> 'a -> ('a -> 'a -> bool) -> unit
 
 val peek: 'a t -> 'a
 val pop: 'a t -> 'a

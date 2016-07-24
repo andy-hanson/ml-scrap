@@ -1,1 +1,2 @@
-val step: N.interpreter_state -> bool
+open N
+val step: interpreter_state -> step_result

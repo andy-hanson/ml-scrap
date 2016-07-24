@@ -15,7 +15,6 @@ val cur_loc: interpreter_state -> Loc.t
 val goto: interpreter_state -> int -> unit
 val goto_next: interpreter_state -> unit
 
-(* Returns true iff there is nothing left.*)
 val pop_fn: interpreter_state -> bool
 
 (*Takes *relative* index*)

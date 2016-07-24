@@ -22,6 +22,16 @@ let delete_range = BatDynArray.delete_range
 let delete_last_n(a: 'a t)(n: int): unit =
 	delete_range a (length a - n) n
 
+let remove(a: 'a t)(removed: 'a)(eq: 'a -> 'a -> bool): unit =
+	U.loop 0 @@ fun loop i ->
+		if i == length a then
+			failwith "Could not remove it because it did not exist"
+		else if eq removed (get a i) then
+			BatDynArray.delete a i
+		else
+			loop @@ i + 1
+
+
 let peek(a: 'a t): 'a =
 	if empty a then
 		raise Empty
