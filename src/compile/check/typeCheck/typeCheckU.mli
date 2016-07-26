@@ -1,4 +1,4 @@
-open N
+open N.Ty
 
 val eq: ty -> ty -> bool
 (*

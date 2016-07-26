@@ -45,7 +45,8 @@ val build_fold: 'f -> ('f -> 'a option * 'f option) -> 'a array
 val try_remove: 'a array -> 'a -> 'a array option
 val try_remove_where: 'a array -> ('a -> bool) -> ('a * 'a array) option
 
-val partial: 'a array -> 'b array -> ('a -> 'b -> unit) -> 'a array
+val partial_iter: 'a array -> 'b array -> ('a -> 'b -> unit) -> unit
+val rtail_n: 'a array -> int -> 'a array
 
 val rtail: 'a array -> 'a array
 val last: 'a array -> 'a
@@ -53,4 +54,4 @@ val last: 'a array -> 'a
 val output_elements: ?delimeter:string -> ('a, 'o) OutputU.printer -> ('a array, 'o) OutputU.printer
 val output: ('a, 'o) OutputU.printer -> ('a array, 'o) OutputU.printer
 
-val eq: 'a array -> 'b array -> ('a -> 'b -> bool) -> bool
+val eq: ('a -> 'b -> bool) -> 'a array -> 'b array -> bool

@@ -177,16 +177,18 @@ let try_remove_where(a: 'a array)(pred: 'a -> bool): ('a * 'a array) option =
 let try_remove(a: 'a array)(element: 'a): 'a array option =
 	OpU.map (try_remove_where a @@ (=) element) @@ fun (_, remaining) -> remaining
 
-let partial(a: 'a array)(b: 'b array)(iter: 'a -> 'b -> unit): 'a array =
+let partial_iter(a: 'a array)(b: 'b array)(iter: 'a -> 'b -> unit): unit =
 	let n_remaining = Array.length a - Array.length b in
 	assert (n_remaining >= 0);
 	for i = 0 to Array.length b - 1 do
 		iter a.(n_remaining + i) b.(i)
-	done;
-	Array.sub a 0 n_remaining
+	done
+
+let rtail_n(a: 'a array)(n: int) =
+	Array.sub a 0 (Array.length a - n)
 
 let rtail(a: 'a array): 'a array =
-	Array.sub a 0 (Array.length a - 1)
+	rtail_n a 1
 let last(a: 'a array): 'a =
 	Array.get a (Array.length a - 1)
 
@@ -201,6 +203,6 @@ let output_elements ?(delimeter=", ")(output_element: ('a, 'o) OutputU.printer)(
 let output(output: ('a, 'o) OutputU.printer)(out_channel: 'o OutputU.t)(arr: 'a array): unit =
 	OutputU.out out_channel "[%a]" (output_elements output) arr
 
-let eq(a: 'a array)(b: 'b array)(eq: 'a -> 'b -> bool): bool =
+let eq(eq: 'a -> 'b -> bool)(a: 'a array)(b: 'b array): bool =
 	same_length a b &&
 		not @@ OpU.empty @@ find_zip a b @@ fun a b -> OpU.op_if (eq a b) @@ fun () -> ()

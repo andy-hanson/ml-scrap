@@ -1,4 +1,7 @@
-open N
+open N.V
+open N.Ty
+open N.Code
+open N.Run
 
 (*TODO:MOVE*)
 let case_test(ty: ty)(v: v): bool =
@@ -14,8 +17,7 @@ let case_test(ty: ty)(v: v): bool =
 		| Rc (vrt, _) -> rt == vrt
 		| _ -> false
 		end
-	| TyGen _ | TyVar _ | TyInst _ -> raise U.TODO
-	| Un _ | Ft _ -> assert false (*TODO: ocaml type system should be more specific here*)
+	| Un _ | Ft _ | GenRt _ | GenFt _ | GenVar _ -> assert false (*TODO: ocaml type system should be more specific here*)
 
 
 (*
@@ -133,10 +135,10 @@ let step(state: interpreter_state): step_result =
 		let output = BatBuffer.output_buffer b in
 		BatBuffer.add_string b strings.(0);
 		for i = 0 to Array.length interpolated - 1 do
-			ValU.output output interpolated.(i);
+			ValOut.output output interpolated.(i);
 			BatBuffer.add_string b strings.(i + 1)
 		done;
-		let result = v_string (BatBuffer.contents b) in
+		let result = ValU.v_string (BatBuffer.contents b) in
 
 		State.push state result;
 		next()
@@ -145,8 +147,8 @@ let step(state: interpreter_state): step_result =
 		let checked = State.pop state in
 		if not @@ ValU.bool_of checked then
 			(*TODO Noze exception, not ocaml exeption*)
-			raise U.TODO;
-		State.push state v_void;
+			U.todo();
+		State.push state ValU.v_void;
 		next()
 
 	| Nil ->

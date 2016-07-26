@@ -22,13 +22,13 @@ and f(l: Lexer.t): Ast.ty =
 	let start, next = Lexer.pos_next l in
 	f_with_start l start next
 
-let parse_ty_name_or_generic(l: Lexer.t): Ast.ty_name =
+let parse_ty_name_or_generic(l: Lexer.t): Ast.fn_head =
 	let name = ParseU.parse_ty_name l in
 	let params =
-	ArrayU.build_until_none @@ fun () ->
-		let start, next = Lexer.pos_next l in
-		match next with
-		| Token.TyName n -> Some(Lexer.loc_from l start, n)
-		| Token.Indent -> None
-		| t -> ParseU.unexpected start l t in
-	if ArrayU.empty params then Ast.Plain name else Ast.Generic(name, params)
+		ArrayU.build_until_none @@ fun () ->
+			let start, next = Lexer.pos_next l in
+			match next with
+			| Token.TyName n -> Some(Lexer.loc_from l start, n)
+			| Token.Indent -> None
+			| t -> ParseU.unexpected start l t in
+	if ArrayU.empty params then Ast.FnPlain name else Ast.FnGeneric(name, params)

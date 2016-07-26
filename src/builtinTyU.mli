@@ -1,4 +1,8 @@
-open N
+open N.Ty
+
+val ft: Sym.t -> ty -> parameter array -> ft
+val t_ft: Sym.t -> ty -> parameter array -> ty
+val t_rc: Sym.t -> property array -> ty
 
 val ft0: string -> ty -> ty
 val ft1: string -> ty -> string -> ty -> ty

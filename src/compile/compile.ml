@@ -1,3 +1,5 @@
+open N.Compiler
+
 (*TODO: this is just for debugging, so move it to elsewhre.*)
 let lex(source: BatIO.input): (Token.t * Loc.t) array =
 	let l = Lexer.make source in
@@ -38,7 +40,7 @@ let lex(source: BatIO.input): (Token.t * Loc.t) array =
 
 		lex_plain()
 
-let check_and_generate(get_modul: Path.rel -> N.modul)(path: Path.t)(full_path: Path.t)(ast: Ast.modul): N.modul =
+let check_and_generate(get_modul: Path.rel -> modul)(path: Path.t)(full_path: Path.t)(ast: Ast.modul): modul =
 	let bindings = Bind.bind get_modul ast in
 	let modul, type_of_ast = TypeOfAst.build path full_path bindings ast in
 	let tys = TypeCheck.f bindings type_of_ast ast in

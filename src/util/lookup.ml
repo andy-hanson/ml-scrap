@@ -10,6 +10,7 @@ module type S = sig
 	val build_from_keys: key array -> (key -> 'v) -> 'v t
 	val build_from_keys_with_index: key array -> (int -> key -> 'v) -> 'v t
 	val build_from_values: 'v array -> ('v -> key) -> 'v t
+	val build_from_keys_and_values: key array -> 'v array -> 'v t
 
 	val size: 'v t -> int
 
@@ -53,6 +54,9 @@ module Make(K: Key): S with type key = K.t = struct
 		U.returning (create_with_size @@ Array.length values) @@ fun m ->
 			ArrayU.iter values @@ fun v ->
 				H.add m (get_key v) v
+
+	let build_from_keys_and_values(keys: key array)(values: 'v array): 'v t =
+		build_from_keys_with_index keys @@ fun i _ -> values.(i)
 
 	let size = H.length
 

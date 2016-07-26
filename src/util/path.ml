@@ -42,7 +42,7 @@ let add_extension(path: t)(extension: string): t =
 type path = t
 module Lookup = Lookup.Make(struct
 	type t = path
-	let equal(a: t)(b: t) = ArrayU.eq a b Sym.eq
+	let equal: t -> t -> bool = ArrayU.eq Sym.eq
 	let hash(path: t): int =
 		Sym.hash @@ ArrayU.last path
 end)

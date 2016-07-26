@@ -64,7 +64,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 		let right_start, next = Lexer.pos_next l in
 		match next with
 		| Token.Colon ->
-			raise U.TODO
+			U.todo()
 		| _ ->
 			let right, next = parse_expr_with_next l right_start next ctx in
 			Ast.Partial(Lexer.loc_from l expr_start, left, [| right |]), next in
@@ -127,9 +127,23 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			end
 
 		| Token.Lbracket ->
-			let expr = Ast.ExprAccess(ParseU.parse_name_with_loc l) in
-			let tys = ParseTy.parse_gen_inst l in
-			add_part (Ast.GenInst(Lexer.loc_from l start, expr, tys));
+			let start2, next2 = Lexer.pos_next l in
+			add_part begin match next2 with
+			| Token.Name n ->
+				let loc2 = Lexer.loc_from l start2 in
+				let expr = Ast.ExprAccess(loc2, n) in
+				let tys = ParseTy.parse_gen_inst l in
+				let loc = Lexer.loc_from l start in
+				Ast.GenInst(loc, expr, tys)
+			| Token.TyName n ->
+				let loc2 = Lexer.loc_from l start2 in
+				let gen_ty = Ast.TyAccess(loc2, n) in
+				let tys = ParseTy.parse_gen_inst l in
+				let loc = Lexer.loc_from l start in
+				Ast.ExprType(Ast.TyInst(loc, gen_ty, tys))
+			| x ->
+				ParseU.unexpected start2 l x
+			end;
 			read_and_loop()
 
 		| Token.Operator name ->
@@ -147,7 +161,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 						| Token.DotDot ->
 							dot_dot op
 						| Token.Newline | Token.Indent | Token.Dedent ->
-							raise U.TODO
+							U.todo()
 						| x -> ParseU.unexpected right_start l x
 						end
 					| Paren ->

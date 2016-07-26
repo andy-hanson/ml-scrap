@@ -1,53 +1,39 @@
-open N
-
-let rt_eq({rname = rname_a; _}: rt)({rname = rname_b; _}: rt): bool =
-	(*TODO: origin should be the same, not just the name!*)
-	rname_a = rname_b
+open N.Ty
 
 (* This is just used for `Un` member testing *)
 let eq(a: ty)(b: ty): bool =
 	match a with
-	| TPrimitive _ ->
-		a = b
-	| Rt rt_a ->
-		begin match b with
-		| Rt rt_b -> rt_eq rt_a rt_b
-		| _ -> false
-		end
-	| Un _ | Ft _ ->
-		assert false
-	| TyGen _ | TyVar _ | TyInst _ ->
-		raise U.TODO
+	| TPrimitive _ -> a == b
+	| Rt ra -> (match b with | Rt rb -> ra == rb | _ -> false)
+	| Un ua -> (match b with | Un ub -> ua == ub | _ -> false)
+	| Ft fa -> (match b with | Ft fb -> fa == fb | _ -> false)
+	| GenRt ga -> (match b with | GenRt gb -> ga == gb | _ -> false)
+	| GenFt ga -> (match b with | GenFt gb -> ga == gb | _ -> false)
+	| GenVar ga -> (match b with | GenVar gb -> ga == gb | _ -> false)
 
 let rec assert_exact(loc: Loc.t)(expected: ty)(actual: ty): unit =
 	let fail() = ErrU.raise loc @@ Err.NotExpectedType(expected, actual) in
 	match expected with
-	| TPrimitive _ ->
-		(* These are all nominal types. *)
-		if not (expected = actual) then fail()
-	| Rt rt ->
-		begin match actual with
-		| Rt actual_rt ->
-			if not (rt_eq rt actual_rt) then fail()
-		| _ -> fail()
-		end
+	(* Would like to do `expected == actual`, but it's the *insides* we compare. *)
+	| TPrimitive _ | Rt _ | GenVar _ ->
+		if not (eq expected actual) then fail()
 	| Un {utys = expected_tys; _} ->
 		begin match actual with
 		| Un {utys = _actual_tys; _} ->
-			raise U.TODO
+			U.todo()
 		| TPrimitive _ | Rt _ ->
 			(*TODO: this allows implicit conversion to union. Must mark down that we did so.*)
 			(* A union type is guaranteed to only contain simple types. *)
 			if not @@ ArrayU.exists expected_tys (eq actual) then fail()
 		| Ft _ ->
 			fail()
-		| TyGen _ | TyVar _ | TyInst _ ->
-			raise U.TODO
+		| GenRt _ | GenFt _ | GenVar _ ->
+			U.todo()
 		end
 	(* Functions match structurally, so ignore names. *)
-	| Ft {N.fname = _; N.return = expected_return; N.parameters = expected_params} ->
+	| Ft {ft_origin = _; return = expected_return; parameters = expected_params} ->
 		begin match actual with
-		| Ft {N.fname = _; N.return = actual_return; N.parameters = actual_params} ->
+		| Ft {ft_origin = _; return = actual_return; parameters = actual_params} ->
 			assert_exact loc expected_return actual_return;
 			if (not @@ ArrayU.same_length expected_params actual_params) then fail(); (*TODO: error message*)
 			ArrayU.iter_zip expected_params actual_params @@ fun (_, expected) (_, actual) ->
@@ -55,13 +41,10 @@ let rec assert_exact(loc: Loc.t)(expected: ty)(actual: ty): unit =
 		| _ ->
 			fail()
 		end
-	| TyGen _ ->
-		(* This is  the case where a variable is expected to be a generic function. *)
-		raise U.TODO
-	| TyVar _ ->
-		if not (eq expected actual) then fail()
-	| TyInst _ ->
-		raise U.TODO
+	| GenRt _ ->
+		U.todo()
+	| GenFt _ ->
+		U.todo()
 
 and assert_convert(loc: Loc.t)(expected: ty)(actual: ty): unit =
 	(*TODO: Err.CantConvert*)
@@ -91,8 +74,12 @@ and assert_convert(loc: Loc.t)(expected: ty)(actual: ty): unit =
 		(*TODO LATER: function conversion*)
 		assert_exact loc actual expected
 
-	| TyGen _ | TyVar _ | TyInst _ ->
-		raise U.TODO
+	| GenRt _ ->
+		U.todo()
+	| GenFt _ ->
+		U.todo()
+	| GenVar _ ->
+		U.todo()
 
 let join(loc: Loc.t)(tys: ty array): ty =
 	U.returning (Array.get tys 0) @@ fun ty0 ->

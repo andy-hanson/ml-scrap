@@ -1,4 +1,4 @@
-exception TODO
+val todo: unit -> 'a
 
 val compose: ('a -> 'b) -> ('b -> 'c) -> ('a -> 'c)
 val fail: string -> 'a

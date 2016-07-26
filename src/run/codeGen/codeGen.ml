@@ -1,7 +1,11 @@
+open N.V
+open N.Ty
+open N.Code
+
 module W = CodeWriter
 
 (*TODO: move to CodeWriter.ml*)
-let declared_ty(w: W.t)(ty_ast: Ast.ty): N.ty =
+let declared_ty(w: W.t)(ty_ast: Ast.ty): ty =
 	TypeOfAst.declared_ty (W.bindings w) (W.type_of_ast w) ty_ast
 
 let rec write_expr(w: W.t)(expr: Ast.expr): unit =
@@ -15,9 +19,9 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 			let ty = declared_ty w ty_ast in
 			let e_ty = TypeCheck.ty_of_expr (W.tys w) expr in
 			begin match ty with
-			| N.Rt({N.properties; _} as rt) ->
+			| Rt({properties; _} as rt) ->
 				begin match e_ty with
-				| N.Rt {N.properties = e_properties; _} ->
+				| Rt {properties = e_properties; _} ->
 					let indexes = ArrayU.map properties @@ fun (name, _) ->
 						OutputU.printf "%a\n" (ArrayU.output @@ fun out (n, _) -> Sym.output out n) e_properties;
 
@@ -29,32 +33,18 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 				| _ ->
 					assert false
 				end
-			| N.Ft _ ->
-				raise U.TODO
+			| Ft _ ->
+				U.todo()
 			| _ ->
 				assert false
 			end
 		end
 	| Ast.ExprType(ty_ast) ->
-		let loc, access = match ty_ast with
-			| Ast.TyAccess((loc, _) as access) -> loc, access
-			| _ -> raise U.TODO in
 		let rt =
-			begin match Bind.ty_binding (W.bindings w) access with
-			| Binding.TDeclared d ->
-				begin match d with
-				| Ast.Rt rt_ast ->
-					TypeOfAst.rt_of_ast (W.type_of_ast w) rt_ast
-				| _ ->
-					assert false
-				end
-			| Binding.ExternalTy t ->
-				begin match t with
-				| N.Rt rt -> rt
-				| _ -> assert false
-				end
-			end in
-		W.const w loc @@ N.Fn(N.Ctr rt)
+			match declared_ty w ty_ast with
+			| Rt rt -> rt
+			| _ -> assert false in
+		W.const w (AstU.ty_loc ty_ast) @@ Fn(Ctr rt)
 
 	| Ast.ExprAccess((loc, _) as access) ->
 		begin match Bind.binding (W.bindings w) access with
@@ -79,7 +69,7 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 			begin match Bind.binding (W.bindings w) access with
 			| Binding.External b ->
 				begin match b with
-				| N.Fn N.BuiltinFn(fn) when fn == Builtin.cond_value ->
+				| Fn BuiltinFn(fn) when fn == Builtin.cond_value ->
 					write_cond w loc args
 				| _ ->
 					eager()
@@ -98,7 +88,7 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 	| Ast.GetProperty(loc, expr, property) ->
 		recur expr;
 		begin match TypeCheck.ty_of_expr (W.tys w) expr with
-		| N.Rt {N.properties; _} ->
+		| Rt {properties; _} ->
 			let index = OpU.force @@ ArrayU.find_index properties @@ fun (name, _) -> Sym.eq name property in
 			W.get_property w loc index
 		| _ ->
@@ -112,10 +102,10 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		W.un_let w loc pattern_size
 
 	| Ast.Literal(loc, value) ->
-		W.const w loc @@ N.Primitive begin match value with
-			| Ast.Int i -> N.Int i
-			| Ast.Float f -> N.Float f
-			| Ast.String s -> N.String s
+		W.const w loc @@ Primitive begin match value with
+			| Ast.Int i -> Int i
+			| Ast.Float f -> Float f
+			| Ast.String s -> String s
 			end
 
 	| Ast.Seq(loc, a, b) ->
@@ -137,9 +127,8 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 		recur expr;
 		W.check w loc
 
-	| Ast.GenInst(_loc, _expr, _tys) ->
-		(*TODO: this will need a runtime component since we need to alter the type of the function.*)
-		raise U.TODO
+	| Ast.GenInst(_, expr, _) ->
+		recur expr
 
 and write_cond(w: W.t)(loc: Loc.t)(args: Ast.expr array): unit =
 	let condition, if_true, if_false = ArrayU.triple_of args in
@@ -171,15 +160,15 @@ and write_pattern(w: W.t)(pattern: Ast.pattern): int =
 		1
 	| Ast.PDestruct(loc, patterns) ->
 		let pattern_size = ref 0 in
-		let rec pattern_of_ast(pattern: Ast.pattern): N.pattern =
+		let rec pattern_of_ast(pattern: Ast.pattern): pattern =
 			match pattern with
 			| Ast.PSingle declare ->
 				W.set_local_depth w declare;
 				incr pattern_size;
 				W.incr_stack_depth w;
-				N.PSingle
+				PSingle
 			| Ast.PDestruct(_, patterns) ->
-				N.PDestruct(ArrayU.map patterns pattern_of_ast) in
+				PDestruct(ArrayU.map patterns pattern_of_ast) in
 		(* The original value destructed is popped and destructed to the patterned values. *)
 		W.decr_stack_depth w;
 		let patterns = ArrayU.map patterns pattern_of_ast in
@@ -208,7 +197,7 @@ let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)(tys: TypeCheck.t)((_, decls): 
 			begin match v with
 			| Ast.Fn((_, _, (_, _, parameters), body) as fn_ast) ->
 				let fn = TypeOfAst.fn_of_ast type_of_ast fn_ast in
-				fn.N.fn_code <- W.write bindings type_of_ast tys parameters (AstU.expr_loc body) @@ fun w -> write_expr w body
+				fn.fn_code <- W.write bindings type_of_ast tys parameters (AstU.expr_loc body) @@ fun w -> write_expr w body
 			end
 		| Ast.DeclTy _ ->
 			()

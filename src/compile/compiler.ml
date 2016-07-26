@@ -1,4 +1,4 @@
-open N
+open N.Compiler
 
 let create(io: FileIo.t): compiler =
 	{io; moduls = Path.Lookup.create()}
@@ -45,7 +45,8 @@ let compile({io; moduls} as compiler: compiler)(path: Path.t): modul =
 	let linear_moduls = ModuleResolution.linearize_modul_dependencies io err path in
 	ArrayU.iter linear_moduls begin fun (path, full_path, modul_ast) ->
 		let get_modul_rel rel = get_modul @@ Path.resolve path rel in
-		let modul = Compile.check_and_generate get_modul_rel path full_path modul_ast in
+		let modul = do_work compiler full_path @@ fun () ->
+			Compile.check_and_generate get_modul_rel path full_path modul_ast in
 		Path.Lookup.set moduls path modul
 	end;
 	get_modul path

@@ -1,5 +1,13 @@
-open N
+open N.Ty
 
+let rt_name({rt_origin; _}: rt) =
+	begin match rt_origin with
+	| RtBuiltin name -> name
+	| RtDecl(_, name, _) -> name
+	| RtGenInst _ -> U.todo()
+	end
+
+(*TODO:KILL?*)
 let name = function
 	| TPrimitive p ->
 		Sym.of_string begin match p with
@@ -8,66 +16,35 @@ let name = function
 		| TInt -> "Int"
 		| TString -> "String"
 		| TVoid -> "Void"
+		| TNil -> "Nil"
 		end
-	| Rt {rname; _} -> rname
+	| Rt r -> rt_name r
 	| Un {uname; _} -> uname
-	| Ft {fname; _} -> fname
-	| TyGen _ | TyVar _ | TyInst _ -> raise U.TODO
+	| Ft {ft_origin; _} ->
+		begin match ft_origin with
+		| FtBuiltin name -> name
+		| FtDecl(_, name, _) -> name
+		| FtFromFn _ -> U.todo()
+		| FtFromRt rt -> rt_name rt
+		| FtFromPartial _ -> U.todo()
+		| FtGenInst _ -> U.todo()
+		end
+	| GenRt {gen_rt_origin = (_, name, _, _); _} -> name
+	| GenFt _ -> U.todo()
+	| GenVar _ -> U.todo()
 
-let ft(fname: Sym.t)(return: ty)(parameters: parameter array): ft =
-	{fname; return; parameters}
+let ft_or_gen_arity(f: ft_or_gen): int =
+	Array.length @@	match f with
+		| FoG_Ft {parameters; _} -> parameters
+		| FoG_Gen {gen_ft_parameters; _} -> gen_ft_parameters
 
-let t_ft(fname: Sym.t)(return: ty)(parameters: parameter array): ty =
-	Ft(ft fname return parameters)
-
-let t_rc(rname: Sym.t)(properties: property array): ty =
-	Rt {rname; properties}
-
-let ft_arity({parameters; _}: ft): int =
-	Array.length parameters
 let rt_arity({properties; _}: rt): int =
 	Array.length properties
-(*TODO: input type should just be ty_fn*)
-let arity: ty -> int = function
-	| Ft f -> ft_arity f
-	| _ -> assert false
 
-let partial_ty({fname; return; parameters}: ft)(args: ty array): ft =
-	let parameters = Array.sub parameters 0 (Array.length parameters - Array.length args) in
-	{fname; return; parameters}
+let partial({ft_origin = _; return; parameters} as ft: ft)(num_partial_args: int): ft =
+	let parameters = ArrayU.rtail_n parameters num_partial_args in
+	{ft_origin = FtFromPartial(ft); return; parameters}
 
-let rec output_property(out: 'o OutputU.t)((name, ty): property): unit =
-	OutputU.out out "Property(%a, %a)"
-		Sym.output name
-		output ty
-
-and output_ft(out: 'o OutputU.t)({fname; return; parameters}: ft): unit =
-	let output_parameter(out: 'o OutputU.t)((name, ty): parameter): unit =
-		OutputU.out out "%a %a"
-			Sym.output name
-			output ty in
-	OutputU.out out "Fn(%a, %a, %a)"
-		Sym.output fname
-		output return
-		(ArrayU.output output_parameter) parameters
-
-and output_rt(out: 'o OutputU.t)({rname; properties}: rt): unit =
-	OutputU.out out "Record(%a, %a)" Sym.output rname (ArrayU.output output_property) properties
-
-and output_brief(out: 'o OutputU.t)(t: ty): unit =
-	OutputU.str out @@ Sym.string_of @@ name t
-
-and output(out: 'o OutputU.t)(t: ty): unit =
-	match t with
-	| TPrimitive _ ->
-		output_brief out t
-	| Rt rt ->
-		output_rt out rt
-	| Un {uname; utys} ->
-		OutputU.out out "Un(%a, %a)"
-			Sym.output uname
-			(ArrayU.output output) utys
-	| Ft ft ->
-		output_ft out ft
-	| TyGen _ | TyVar _ | TyInst _ ->
-		raise U.TODO
+let ty_of_ft_or_gen: ft_or_gen -> ty = function
+	| FoG_Ft f -> Ft f
+	| FoG_Gen g -> GenFt g

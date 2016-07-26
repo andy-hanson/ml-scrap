@@ -1,3 +1,5 @@
-val cond_value: N.builtin_fn
-val do_value: N.builtin_fn
-val all: N.v Sym.Map.t
+open N.V
+
+val cond_value: builtin_fn
+val do_value: builtin_fn
+val all: v Sym.Map.t

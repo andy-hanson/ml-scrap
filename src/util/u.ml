@@ -1,4 +1,10 @@
+Printexc.record_backtrace true
+
 exception TODO
+let todo(): 'a =
+	(* This wierd code makes the stack trace reach down to here. *)
+	let _ = raise TODO in
+	raise TODO
 
 let compose(f: 'a -> 'b)(g: 'b -> 'c)(a: 'a) =
 	g (f a)

@@ -1,20 +1,10 @@
-open N
+open N.Ty
 
 val name: ty -> Sym.t
 
-val ft: Sym.t -> ty -> parameter array -> ft
-val t_ft: Sym.t -> ty -> parameter array -> ty
-val t_rc: Sym.t -> property array -> ty
-
-val arity: ty -> int
-val ft_arity: ft -> int
+val ft_or_gen_arity: ft_or_gen -> int
 val rt_arity: rt -> int
 
-val partial_ty: ft -> ty array -> ft
+val partial: ft -> int -> ft
 
-(*TODO: NOut module*)
-val output_property: (property, 'o) OutputU.printer
-val output_ft: (ft, 'o) OutputU.printer
-val output_rt: (rt, 'o) OutputU.printer
-val output: (ty, 'o) OutputU.printer
-val output_brief: (ty, 'o) OutputU.printer
+val ty_of_ft_or_gen: ft_or_gen -> ty

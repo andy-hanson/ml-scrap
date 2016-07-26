@@ -1,4 +1,5 @@
-open N
+open N.Ty
+open N.TyP
 open BuiltinTyU
 
 let action = ft0 "Action" t_void

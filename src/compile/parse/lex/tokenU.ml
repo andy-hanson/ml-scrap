@@ -28,7 +28,7 @@ let output(out: 'o OutputU.t)(token: t) =
 	| QuoteStart s ->
 		o "QuoteStart(\"%s\")" @@ String.escaped s
 	| Literal value ->
-		AstU.output_literal out value
+		AstOut.output_literal out value
 	| Colon -> s ":"
 	| DotDot -> s ".."
 	| Indent -> s "indent"

@@ -1,3 +1,5 @@
+Printexc.record_backtrace true
+
 (*
 let unix_file_descr: Unix.file_descr = Unix.openfile "test-nz/test.nz" [] 0
 let l: Lwt_unix.file_descr =
@@ -16,10 +18,10 @@ storing them in byte sequence buff,
 starting at position ofs in buff.
 Return the number of bytes actually read.*)
 
-let result: N.v =
+let result: N.V.v =
 	let modul = TestU.compile (Path.of_string "test-nz/test") in
 	TestU.call_fn modul "main" [| World.world |]
-let () = OutputU.printf "%a\n" ValU.output result
+let () = OutputU.printf "%a\n" ValOut.output result
 
 (*
 let () =
@@ -36,7 +38,7 @@ let () =
 
 (* let () = OutputU.printf "%a\n" (ArrayU.output TokenU.output) @@ TestU.lex "test.nz" *)
 
-(* let () = OutputU.printf "%a\n" AstU.output_modul @@ TestU.parse "test.nz" *)
+(* let () = OutputU.printf "%a\n" AstOut.output_modul @@ TestU.parse "test.nz" *)
 
 (*let () =
 	let _ = TestU.time @@ fun () ->

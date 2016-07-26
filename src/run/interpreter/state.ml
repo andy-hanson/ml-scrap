@@ -1,4 +1,6 @@
-open N
+open N.V
+open N.Code
+open N.Run
 
 let entry_of({fn_code; _} as cse_fn: declared_fn)(cur_stack_index: int): call_stack_entry =
 	{
@@ -79,7 +81,7 @@ let call(state: interpreter_state)(called: v): unit =
 			| Ctr rt ->
 				(*TODO: check property types*)
 				let properties = pop_n state @@ TyU.rt_arity rt in
-				push state @@ N.Rc(rt, properties)
+				push state @@ Rc(rt, properties)
 
 let assert_data_stack_back_to_function_start({cur = {stack_start_index; _}; data_stack; _}: interpreter_state): unit =
 	Assert.equal (MutArray.length data_stack) stack_start_index OutputU.output_int

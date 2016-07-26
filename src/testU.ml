@@ -1,6 +1,6 @@
-Printexc.record_backtrace true
-
-open N
+open N.Compiler
+open N.Run
+open N.V
 
 let test_runtime = Runtime.create NativeFileIo.v
 let test_compiler = test_runtime.compiler
@@ -36,7 +36,7 @@ let fn_named(modul: modul)(name: string): declared_fn =
 	| V (Fn (DeclaredFn f)) -> f
 	| _ -> failwith @@ "No function named " ^ name
 
-let call_fn(modul: modul)(name: string)(args: v array): N.v =
+let call_fn(modul: modul)(name: string)(args: v array): v =
 	let fn = fn_named modul name in
 	Runtime.add_thread test_runtime fn args;
 	Runtime.run test_runtime
@@ -46,9 +46,9 @@ let call_fn(modul: modul)(name: string)(args: v array): N.v =
 let fn_named(modul: modul)(name: string): declared_fn =
 	match ModulU.get_export Loc.zero modul @@ Sym.of_string name with
 	| V (Fn (DeclaredFn f)) -> f
-	| _ -> raise U.TODO
+	| _ -> U.todo()
 
-let call_fn(noze: Noze.t)(m: modul)(name: string)(vals: v array): N.v =
+let call_fn(noze: Noze.t)(m: modul)(name: string)(vals: v array): v =
 	let debug = true in
 	let fn = fn_named m name in
 	(if debug then Interpreter.debug_call_fn noze else Interpreter.call_fn) fn vals

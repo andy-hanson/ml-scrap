@@ -83,7 +83,7 @@ let next_quote_part(l: t): string * bool =
 			| '{' ->
 				false
 			| '\n' ->
-				raise U.TODO (*TODO: unterminated quote error*)
+				U.todo() (*TODO: unterminated quote error*)
 			| '\\' ->
 				let ch = read_char l in
 				BatBuffer.add_char b begin match ch with
@@ -94,7 +94,7 @@ let next_quote_part(l: t): string * bool =
 				| 't' ->
 					'\t'
 				| _ ->
-					raise U.TODO (*TODO: bad escape error*)
+					U.todo() (*TODO: bad escape error*)
 				end;
 				loop()
 			| ch ->

@@ -14,16 +14,35 @@ let parse_signature(l: Lexer.t): Ast.signature * Token.t =
 				ParseU.unexpected start l t in
 	(Lexer.loc_from l start, return, params), next
 
+let parse_fn_head(l: Lexer.t): Ast.fn_head =
+	let start, next = Lexer.pos_next l in
+	match next with
+	| Token.Name n ->
+		Ast.FnPlain n
+	| Token.Lbracket ->
+		let name = ParseU.parse_name l in
+		let params =
+			(*TODO: this is similar to code in parse_ty_or_generic *)
+			ArrayU.build_until_none @@ fun () ->
+				let start, next = Lexer.pos_next l in
+				match next with
+				| Token.TyName n -> Some(Lexer.loc_from l start, n)
+				| Token.Rbracket -> None
+				| t -> ParseU.unexpected start l t in
+		assert (not @@ ArrayU.empty params); (*TODO: proper error*)
+		Ast.FnGeneric(name, params)
+	| t ->
+		ParseU.unexpected start l t
+
 let parse_fn(l: Lexer.t)(start: Loc.pos): Ast.fn =
-	let name = ParseU.parse_name l in
+	let head = parse_fn_head l in
 	let signature, next = parse_signature l in
 	ParseU.expect start l Token.Indent next;
 	let value = ParseBlock.f l in
-	Lexer.loc_from l start, name, signature, value
+	Lexer.loc_from l start, head, signature, value
 
-let parse_rt(l: Lexer.t)(start: Loc.pos): Ast.rt =
-	let name = ParseU.parse_ty_name l in
-	ParseU.must_skip l Token.Indent;
+let parse_rt(l: Lexer.t)(start: Loc.pos): Ast.decl_ty =
+	let name = ParseTy.parse_ty_name_or_generic l in
 	let props = ArrayU.build_loop @@ fun () ->
 		let prop =
 			let start = Lexer.pos l in
@@ -38,7 +57,10 @@ let parse_rt(l: Lexer.t)(start: Loc.pos): Ast.rt =
 			true
 		| x ->
 			ParseU.unexpected start l x in
-	Lexer.loc_from l start, name, props
+	let loc = Lexer.loc_from l start in
+	match name with
+	| Ast.FnPlain name -> Ast.Rt(loc, name, props)
+	| Ast.FnGeneric(name, params) -> Ast.GenRt(loc, name, params, props)
 
 let parse_un(l: Lexer.t)(start: Loc.pos): Ast.un =
 	let name = ParseU.parse_ty_name l in
@@ -55,7 +77,7 @@ let parse_un(l: Lexer.t)(start: Loc.pos): Ast.un =
 			ParseU.unexpected start l x in
 	Lexer.loc_from l start, name, tys
 
-let parse_ft(l: Lexer.t)(start: Loc.pos): Ast.ft =
+let parse_ft(l: Lexer.t)(start: Loc.pos): Ast.decl_ty =
 	let name = ParseTy.parse_ty_name_or_generic l in
 	let signature, next = parse_signature l in
 	begin match next with
@@ -66,17 +88,20 @@ let parse_ft(l: Lexer.t)(start: Loc.pos): Ast.ft =
 	| _ ->
 		assert false
 	end;
-	Lexer.loc_from l start, name, signature
+	let loc = Lexer.loc_from l start in
+	match name with
+	| Ast.FnPlain name -> Ast.Ft(loc, name, signature)
+	| Ast.FnGeneric _ -> U.todo()
 
 let f(l: Lexer.t)(start: Loc.pos)(next: Token.t): Ast.decl =
 	match next with
 	| Token.Fn ->
 		Ast.DeclVal(Ast.Fn(parse_fn l start))
 	| Token.Rt ->
-		Ast.DeclTy(Ast.Rt(parse_rt l start))
+		Ast.DeclTy(parse_rt l start)
 	| Token.Un ->
 		Ast.DeclTy(Ast.Un(parse_un l start))
 	| Token.Ft ->
-		Ast.DeclTy(Ast.Ft(parse_ft l start))
+		Ast.DeclTy(parse_ft l start)
 	| x ->
 		ParseU.unexpected start l x

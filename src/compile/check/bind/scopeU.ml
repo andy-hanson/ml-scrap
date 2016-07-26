@@ -1,3 +1,4 @@
+open N.Compiler
 open Scope
 
 let get_v({vals; _}: t)(loc: Loc.t)(name: Sym.t): Binding.v =
@@ -31,6 +32,10 @@ let add_ty({vals; tys}: t)(loc: Loc.t)(name: Sym.t)(binding: Binding.ty): t =
 let add_local(scope: t)((loc, name) as local: Ast.local_declare): t =
 	add_v scope loc name @@ Binding.Local local
 
+let add_ty_params(scope: t)(ty_params: Ast.ty_param array): t =
+	ArrayU.fold scope ty_params @@ fun scope ((loc, name) as parameter) ->
+		add_ty scope loc name @@ Binding.TParameter parameter
+
 let add_params(scope: t)(params: Ast.parameter array): t =
 	ArrayU.fold scope params @@ fun scope ((loc, name, _) as parameter) ->
 		add_v scope loc name @@ Binding.Parameter parameter
@@ -41,18 +46,18 @@ let builtins =
 		tys = Sym.Map.make BuiltinTy.all (fun b -> TyU.name b, Binding.ExternalTy b)
 	}
 
-let add_modul_imports(scope: t)(modul: N.modul)(imported_declares: Ast.local_declare array): t =
+let add_modul_imports(scope: t)(modul: modul)(imported_declares: Ast.local_declare array): t =
 	(*TODO: add_many helper*)
 	ArrayU.fold scope imported_declares @@ fun scope (loc, name) ->
 		match ModulU.get_export loc modul name with
-		| N.Ty ty -> add_ty scope loc name @@ Binding.ExternalTy ty
-		| N.V v -> add_v scope loc name @@ Binding.External v
+		| Ty ty -> add_ty scope loc name @@ Binding.ExternalTy ty
+		| V v -> add_v scope loc name @@ Binding.External v
 
-let get_base(get_modul: Path.rel -> N.modul)(imports: Ast.imports array)(decls: Ast.decl array): t =
+let get_base(get_modul: Path.rel -> modul)(imports: Ast.imports array)(decls: Ast.decl array): t =
 	let base_with_imports = ArrayU.fold builtins imports @@ fun scope import ->
 		let (_, import_path, imported_declares) = import in
 		match import_path with
-		| Ast.Global _ -> raise U.TODO
+		| Ast.Global _ -> U.todo()
 		| Ast.Relative rel_path ->
 			let modul = get_modul rel_path in
 			add_modul_imports scope modul imported_declares in

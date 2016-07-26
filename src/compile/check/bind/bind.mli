@@ -1,7 +1,7 @@
 open Ast
 
 type t
-val bind: (Path.rel -> N.modul) -> modul -> t
+val bind: (Path.rel -> N.Compiler.modul) -> modul -> t
 (*TODO: it's easy to forget which of these to call...*)
 val binding: t -> access -> Binding.v
 val ty_binding: t -> access -> Binding.ty

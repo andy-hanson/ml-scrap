@@ -1,6 +1,6 @@
-(*TODO:MLI*)
-
-open N
+open N.V
+open N.Compiler
+open N.Run
 
 let create(io: FileIo.t): runtime = {
 	current_thread = None;
@@ -9,10 +9,10 @@ let create(io: FileIo.t): runtime = {
 	compiler = Compiler.create io
 }
 
-let compile({compiler; _}: runtime): Path.t -> N.modul =
+let compile({compiler; _}: runtime): Path.t -> modul =
 	Compiler.compile compiler
 
-let add_thread({thread_queue; _}: runtime)(fn: N.declared_fn)(args: v array): unit =
+let add_thread({thread_queue; _}: runtime)(fn: declared_fn)(args: v array): unit =
 	let state = State.create fn args in
 	let thread = { state; waiting_on = NotWaiting; waited_on_by = MutArray.create() } in
 	Queue.add thread thread_queue
@@ -78,7 +78,7 @@ let step(runtime: runtime): runtime_state =
 		end;
 		get_new_thread runtime v
 	| AwaitingIo _ ->
-		raise U.TODO;
+		U.todo();
 		(* TODO: Ocaml native threads don't support 'done' callbacks, so
 		when the thread is created, it will need to finish with requeueing this thread...*)
 		(*Lwt.on_success lwt (requeue_thread runtime current_thread);*)

@@ -1,2 +1,2 @@
-val world: N.v
-val tys: N.ty array
+val world: N.V.v
+val tys: N.Ty.ty array

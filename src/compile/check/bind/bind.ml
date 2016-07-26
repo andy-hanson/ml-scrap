@@ -1,11 +1,11 @@
 open Ast
 
 type t = {
-	vals: Binding.v AstU.AccessLookup.t;
-	tys: Binding.ty AstU.AccessLookup.t;
+	vals: Binding.v AstLookup.Access.t;
+	tys: Binding.ty AstLookup.Access.t;
 }
-let binding({vals; _}: t) = AstU.AccessLookup.get vals
-let ty_binding({tys; _}: t) = AstU.AccessLookup.get tys
+let binding({vals; _}: t) = AstLookup.Access.get vals
+let ty_binding({tys; _}: t) = AstLookup.Access.get tys
 
 type ctx = {
 	scope: Scope.t;
@@ -13,8 +13,7 @@ type ctx = {
 	add_ty: access -> Binding.ty -> unit;
 }
 
-(*TODO: should be called bind_ty*)
-let add_ty({scope; add_ty; _}: ctx)(ty: ty): unit = (*TODO:NAME*)
+let bind_ty({scope; add_ty; _}: ctx)(ty: ty): unit = (*TODO:NAME*)
 	U.loop ty @@ fun loop -> function
 		| TyAccess((loc, name) as access) ->
 			add_ty access @@ ScopeU.get_ty scope loc name
@@ -31,17 +30,17 @@ let rec add_pattern_to_scope(scope: Scope.t)(pattern: Ast.pattern): Scope.t =
 
 let rec bind_cases({scope; _} as ctx: ctx)(cases: cs_part array): unit =
 	ArrayU.iter cases @@ fun (_, (_, ty, pattern), result) ->
-		add_ty ctx ty;
+		bind_ty ctx ty;
 		bind_expr {ctx with scope = add_pattern_to_scope scope pattern} result
 
 and bind_expr({scope; add_v; _} as ctx: ctx)(expr: expr): unit =
 	let recur = bind_expr ctx in
 	match expr with
 	| At(_, _, ty, expr) ->
-	 	add_ty ctx ty;
+	 	bind_ty ctx ty;
 		recur expr
 	| ExprType ty ->
-		add_ty ctx ty
+		bind_ty ctx ty
 	| ExprAccess((loc, name) as access) ->
 		add_v access @@ ScopeU.get_v scope loc name
 	| Call(_, called, arguments) ->
@@ -70,39 +69,49 @@ and bind_expr({scope; add_v; _} as ctx: ctx)(expr: expr): unit =
 		recur expr
 	| GenInst(_, expr, tys) ->
 		recur expr;
-		ArrayU.iter tys @@ add_ty ctx
+		ArrayU.iter tys @@ bind_ty ctx
 
-let bind(get_modul: Path.rel -> N.modul)((imports, decls): modul): t =
-	let vals = AstU.AccessLookup.create() in
-	let tys = AstU.AccessLookup.create() in
+let bind_signature(ctx: ctx)((_, return_ty, parameters): signature): unit =
+	bind_ty ctx return_ty;
+	ArrayU.iter parameters @@ fun (_, _, ty) -> bind_ty ctx ty
+
+let bind_properties(ctx: ctx)(properties: Ast.property array): unit =
+	ArrayU.iter properties @@ fun (_, _, ty) -> bind_ty ctx ty
+
+let bind(get_modul: Path.rel -> N.Compiler.modul)((imports, decls): modul): t =
+	let vals = AstLookup.Access.create() in
+	let tys = AstLookup.Access.create() in
 
 	U.returning {vals; tys} @@ fun _ ->
 		let base_scope = ScopeU.get_base get_modul imports decls in
-		let ctx = {scope = base_scope; add_v = AstU.AccessLookup.set vals; add_ty = AstU.AccessLookup.set tys} in
-
-		let bind_signature((_, return_ty, parameters): signature): unit =
-			add_ty ctx return_ty;
-			ArrayU.iter parameters @@ fun (_, _, ty) -> add_ty ctx ty in
+		let ctx = {scope = base_scope; add_v = AstLookup.Access.set vals; add_ty = AstLookup.Access.set tys} in
 
 		ArrayU.iter decls @@ function
 			| DeclVal v ->
 				begin match v with
-				| Fn((_, _, ((_, _, params) as signature), body)) ->
-					bind_signature signature;
+				| Fn(_, head, ((_, _, params) as signature), body) ->
+					let ctx_with_ty_params =
+						match head with
+						| Ast.FnPlain _ -> ctx
+						| Ast.FnGeneric(_, params) -> {ctx with scope = ScopeU.add_ty_params ctx.scope params} in
+					bind_signature ctx_with_ty_params signature;
 					let scope = ScopeU.add_params base_scope params in
 					bind_expr {ctx with scope} body
 				end
 			| DeclTy t ->
 				begin match t with
-				| Rt((_, _, properties)) ->
-					ArrayU.iter properties @@ fun (_, _, ty) -> add_ty ctx ty
-				| Un((_, _, tys)) ->
-					ArrayU.iter tys @@ add_ty ctx
-				| Ft((_, _, signature)) ->
-					bind_signature signature
+				| Rt(_, _, properties) ->
+					bind_properties ctx properties
+				| GenRt(_, _, ty_parameters, properties) ->
+					let scope = ScopeU.add_ty_params base_scope ty_parameters in
+					bind_properties {ctx with scope} properties
+				| Un(_, _, tys) ->
+					ArrayU.iter tys @@ bind_ty ctx
+				| Ft(_, _, signature) ->
+					bind_signature ctx signature
 				end
 
 let output(out: 'o OutputU.t)({vals; tys}: t): unit =
 	OutputU.out out "Bind(%a, %a)"
-		(AstU.AccessLookup.output AstU.output_access BindingU.output_v) vals
-		(AstU.AccessLookup.output AstU.output_access BindingU.output_ty) tys
+		(AstLookup.Access.output AstOut.output_access BindingU.output_v) vals
+		(AstLookup.Access.output AstOut.output_access BindingU.output_ty) tys

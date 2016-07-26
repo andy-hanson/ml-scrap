@@ -1,4 +1,4 @@
-open N
+open N.Compiler
 
 val create: FileIo.t -> compiler
 

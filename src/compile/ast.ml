@@ -1,11 +1,11 @@
 type access = Loc.t * Sym.t
 type local_declare = Loc.t * Sym.t
+type ty_param = Loc.t * Sym.t
 
 type ty =
 	| TyAccess of access
-	(* Generic type instantiation *)
-	| TyInst of Loc.t * ty * ty array
-	(*| GenericTypeInstance*)
+	| TyInst of ty_inst
+and ty_inst = Loc.t * ty * ty array
 
 type pattern =
 	| PSingle of local_declare
@@ -45,18 +45,21 @@ type property = Loc.t * Sym.t * ty
 type parameter = Loc.t * Sym.t * ty
 type signature = Loc.t * ty * parameter array
 
-type ty_name =
-	| Plain of Sym.t
-	| Generic of Sym.t * local_declare array
-type fn = Loc.t * Sym.t(*TODO:ty_name*) * signature * expr
-type rt = Loc.t * Sym.t(*TODO:ty_name*) * property array
+type fn_head =
+	| FnPlain of Sym.t
+	| FnGeneric of Sym.t * ty_param array
+type fn = Loc.t * fn_head * signature * expr
+type rt = Loc.t * Sym.t * property array
+type gen_rt = Loc.t * Sym.t * ty_param array * property array
 type un = Loc.t * Sym.t * ty array
-type ft = Loc.t * ty_name * signature
+type ft = Loc.t * Sym.t * signature
+type gen_ft = Loc.t * Sym.t * ty_param array * property array
 
 type decl_val =
 	| Fn of fn
 type decl_ty =
 	| Rt of rt
+	| GenRt of gen_rt
 	| Un of un
 	| Ft of ft
 type decl =

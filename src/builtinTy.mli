@@ -1,2 +1,4 @@
-val all: N.ty array
-val action: N.ty
+open N.Ty
+
+val all: ty array
+val action: ty

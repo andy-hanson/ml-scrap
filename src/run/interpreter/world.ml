@@ -1,4 +1,6 @@
-open N
+open N.V
+open N.Ty
+open N.TyP
 open BuiltinTyU
 
 (*TODO: ensure that types match up with values, e.g. print type to print value*)
@@ -12,7 +14,7 @@ let ty = rc_n "World" [|
 let rt_world = match ty with | Rt rt -> rt | _ -> assert false
 let ft_print = match print with | Ft ft -> ft | _ -> assert false
 
-let builtin(ft: ft)(exec: interpreter_state -> unit): v =
+let builtin(ft: ft)(exec: N.Run.interpreter_state -> unit): v =
 	Fn(BuiltinFn {
 		builtin_fn_ty = ft;
 		exec
@@ -21,8 +23,8 @@ let builtin(ft: ft)(exec: interpreter_state -> unit): v =
 let world = Rc(rt_world, [|
 	builtin ft_print @@ fun state ->
 		let v = State.pop state in
-		OutputU.printf "%a\n" ValU.output v;
-		State.push state v_void
+		OutputU.printf "%a\n" ValOut.output v;
+		State.push state ValU.v_void
 |])
 
 let tys = [| ty; print |]

@@ -1,8 +1,10 @@
-open N
+open N.V
+open N.Ty
+open N.TyP
 
-module ExprTys = AstU.ExprLookup
+module ExprTys = AstLookup.Expr
 type expr_tys = ty ExprTys.t
-module LocalTys = AstU.LocalDeclareLookup
+module LocalTys = AstLookup.LocalDeclare
 type local_tys = ty LocalTys.t
 
 type t = {expr_tys: expr_tys; local_tys: local_tys}
@@ -24,14 +26,8 @@ let set_expr_ty({res = {expr_tys; _}; _}: ctx): Ast.expr -> ty -> unit =
 
 let binding({bindings; _}: ctx): Ast.access -> Binding.v =
 	Bind.binding bindings
-let ty_binding({bindings; _}: ctx): Ast.access -> Binding.ty =
-	Bind.ty_binding bindings
-let rt_of_ast({type_of_ast; _}: ctx): Ast.rt -> rt =
-	TypeOfAst.rt_of_ast type_of_ast
 let declared_ty({bindings; type_of_ast; _}: ctx): Ast.ty -> ty =
 	TypeOfAst.declared_ty bindings type_of_ast
-let ft_of_fn({type_of_ast; _}: ctx): Ast.fn -> ft =
-	TypeOfAst.ft_of_fn type_of_ast
 let parameter_ty({type_of_ast; _}: ctx): Ast.parameter -> ty =
 	TypeOfAst.parameter_ty type_of_ast
 
@@ -60,36 +56,27 @@ let assert_foo(loc: Loc.t)(expected: expected)(actual: ty): ty =
 	| Infer ->
 		actual
 
+(*TODO: move to TyU?*)
+let ft_of_rt_ctr({rt_origin = _; properties} as rt: rt): ft =
+	{
+		ft_origin = FtFromRt rt;
+		return = Rt rt;
+		parameters = properties
+	}
+
 (*
 Returns the 'type' of the type when used as a value.
 For example, an rt may be used as a function.
 *)
 let check_ty_as_expr(ctx: ctx)(expected: expected)(ty_ast: Ast.ty): ty =
-	let loc, access = match ty_ast with
-		| Ast.TyAccess((loc, _) as access) -> loc, access
-		| _ -> raise U.TODO in
-	let t =
-		begin match ty_binding ctx access with
-		| Binding.TDeclared d ->
-			begin match d with
-			| Ast.Rt rt_ast ->
-				(*TODO: Factor out to fn_of_rc helper somewhere in TyU*)
-				let {rname; properties} as rt = rt_of_ast ctx rt_ast in
-				TyU.t_ft rname (Rt rt) properties
-			| Ast.Un _ | Ast.Ft _ ->
-				raise U.TODO (*TODO: these types are not useable as values; have an error message saying this*)
-			end
-		| Binding.ExternalTy t ->
-			(*TODO: type-as-value helper*)
-			begin match t with
-			| Rt({rname; properties} as rt) ->
-				(*TODO: duplicate code of above*)
-				TyU.t_ft rname (Rt rt) properties
-			| _ ->
-				ErrU.raise loc @@ Err.NotAValue access
-			end
-		end in
-	assert_foo loc expected t
+	let ty = declared_ty ctx ty_ast in
+	let ty_as_expr =
+		match ty with
+		| Rt rt ->
+			Ft(ft_of_rt_ctr rt)
+		| _ ->
+			U.todo() (*TODO: error message*) in
+	assert_foo (AstU.ty_loc ty_ast) expected ty_as_expr
 
 (*TODO: MOVE TO UTIL*)
 let check_pattern(ctx: ctx)(ty: ty)(pattern: Ast.pattern): unit =
@@ -99,11 +86,11 @@ let check_pattern(ctx: ctx)(ty: ty)(pattern: Ast.pattern): unit =
 		| Ast.PDestruct(_, patterns) ->
 			begin match ty with
 			| Rt {properties; _} ->
-				if (Array.length properties != Array.length patterns) then raise U.TODO;(*TODO: appropriate error*)
+				if (Array.length properties != Array.length patterns) then U.todo();(*TODO: appropriate error*)
 				ArrayU.iter_zip properties patterns @@ fun (_, property_ty) pattern ->
 					loop property_ty pattern
 			| _ ->
-				raise U.TODO (*TODO: Error: can only destructure rt*)
+				U.todo() (*TODO: Error: can only destructure rt*)
 			end
 
 (*TODO:MOVE TO UTIL*)
@@ -151,8 +138,9 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 					ValU.ty_of value
 				| Binding.VDeclared d ->
 					begin match d with
-					| Ast.Fn fn ->
-						Ft(ft_of_fn ctx fn)
+					| Ast.Fn fn_ast ->
+						let fn = TypeOfAst.fn_of_ast ctx.type_of_ast fn_ast in
+						TyU.ty_of_ft_or_gen fn.fn_ty
 					end
 				| Binding.Local declare ->
 					get_local_ty ctx declare
@@ -165,7 +153,7 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 			let called_ty = check_and_infer ctx called in
 			let t =
 				begin match called_ty with
-				| Ft {fname = _; return; parameters} ->
+				| Ft {ft_origin = _; return; parameters} ->
 					let n_params = Array.length parameters in
 					let n_args = Array.length args in
 					ErrU.check (n_params = n_args) loc @@ Err.NumArgs(n_params, n_args);
@@ -192,11 +180,11 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 
 		| Ast.Literal(loc, v) ->
 			let prim = begin match v with
-				| Ast.Int _ -> TInt
-				| Ast.Float _ -> TFloat
-				| Ast.String _ -> TString
+				| Ast.Int _ -> t_int
+				| Ast.Float _ -> t_float
+				| Ast.String _ -> t_string
 				end in
-			assert_foo loc expected @@ TPrimitive(prim)
+			assert_foo loc expected prim
 
 		| Ast.Seq(_, a, b) ->
 			assert_exact ctx t_void a;
@@ -206,16 +194,12 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 			let fn_ty = check_and_infer ctx fn in
 			let t =
 				begin match fn_ty with
-				| Ft {fname; return; parameters} ->
+				| Ft({parameters; _} as ft) ->
 					assert (Array.length parameters >= Array.length args); (*TODO: proper error message*)
-					let remaining_parameters = ArrayU.partial parameters args (assert_parameter ctx) in
-					(*
-					TODO: it should have a different name, or some indication that it's partial now...
-					(TODO: don't just manipulate strings! replace `fname` with structured data tracing the type's origin.
-					*)
-					Ft {fname; return; parameters = remaining_parameters}
+					ArrayU.partial_iter parameters args (assert_parameter ctx);
+					Ft(TyU.partial ft @@ Array.length args)
 				| _ ->
-					raise U.TODO (*TODO: error message*)
+					U.todo() (*TODO: error message*)
 				end in
 			assert_foo loc expected t
 
@@ -228,8 +212,10 @@ and check_worker(ctx: ctx)(expected: expected)(expr: Ast.expr): ty =
 			assert_exact ctx t_bool checked;
 			assert_foo loc expected t_void
 
-		| Ast.GenInst(_loc, _expr, _tys) ->
-			raise U.TODO in
+		| Ast.GenInst(loc, expr, ty_asts) ->
+			let ty = check_and_infer  ctx expr in
+			(*TODO: this means TypeOfAst does typechecking work... could I be neater about this?*)
+			TypeOfAst.instantiate_generic ctx.bindings ctx.type_of_ast loc ty ty_asts in
 
 	set_expr_ty ctx expr expr_ty;
 	expr_ty
@@ -255,22 +241,24 @@ and check_cs(ctx: ctx)(expected: expected)(loc: Loc.t)(cased: Ast.expr)(parts: A
 	| Exact ty ->
 		ty
 	| Convert _ ->
-		raise U.TODO (*TODO: where do we perform conversion?*)
+		U.todo() (*TODO: where do we perform conversion?*)
 		(*TODO: we should demand Exact type from things within the Case.*)
 	| Infer ->
 		TypeCheckU.join loc part_tys
 
 let f(bindings: Bind.t)(type_of_ast: TypeOfAst.t)((_, decls): Ast.modul): t =
-	let expr_tys: expr_tys = ExprTys.create() in
-	let local_tys: local_tys = LocalTys.create() in
-	U.returning {expr_tys; local_tys} @@ fun res ->
+	U.returning {expr_tys = ExprTys.create(); local_tys = LocalTys.create()} @@ fun res ->
 		let ctx = {res; bindings; type_of_ast} in
 		ArrayU.iter decls @@ function
 			| Ast.DeclVal v ->
 				begin match v with
-				| Ast.Fn((_, _, _, body) as fn) ->
-					let return = (TypeOfAst.ft_of_fn type_of_ast fn).return in
-					assert_exact ctx return body
+				| Ast.Fn((_, _, _, body) as fn_ast) ->
+					let fn = TypeOfAst.fn_of_ast type_of_ast fn_ast in
+					match fn.fn_ty with
+					| FoG_Ft ft ->
+						assert_exact ctx ft.return body
+					| FoG_Gen g ->
+						assert_exact ctx g.gen_ft_return body
 				end
 			| Ast.DeclTy _ ->
 				()

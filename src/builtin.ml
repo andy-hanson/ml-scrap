@@ -1,9 +1,13 @@
-open N
+open N.V
+open N.Ty
+open N.TyP
+open N.Run
+open ValU
 
 (*TODO:RENAME*)
 let fffnnn(name: string)(return: ty)(parameters: (string * ty) array)(exec: interpreter_state -> unit): builtin_fn =
 	{
-		builtin_fn_ty = (TyU.ft (Sym.of_string name) return @@ ArrayU.map parameters @@ fun (name, ty) -> Sym.of_string name, ty);
+		builtin_fn_ty = (BuiltinTyU.ft (Sym.of_string name) return @@ ArrayU.map parameters @@ fun (name, ty) -> Sym.of_string name, ty);
 		exec
 	}
 
@@ -14,11 +18,11 @@ let do_value = fffnnn "do"
 
 let cond_value = fffnnn "cond"
 	t_int [| "condition", t_bool; "if-true", t_int; "if-false", t_int |]
-	@@ fun _ -> raise U.TODO
+	@@ fun _ -> U.todo()
 
 
 let pop_int(pop: unit -> v): int =
-	ValU.int_of @@ pop()
+	int_of @@ pop()
 
 
 let all = Sym.Map.build @@ fun (build_sym: Sym.t -> v -> unit) ->
@@ -26,7 +30,7 @@ let all = Sym.Map.build @@ fun (build_sym: Sym.t -> v -> unit) ->
 
 	(*TODO:RENAME*)
 	let fnz(fn: builtin_fn): unit =
-		build_sym (ValU.builtin_fn_name fn) (Fn(BuiltinFn fn)) in
+		build_sym (builtin_fn_name fn) (Fn(BuiltinFn fn)) in
 	(*TODO:RENAME*)
 	let ffnn(name: string)(return: ty)(parameters: (string * ty) array)(exec: interpreter_state -> unit): unit =
 		fnz @@ fffnnn name return parameters exec in
@@ -43,16 +47,16 @@ let all = Sym.Map.build @@ fun (build_sym: Sym.t -> v -> unit) ->
 
 	fn "not"
 		t_bool [| "b", t_bool |]
-		(fun pop -> v_bool(not @@ ValU.bool_of @@ pop()));
+		(fun pop -> v_bool(not @@ bool_of @@ pop()));
 
 	fn "=="
 		t_bool [| "a", t_int; "b", t_int |]
-		(fun pop -> v_bool(ValU.equal (pop()) (pop())));
+		(fun pop -> v_bool @@ equal (pop()) @@ pop());
 
 	let cmp(name: string)(compare: int -> int -> bool) =
 		fn name
 			t_bool [| "left", t_int; "right", t_int |]
-			@@ fun pop -> v_bool(compare (pop_int pop) (pop_int pop)) in
+			@@ (fun pop -> v_bool @@ compare (pop_int pop) @@ pop_int pop) in
 
 	cmp "<" (<);
 	cmp "<=" (<=);

@@ -1,5 +1,6 @@
+open N.Compiler
+
 open Err
-open N
 
 let output_message(out: 'o OutputU.t)(m: message): unit =
 	let o fmt = OutputU.out out fmt in
@@ -62,41 +63,43 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 
 	| CanOnlyCsUnion ty ->
 		o "Expected a union type, got a %a"
-			TyU.output ty
+			TyOut.output ty
 	| CsPartType(possible_tys, handled_ty) ->
 		o "`cs` should handle one of %a, but handles %a instead"
-			(ArrayU.output TyU.output) possible_tys
-			TyU.output handled_ty
+			(ArrayU.output TyOut.output) possible_tys
+			TyOut.output handled_ty
 	| CantConvertRtMissingProperty(convert_to, convert_from, prop_name) ->
 		o "Can't convert to %a from %a: missing property %a"
-			TyU.output_rt convert_to
-			TyU.output_rt convert_from
+			TyOut.output_rt convert_to
+			TyOut.output_rt convert_from
 			Sym.output prop_name
 	| CasesUnhandled unhandled_tys ->
 		o "The following cases are not handled: %a"
-			(ArrayU.output TyU.output) unhandled_tys
+			(ArrayU.output TyOut.output) unhandled_tys
 	| CombineTypes(a, b) ->
 		o "Can't combine types %a and %a because they are not exactly equal and we don't infer unions yet"
-			TyU.output a
-			TyU.output b
+			TyOut.output a
+			TyOut.output b
+	| GenInstParameters(expected, actual) ->
+		o "Expected %i generic parameters, got %i" expected actual
 	| NotAFunction ty ->
 		o "Expected a function, got a %a"
-			TyU.output ty
+			TyOut.output ty
 	| NotAValue(_, name) ->
 		(*TODO: what's the first arg for then?*)
 		o "Not a value: %a"
 			Sym.output name
 	| NotARc(ty) ->
 		o "Expected a record, got: %a."
-			TyU.output ty
+			TyOut.output ty
 	| NoSuchProperty(rt, name) ->
 		o "Type %a has no property %a"
-			TyU.output_rt rt
+			TyOut.output_rt rt
 			Sym.output name
 	| NotExpectedType(expected, actual) ->
-		o "Expected %a, got %a"
-			TyU.output expected
-			TyU.output actual
+		o "Expected a value of type %a, got a %a"
+			TyOut.output expected
+			TyOut.output actual
 	| NumArgs(n_params, n_args) ->
 		o "Function needs %d parameters, but is given %d"
 			n_params

@@ -1,3 +1,5 @@
+open N.Ty
+
 type message =
 	(* module loader *)
 	| CircularDependency of Path.t
@@ -23,21 +25,22 @@ type message =
 	(* bind *)
 	| CantBind of Sym.t
 	| CantUseTypeAsValue
-	| ModuleHasNoMember of N.modul * Sym.t
+	| ModuleHasNoMember of N.Compiler.modul * Sym.t
 	| NameAlreadyBound of Sym.t * Binding.v
 	| TypeNameAlreadyBound of Sym.t * Binding.ty
 
 	(* typeCheck *)
-	| CanOnlyCsUnion of N.ty
-	| CantConvertRtMissingProperty of N.rt * N.rt * Sym.t
-	| CsPartType of N.ty array * N.ty
-	| CasesUnhandled of N.ty array
-	| CombineTypes of N.ty * N.ty
-	| NotAFunction of N.ty
+	| CanOnlyCsUnion of ty
+	| CantConvertRtMissingProperty of rt * rt * Sym.t
+	| CsPartType of ty array * ty
+	| CasesUnhandled of ty array
+	| CombineTypes of ty * ty
+	| GenInstParameters of int * int
+	| NotAFunction of ty
 	| NotAValue of Ast.access
-	| NotARc of N.ty
-	| NoSuchProperty of N.rt * Sym.t
-	| NotExpectedType of N.ty * N.ty (* expected * actual *)
+	| NotARc of ty
+	| NoSuchProperty of rt * Sym.t
+	| NotExpectedType of ty * ty (* expected * actual *)
 	| NumArgs of int * int (* n_params * n_args *)
 
 type t = Loc.t * message

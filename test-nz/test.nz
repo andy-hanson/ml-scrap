@@ -1,8 +1,19 @@
 import
 	.x incr
 
+fn [id A] A a A
+	a
+
+rt Pair A
+	fst A
+	snd A
+
 fn main Int world World
-	incr: incr: incr 1
+	s = [id [Pair Int]]: [Pair Int] 1 2
+	[id Int] 1
+
+|| fn main Int world World
+||	incr 1
 
 || rt List A
 ||	head A

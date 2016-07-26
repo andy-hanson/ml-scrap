@@ -1,4 +1,5 @@
-open N
+open N.V
+open N.Ty
 
 let check(ty: ty)(v: v): unit =
 	TypeCheckU.assert_exact (Loc.single_character 0) ty @@ ValU.ty_of v
