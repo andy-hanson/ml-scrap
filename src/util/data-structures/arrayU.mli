@@ -46,8 +46,9 @@ val try_remove: 'a array -> 'a -> 'a array option
 val try_remove_where: 'a array -> ('a -> bool) -> ('a * 'a array) option
 
 val partial_iter: 'a array -> 'b array -> ('a -> 'b -> unit) -> unit
-val rtail_n: 'a array -> int -> 'a array
 
+val tail: 'a array -> 'a array
+val rtail_n: 'a array -> int -> 'a array
 val rtail: 'a array -> 'a array
 val last: 'a array -> 'a
 

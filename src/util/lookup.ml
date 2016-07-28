@@ -4,6 +4,13 @@ module type S = sig
 	type key
 	type 'v t
 
+	val set: 'v t -> key -> 'v -> unit
+	val get: 'v t -> key -> 'v
+	val get_or_update: 'v t -> key -> (unit -> 'v) -> 'v
+	val try_get: 'v t -> key -> 'v option
+	val has_key: 'v t -> key -> bool
+	val size: 'v t -> int
+
 	val create: unit -> 'v t
 	val create_with_size: int -> 'v t
 	val build: ((key -> 'v -> unit) -> unit) -> 'v t
@@ -11,14 +18,7 @@ module type S = sig
 	val build_from_keys_with_index: key array -> (int -> key -> 'v) -> 'v t
 	val build_from_values: 'v array -> ('v -> key) -> 'v t
 	val build_from_keys_and_values: key array -> 'v array -> 'v t
-
-	val size: 'v t -> int
-
-	val set: 'v t -> key -> 'v -> unit
-	val get: 'v t -> key -> 'v
-	val get_or_update: 'v t -> key -> (unit -> 'v) -> 'v
-	val try_get: 'v t -> key -> 'v option
-	val has_key: 'v t -> key -> bool
+	val create_partial_function_from_values: 'v array -> ('v -> key) -> (key -> 'v option)
 
 	val iter: 'v t -> (key -> 'v -> unit) -> unit
 	val iter_keys: 'v t -> (key -> unit) -> unit
@@ -35,31 +35,6 @@ module Make(K: Key): S with type key = K.t = struct
 	type key = K.t
 	type 'v t = 'v H.t
 
-	let create(): 'v t =
-		H.create 0
-	let create_with_size = H.create
-
-	let build(builder: (key -> 'v -> unit) -> unit): 'v t =
-		U.returning (create()) @@ fun m -> builder @@ H.add m
-
-	let build_from_keys_with_index(keys: key array)(get_value: int -> key -> 'v): 'v t =
-		U.returning (create_with_size @@ Array.length keys) @@ fun m ->
-			ArrayU.iteri keys @@ fun i key ->
-				H.add m key @@ get_value i key
-
-	let build_from_keys keys get_value =
-		build_from_keys_with_index keys @@ fun _ key -> get_value key
-
-	let build_from_values(values: 'v array)(get_key: 'v -> key): 'v t =
-		U.returning (create_with_size @@ Array.length values) @@ fun m ->
-			ArrayU.iter values @@ fun v ->
-				H.add m (get_key v) v
-
-	let build_from_keys_and_values(keys: key array)(values: 'v array): 'v t =
-		build_from_keys_with_index keys @@ fun i _ -> values.(i)
-
-	let size = H.length
-
 	let set = H.add
 	let get = H.find
 	let get_or_update(t: 'v t)(key: key)(get_value: unit -> 'v): 'v =
@@ -74,6 +49,34 @@ module Make(K: Key): S with type key = K.t = struct
 			Not_found -> None
 	let has_key m key =
 		H.mem m key
+
+	let create(): 'v t =
+		H.create 0
+	let create_with_size = H.create
+
+	let build(builder: (key -> 'v -> unit) -> unit): 'v t =
+		U.returning (create()) @@ fun m -> builder @@ H.add m
+
+	let build_from_keys_with_index(keys: key array)(get_value: int -> key -> 'v): 'v t =
+		U.returning (create_with_size @@ Array.length keys) @@ fun m ->
+			ArrayU.iteri keys @@ fun i key ->
+				H.add m key @@ get_value i key
+
+	let build_from_keys(keys: key array)(get_value: key -> 'v): 'v t =
+		build_from_keys_with_index keys @@ fun _ key -> get_value key
+
+	let build_from_values(values: 'v array)(get_key: 'v -> key): 'v t =
+		U.returning (create_with_size @@ Array.length values) @@ fun m ->
+			ArrayU.iter values @@ fun v ->
+				H.add m (get_key v) v
+
+	let build_from_keys_and_values(keys: key array)(values: 'v array): 'v t =
+		build_from_keys_with_index keys @@ fun i _ -> values.(i)
+
+	let create_partial_function_from_values(values: 'v array)(get_key: 'v -> key): (key -> 'v option) =
+		try_get @@ build_from_values values get_key
+
+	let size = H.length
 
 	let iter(tbl: 'v t)(f: key -> 'v -> unit): unit =
 		H.iter f tbl

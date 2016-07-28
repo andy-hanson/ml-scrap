@@ -27,7 +27,7 @@ let resolve(path: t)((parents, rel_path) as rel: rel): t =
 		failwith @@ OutputU.out_to_string "Can't resolve: %a, %a"
 			output path
 			output_rel rel;
-	let remaining = Array.sub path 0 (Array.length path - parents) in
+	let remaining = Array.sub path 0 @@ Array.length path - parents in
 	Array.append remaining rel_path
 
 let add(path: t)(next: Sym.t): t =

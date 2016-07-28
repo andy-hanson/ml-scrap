@@ -15,9 +15,9 @@ let keyword_to_string(keyword: t): string =
 	| Sn -> "sn"
 	| _ -> assert false
 
-let keyword =
-	let name_to_keyword = Sym.Lookup.build_from_values Token.all_keywords (U.compose keyword_to_string Sym.of_string) in
-	Sym.Lookup.try_get name_to_keyword
+let keyword: Sym.t -> t option =
+	Sym.Lookup.create_partial_function_from_values Token.all_keywords @@ fun kw ->
+		Sym.of_string @@ keyword_to_string kw
 
 let output(out: 'o OutputU.t)(token: t) =
 	let o fmt = OutputU.out out fmt in

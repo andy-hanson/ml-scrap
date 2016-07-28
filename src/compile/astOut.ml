@@ -84,7 +84,7 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 		let output_part(out: 'o OutputU.t)((expr, str): quote_part): unit =
 			OutputU.out out "%a \"%s\""
 				output_expr expr
-				(String.escaped str) in
+				@@ String.escaped str in
 		o "Quote(\"%s\", %a)"
 			(String.escaped head)
 			(ArrayU.output output_part) parts
@@ -122,7 +122,9 @@ let output_decl_ty(out: 'o OutputU.t)(decl: decl_ty): unit =
 	| Rt rt -> output_rt out rt
 	| GenRt _ -> U.todo()
 	| Un un -> output_un out un
+	| GenUn _ -> U.todo()
 	| Ft ft -> output_ft out ft
+	| GenFt _ -> U.todo()
 	end
 
 let output_decl(out: 'o OutputU.t)(decl: decl): unit =

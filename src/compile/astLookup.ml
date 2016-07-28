@@ -6,7 +6,8 @@ module type SimpleKey = sig
 end
 module L(K: SimpleKey): Lookup.S with type key = K.t = Lookup.Make(struct
 	type t = K.t
-	let equal: t -> t -> bool = (==)
+	(*TODO: this implies that we should just directly use locs as keys and forget the ast!*)
+	let equal(a: t)(b: t): bool = Loc.equal (K.loc a) (K.loc b)
 	let hash(ast: t): int = Loc.hash @@ K.loc ast
 end)
 
@@ -15,6 +16,7 @@ module Ty = L(struct
 	let loc = AstU.ty_loc
 end)
 
+(*TODO: neater way to do this?*)
 module Access = L(struct
 	type t = access
 	let loc(loc, _) = loc
@@ -39,9 +41,17 @@ module Un = L(struct
 	type t = un
 	let loc(loc, _, _) = loc
 end)
+module GenUn = L(struct
+	type t = gen_un
+	let loc(loc, _, _, _) = loc
+end)
 module Ft = L(struct
 	type t = ft
 	let loc(loc, _, _) = loc
+end)
+module GenFt = L(struct
+	type t = gen_ft
+	let loc(loc, _, _, _) = loc
 end)
 module LocalDeclare = L(struct
 	type t = local_declare

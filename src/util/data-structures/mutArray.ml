@@ -24,7 +24,7 @@ let delete_last_n(a: 'a t)(n: int): unit =
 
 let remove(a: 'a t)(removed: 'a)(eq: 'a -> 'a -> bool): unit =
 	U.loop 0 @@ fun loop i ->
-		if i == length a then
+		if i = length a then
 			failwith "Could not remove it because it did not exist"
 		else if eq removed (get a i) then
 			BatDynArray.delete a i

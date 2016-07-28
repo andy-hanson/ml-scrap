@@ -14,19 +14,22 @@ let string_of({text}: t): string =
 let output(out: 'o OutputU.t)({text}: t): unit =
 	OutputU.str out text
 
-let eq = (==)
+let eq(a: t)(b: t): bool =
+	(* Usually, a == b. *)
+	a == b || String.equal a.text b.text
 let hash(s: t) = Hashtbl.hash (string_of s)
 
 type t' = t
 
 module Map = MapU.Make(struct
 	type t = t'
-	let compare s1 s2 =
-		if s1 == s2 then 0 else compare s1.text s2.text
+	let compare(a: t)(b: t): int =
+		(* Usually, a == b. *)
+		if a == b then 0 else String.compare a.text b.text
 end)
 
 module Lookup = Lookup.Make(struct
 	type t = t'
-	let equal = (==)
+	let equal = eq
 	let hash = hash
 end)

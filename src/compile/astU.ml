@@ -34,6 +34,8 @@ let decl_loc_name(decl: decl): Loc.t * Sym.t =
 		end
 	| DeclTy t ->
 		begin match t with
-		| Rt(loc, name, _) | GenRt(loc, name, _, _) | Un((loc, name, _)) | Ft((loc, name, _)) ->
+		| Rt(loc, name, _) | GenRt(loc, name, _, _)
+		| Un(loc, name, _) | GenUn(loc, name, _, _)
+		| Ft(loc, name, _) | GenFt(loc, name, _, _) ->
 			loc, name
 		end

@@ -19,7 +19,7 @@ starting at position ofs in buff.
 Return the number of bytes actually read.*)
 
 let result: N.V.v =
-	let modul = TestU.compile (Path.of_string "test-nz/test") in
+	let modul = TestU.compile @@ Path.of_string "test-nz/test" in
 	TestU.call_fn modul "main" [| World.world |]
 let () = OutputU.printf "%a\n" ValOut.output result
 

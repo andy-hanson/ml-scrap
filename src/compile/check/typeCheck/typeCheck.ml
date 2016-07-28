@@ -57,7 +57,7 @@ let assert_foo(loc: Loc.t)(expected: expected)(actual: ty): ty =
 		actual
 
 (*TODO: move to TyU?*)
-let ft_of_rt_ctr({rt_origin = _; properties} as rt: rt): ft =
+let ft_of_rt_ctr({rt_id = _; rt_origin = _; properties} as rt: rt): ft =
 	{
 		ft_origin = FtFromRt rt;
 		return = Rt rt;
@@ -86,7 +86,7 @@ let check_pattern(ctx: ctx)(ty: ty)(pattern: Ast.pattern): unit =
 		| Ast.PDestruct(_, patterns) ->
 			begin match ty with
 			| Rt {properties; _} ->
-				if (Array.length properties != Array.length patterns) then U.todo();(*TODO: appropriate error*)
+				if not @@ ArrayU.same_length properties patterns then U.todo();(*TODO: appropriate error*)
 				ArrayU.iter_zip properties patterns @@ fun (_, property_ty) pattern ->
 					loop property_ty pattern
 			| _ ->
@@ -224,7 +224,7 @@ and check_cs(ctx: ctx)(expected: expected)(loc: Loc.t)(cased: Ast.expr)(parts: A
 	let cased_tys =
 		match check_and_infer ctx cased with
 		| Un {utys; _} -> utys
-		| t -> ErrU.raise (AstU.expr_loc cased) (Err.CanOnlyCsUnion t) in
+		| t -> ErrU.raise (AstU.expr_loc cased) @@ Err.CanOnlyCsUnion t in
 	let remaining_tys, part_tys =
 		ArrayU.fold_map cased_tys parts @@ fun remaining_tys (_, (test_loc, test_ty_ast, pattern), result) ->
 			let test_ty = declared_ty ctx test_ty_ast in

@@ -7,7 +7,7 @@ let t_ft(name: Sym.t)(return: ty)(parameters: parameter array): ty =
 	Ft(ft name return parameters)
 
 let t_rc(name: Sym.t)(properties: property array): ty =
-	Rt {rt_origin = RtBuiltin name; properties}
+	Rt {rt_id = InstantiateGeneric.next_rt_id(); rt_origin = RtBuiltin name; properties}
 
 let ft_n(name: string)(return_ty: ty)(parameters: (string * ty) array): ty =
 	t_ft (Sym.of_string name) return_ty @@ ArrayU.map parameters @@ fun (name, ty) -> Sym.of_string name, ty

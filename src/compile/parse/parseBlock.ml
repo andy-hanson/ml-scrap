@@ -113,7 +113,7 @@ let rec parse_expr_with_next(l: Lexer.t)(expr_start: Loc.pos)(next: Token.t)(ctx
 			dot_dot left
 
 		| Token.TyName _ ->
-			let ty = ParseTy.f_with_start l start next in
+			let ty = ParseTy.inline_with_start l start next in
 			let start, next = Lexer.pos_next l in
 			begin match next with
 			| Token.At | Token.AtAt ->
@@ -251,7 +251,7 @@ and parse_cs_parts(l: Lexer.t): Ast.cs_part array =
 		| Token.Dedent ->
 			None
 		| x ->
-			let ty = ParseTy.f_with_start l start x in
+			let ty = ParseTy.inline_with_start l start x in
 			let pattern =
 				match Lexer.next l with
 				| Token.AtAt ->

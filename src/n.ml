@@ -1,5 +1,7 @@
 (*TODO: cleanup*)
 
+(* Any mutable types in this file are mutable for *creation only*. *)
+
 module rec Ty: sig
 	type ty =
 		| TPrimitive of ty_primitive (* Please never call this constructor unless you are the TyP module. *)
@@ -8,6 +10,7 @@ module rec Ty: sig
 		| Ft of ft
 		| GenRt of gen_rt
 		| GenFt of gen_ft
+		| GenUn of gen_un
 		| GenVar of gen_var
 
 	(*
@@ -28,13 +31,6 @@ module rec Ty: sig
 		(* This is just a dummy type used during type creation. *)
 		| TNil
 
-	and gen_rt = {
-		gen_rt_origin: Ast.gen_rt;
-		gen_rt_params: gen_var array;
-		(* Mutable for creation only *)
-		mutable gen_rt_properties: property array;
-		mutable gen_rt_cache: rt GenCache.t
-	}
 	and rt_origin =
 		| RtBuiltin of Sym.t
 		(* This was directly declared. *)
@@ -45,26 +41,34 @@ module rec Ty: sig
 	and rt = {
 		rt_origin: rt_origin;
 		(* Mutable for creation only *)
-		mutable properties: property array
+		mutable properties: property array;
+		rt_id: int
+	}
+	and gen_rt = {
+		gen_rt_origin: Ast.gen_rt;
+		gen_rt_params: gen_var array;
+		(* Mutable for creation only *)
+		mutable gen_rt_properties: property array;
+		mutable gen_rt_cache: rt GenCache.t
 	}
 
+	and un_origin =
+		| UnBuiltin of Sym.t
+		| UnDecl of Ast.un
+		| UnGenInst of gen_un * ty array
 	and un = {
-		uname: Sym.t;
+		un_origin: un_origin;
 		(* These must be TBool, TFloat, TInt, TVoid, or Rt *)
 		(*TODO: type system should ensure this?*)
 		(*TODO: darn tootin' type system should ensure this, and make sure we forbid anything else!*)
 		mutable utys: ty array
 	}
-
-	and gen_ft_origin =
-		| GenFtDeclared of Ast.gen_ft
-		| GenFtFromFn of V.declared_fn
-	and gen_ft = {
-		gen_ft_origin: gen_ft_origin;
-		gen_ft_ty_params: gen_var array;
-		mutable gen_ft_return: ty;
-		mutable gen_ft_parameters: parameter array;
-		mutable gen_ft_cache: ft GenCache.t
+	and gen_un = {
+		gen_un_origin: Ast.gen_un;
+		gen_un_params: gen_var array;
+		(* Mutable for creation only *)
+		mutable gen_un_tys: ty array;
+		mutable gen_un_cache: un GenCache.t
 	}
 
 	and parameter = Sym.t * ty
@@ -81,6 +85,16 @@ module rec Ty: sig
 		mutable return: ty;
 		(* Mutable for creation only *)
 		mutable parameters: parameter array
+	}
+	and gen_ft_origin =
+		| GenFtDeclared of Ast.gen_ft
+		| GenFtFromFn of V.declared_fn
+	and gen_ft = {
+		gen_ft_origin: gen_ft_origin;
+		gen_ft_ty_params: gen_var array;
+		mutable gen_ft_return: ty;
+		mutable gen_ft_parameters: parameter array;
+		mutable gen_ft_cache: ft GenCache.t
 	}
 
 	type ft_or_gen =
@@ -108,34 +122,61 @@ end = struct
 	let all_primitives = [| t_bool; t_float; t_int; t_string; t_void |]
 end
 
-(*TODO: rename to GenericCache*)
-and GenCache: Lookup.S with type key = Ty.ty array = Lookup.Make(struct
+(*TODO:RENAME*)
+and TyUU: sig
+	val primitive_equal: Ty.ty_primitive -> Ty.ty_primitive -> bool
+	val rt_equal: Ty.rt -> Ty.rt -> bool
+	val gen_var_equal: Ty.gen_var -> Ty.gen_var -> bool
+	val equal: Ty.ty -> Ty.ty -> bool
+	val hash: Ty.ty -> int
+end = struct
 	open Ty
-	type t = ty array
-	let equal: t -> t -> bool = ArrayU.eq (==)
-	let rec hash_ty: ty -> int = function
+	let primitive_equal = (==)
+	let rt_equal = (==)
+	let gen_var_equal = (==)
+	let equal(a: ty)(b: ty): bool =
+		match a with
+		| TPrimitive pa -> (match b with | TPrimitive pb -> primitive_equal pa pb | _ -> false)
+		| Rt ra -> (match b with | Rt rb -> rt_equal ra rb | _ -> false)
+		| Un ua -> (match b with | Un ub -> ua == ub | _ -> false)
+		| Ft fa -> (match b with | Ft fb -> fa == fb | _ -> false)
+		| GenRt ga -> (match b with | GenRt gb -> ga == gb | _ -> false)
+		| GenUn ga -> (match b with | GenUn gb -> ga == gb | _ -> false)
+		| GenFt ga -> (match b with | GenFt gb -> ga == gb | _ -> false)
+		| GenVar ga -> (match b with | GenVar gb -> gen_var_equal ga gb | _ -> false)
+
+	let rec hash: ty -> int = function
 		| TPrimitive p ->
 			Hashtbl.hash p
 		| Rt {rt_origin; _} ->
+			(*TODO: just use id?*)
 			begin match rt_origin with
 			| RtBuiltin name ->
 				Sym.hash name
 			| RtDecl(loc, _, _) ->
 				Loc.hash loc
 			| RtGenInst(gen, inst_with) ->
-				HashU.combine (hash_gen_rt gen) @@ HashU.combine_n inst_with hash_ty
+				HashU.combine (hash_gen_rt gen) @@ HashU.combine_n inst_with hash
 			end
 		| Un _ ->
 			U.todo()
 		| Ft _ ->
 			U.todo()
-		| GenRt _ | GenFt _ | GenVar _ ->
+		| GenVar(loc, _) ->
+			Loc.hash loc
+		| GenRt _ | GenFt _ | GenUn _ ->
 			assert false
 	and hash_gen_rt({gen_rt_origin; _}: gen_rt): int =
 		let (loc, _, _, _) = gen_rt_origin in
 		Loc.hash loc
-	let hash(tys: t): int =
-		HashU.combine_n tys hash_ty
+end
+
+(*TODO: rename to GenericCache*)
+and GenCache: Lookup.S with type key = Ty.ty array = Lookup.Make(struct
+	open Ty
+	type t = ty array
+	let equal: t -> t -> bool = ArrayU.eq TyUU.equal
+	let hash(tys: t): int = HashU.combine_n tys TyUU.hash
 end)
 
 and V: sig

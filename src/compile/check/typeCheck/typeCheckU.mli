@@ -1,6 +1,5 @@
 open N.Ty
 
-val eq: ty -> ty -> bool
 (*
 Allows the second ty to be *exactly* the first, or if the first is a union, a member of it.
 *)

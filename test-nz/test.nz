@@ -1,16 +1,19 @@
 import
 	.x incr
 
-fn [id A] A a A
-	a
+rt Foo A
+	foo Has [Has A]
 
-rt Pair A
-	fst A
-	snd A
+rt Has A
+	a A
 
 fn main Int world World
-	s = [id [Pair Int]]: [Pair Int] 1 2
-	[id Int] 1
+	|| s = [id [Pair Int]]: [Pair Int] 1 2
+	|| [id Int] 1
+	x = [Has Int] 1
+	y = [Has [Has Int]] x
+	foo = [Foo Int] y
+	foo.foo.a.a
 
 || fn main Int world World
 ||	incr 1

@@ -10,6 +10,7 @@ val rear: t -> t
 val make: pos -> pos -> t
 val single_character: pos -> t
 
+val equal: t -> t -> bool
 val hash: t -> int
 
 

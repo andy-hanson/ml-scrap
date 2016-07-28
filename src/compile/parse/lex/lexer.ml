@@ -140,7 +140,7 @@ let rec next(l: t): Token.t =
 		BatBuffer.add_char b fst;
 		buffer_while b pred;
 		let name = Sym.of_buffer b in
-		OpU.or_else (TokenU.keyword name) (fun () -> make_token name) in
+		OpU.or_else (TokenU.keyword name) @@ fun () -> make_token name in
 
 	let take_operator(ch: char): Token.t =
 		take_symbol ch CharU.is_operator_char (fun s -> Token.Operator s) in

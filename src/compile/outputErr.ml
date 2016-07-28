@@ -100,6 +100,10 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 		o "Expected a value of type %a, got a %a"
 			TyOut.output expected
 			TyOut.output actual
+	| NotExpectedTypeAndNoConversion(expected, actual) ->
+		o "Expected to convert to type %a, but got a %a which can't convert"
+			TyOut.output expected
+			TyOut.output actual
 	| NumArgs(n_params, n_args) ->
 		o "Function needs %d parameters, but is given %d"
 			n_params

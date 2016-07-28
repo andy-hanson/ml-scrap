@@ -85,6 +85,8 @@ let bind(get_modul: Path.rel -> N.Compiler.modul)((imports, decls): modul): t =
 	U.returning {vals; tys} @@ fun _ ->
 		let base_scope = ScopeU.get_base get_modul imports decls in
 		let ctx = {scope = base_scope; add_v = AstLookup.Access.set vals; add_ty = AstLookup.Access.set tys} in
+		let ctx_with_ty_params(ty_params: Ast.ty_param array): ctx =
+			{ctx with scope = ScopeU.add_ty_params base_scope ty_params} in
 
 		ArrayU.iter decls @@ function
 			| DeclVal v ->
@@ -93,7 +95,7 @@ let bind(get_modul: Path.rel -> N.Compiler.modul)((imports, decls): modul): t =
 					let ctx_with_ty_params =
 						match head with
 						| Ast.FnPlain _ -> ctx
-						| Ast.FnGeneric(_, params) -> {ctx with scope = ScopeU.add_ty_params ctx.scope params} in
+						| Ast.FnGeneric(_, ty_params) -> ctx_with_ty_params ty_params in
 					bind_signature ctx_with_ty_params signature;
 					let scope = ScopeU.add_params base_scope params in
 					bind_expr {ctx with scope} body
@@ -102,13 +104,16 @@ let bind(get_modul: Path.rel -> N.Compiler.modul)((imports, decls): modul): t =
 				begin match t with
 				| Rt(_, _, properties) ->
 					bind_properties ctx properties
-				| GenRt(_, _, ty_parameters, properties) ->
-					let scope = ScopeU.add_ty_params base_scope ty_parameters in
-					bind_properties {ctx with scope} properties
+				| GenRt(_, _, ty_params, properties) ->
+					bind_properties (ctx_with_ty_params ty_params) properties
 				| Un(_, _, tys) ->
 					ArrayU.iter tys @@ bind_ty ctx
+				| GenUn(_, _, ty_params, tys) ->
+					ArrayU.iter tys @@ bind_ty (ctx_with_ty_params ty_params)
 				| Ft(_, _, signature) ->
 					bind_signature ctx signature
+				| GenFt(_, _, ty_params, signature) ->
+					bind_signature (ctx_with_ty_params ty_params) signature
 				end
 
 let output(out: 'o OutputU.t)({vals; tys}: t): unit =

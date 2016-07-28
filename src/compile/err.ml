@@ -41,6 +41,7 @@ type message =
 	| NotARc of ty
 	| NoSuchProperty of rt * Sym.t
 	| NotExpectedType of ty * ty (* expected * actual *)
+	| NotExpectedTypeAndNoConversion of ty * ty
 	| NumArgs of int * int (* n_params * n_args *)
 
 type t = Loc.t * message

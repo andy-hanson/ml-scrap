@@ -1,5 +1,14 @@
 open N.Ty
 
+let primitive_name(p: ty_primitive): Sym.t =
+	Sym.of_string @@ match p with
+		| TBool -> "Bool"
+		| TFloat -> "Float"
+		| TInt -> "Int"
+		| TString -> "String"
+		| TVoid -> "Void"
+		| TNil -> "Nil"
+
 let rt_name({rt_origin; _}: rt) =
 	begin match rt_origin with
 	| RtBuiltin name -> name
@@ -9,17 +18,9 @@ let rt_name({rt_origin; _}: rt) =
 
 (*TODO:KILL?*)
 let name = function
-	| TPrimitive p ->
-		Sym.of_string begin match p with
-		| TBool -> "Bool"
-		| TFloat -> "Float"
-		| TInt -> "Int"
-		| TString -> "String"
-		| TVoid -> "Void"
-		| TNil -> "Nil"
-		end
+	| TPrimitive p -> primitive_name p
 	| Rt r -> rt_name r
-	| Un {uname; _} -> uname
+	| Un _ -> U.todo()
 	| Ft {ft_origin; _} ->
 		begin match ft_origin with
 		| FtBuiltin name -> name
@@ -30,6 +31,7 @@ let name = function
 		| FtGenInst _ -> U.todo()
 		end
 	| GenRt {gen_rt_origin = (_, name, _, _); _} -> name
+	| GenUn _ -> U.todo()
 	| GenFt _ -> U.todo()
 	| GenVar _ -> U.todo()
 

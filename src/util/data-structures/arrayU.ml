@@ -40,7 +40,7 @@ let zip(a: 'a array)(b: 'b array): 'c array =
 let find_zip(a: 'a array)(b: 'b array)(find: 'a -> 'b -> 'c option): 'c option =
 	assert (same_length a b);
 	U.loop 0 @@ fun loop i ->
-		if i > Array.length a then
+		if i >= Array.length a then
 			None
 		else
 			match find a.(i) b.(i) with
@@ -184,13 +184,16 @@ let partial_iter(a: 'a array)(b: 'b array)(iter: 'a -> 'b -> unit): unit =
 		iter a.(n_remaining + i) b.(i)
 	done
 
+let tail(a: 'a array): 'a array =
+	Array.sub a 1 @@ Array.length a - 1
+
 let rtail_n(a: 'a array)(n: int) =
-	Array.sub a 0 (Array.length a - n)
+	Array.sub a 0 @@ Array.length a - n
 
 let rtail(a: 'a array): 'a array =
 	rtail_n a 1
 let last(a: 'a array): 'a =
-	Array.get a (Array.length a - 1)
+	Array.get a @@ Array.length a - 1
 
 
 let output_elements ?(delimeter=", ")(output_element: ('a, 'o) OutputU.printer)(out: 'o OutputU.t)(arr: 'a array): unit =

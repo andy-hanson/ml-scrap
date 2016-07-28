@@ -40,7 +40,7 @@ and output(out: 'o OutputU.t)(value: v): unit =
 		output_primitive out p
 	| Fn f ->
 		output_fn out f
-	| Rc({rt_origin; properties}, property_values) ->
+	| Rc({rt_id = _; rt_origin; properties}, property_values) ->
 		let out_property(out: 'o OutputU.t)(((name, _), value): property * v): unit =
 			OutputU.out out "%a=%a"
 				Sym.output name

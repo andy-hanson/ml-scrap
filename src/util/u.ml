@@ -6,9 +6,6 @@ let todo(): 'a =
 	let _ = raise TODO in
 	raise TODO
 
-let compose(f: 'a -> 'b)(g: 'b -> 'c)(a: 'a) =
-	g (f a)
-
 let fail(reason: string): 'a =
 	failwith reason
 

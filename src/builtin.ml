@@ -26,11 +26,11 @@ let pop_int(pop: unit -> v): int =
 
 
 let all = Sym.Map.build @@ fun (build_sym: Sym.t -> v -> unit) ->
-	let build(s: string) = build_sym (Sym.of_string s) in
+	let build(s: string) = build_sym @@ Sym.of_string s in
 
 	(*TODO:RENAME*)
 	let fnz(fn: builtin_fn): unit =
-		build_sym (builtin_fn_name fn) (Fn(BuiltinFn fn)) in
+		build_sym (builtin_fn_name fn) @@ Fn(BuiltinFn fn) in
 	(*TODO:RENAME*)
 	let ffnn(name: string)(return: ty)(parameters: (string * ty) array)(exec: interpreter_state -> unit): unit =
 		fnz @@ fffnnn name return parameters exec in
@@ -56,7 +56,7 @@ let all = Sym.Map.build @@ fun (build_sym: Sym.t -> v -> unit) ->
 	let cmp(name: string)(compare: int -> int -> bool) =
 		fn name
 			t_bool [| "left", t_int; "right", t_int |]
-			@@ (fun pop -> v_bool @@ compare (pop_int pop) @@ pop_int pop) in
+			@@ fun pop -> v_bool @@ compare (pop_int pop) @@ pop_int pop in
 
 	cmp "<" (<);
 	cmp "<=" (<=);
@@ -66,7 +66,7 @@ let all = Sym.Map.build @@ fun (build_sym: Sym.t -> v -> unit) ->
 	let arith(name: string)(eval: int -> int -> int) =
 		fn name
 			t_int [| "left", t_int; "right", t_int |]
-			@@ fun pop -> v_int(eval (pop_int pop) (pop_int pop)) in
+			@@ fun pop -> v_int @@ eval (pop_int pop) (pop_int pop) in
 
 	arith "+" (+);
 	arith "-" (-);

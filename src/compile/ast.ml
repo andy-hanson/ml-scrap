@@ -52,8 +52,9 @@ type fn = Loc.t * fn_head * signature * expr
 type rt = Loc.t * Sym.t * property array
 type gen_rt = Loc.t * Sym.t * ty_param array * property array
 type un = Loc.t * Sym.t * ty array
+type gen_un = Loc.t * Sym.t * ty_param array * ty array
 type ft = Loc.t * Sym.t * signature
-type gen_ft = Loc.t * Sym.t * ty_param array * property array
+type gen_ft = Loc.t * Sym.t * ty_param array * signature
 
 type decl_val =
 	| Fn of fn
@@ -61,7 +62,9 @@ type decl_ty =
 	| Rt of rt
 	| GenRt of gen_rt
 	| Un of un
+	| GenUn of gen_un
 	| Ft of ft
+	| GenFt of gen_ft
 type decl =
 	| DeclVal of decl_val
 	| DeclTy of decl_ty

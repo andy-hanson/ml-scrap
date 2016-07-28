@@ -9,15 +9,15 @@ let case_test(ty: ty)(v: v): bool =
 	(*TODO: TPrimitive and Rt together are TConcrete. (They have no subtypes.) This is useful because unions can only contain concrete types.*)
 	| TPrimitive tp ->
 		begin match v with
-		| Primitive p -> tp == ValU.ty_of_primitive p
+		| Primitive p -> N.TyUU.primitive_equal tp @@ ValU.ty_of_primitive p
 		| _ -> false
 		end
 	| Rt rt ->
 		begin match v with
-		| Rc (vrt, _) -> rt == vrt
+		| Rc (vrt, _) -> N.TyUU.rt_equal rt vrt
 		| _ -> false
 		end
-	| Un _ | Ft _ | GenRt _ | GenFt _ | GenVar _ -> assert false (*TODO: ocaml type system should be more specific here*)
+	| Un _ | Ft _ | GenRt _ | GenUn _ | GenFt _ | GenVar _ -> assert false (*TODO: ocaml type system should be more specific here*)
 
 
 (*
@@ -138,7 +138,7 @@ let step(state: interpreter_state): step_result =
 			ValOut.output output interpolated.(i);
 			BatBuffer.add_string b strings.(i + 1)
 		done;
-		let result = ValU.v_string (BatBuffer.contents b) in
+		let result = ValU.v_string @@ BatBuffer.contents b in
 
 		State.push state result;
 		next()

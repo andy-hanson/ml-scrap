@@ -23,6 +23,7 @@ let make(start: pos)(rear: pos): t =
 let single_character(start: pos): t =
 	make start (start + 1)
 
+let equal: t -> t -> bool = (=)
 let hash(loc: t): int =
 	loc
 
@@ -53,8 +54,8 @@ let lc_pos(source: BatIO.input)(pos: pos): lc_pos =
 	walk_to source start_lc pos
 
 let lc_loc(source: BatIO.input)(loc: t): lc_loc =
-	let a = walk_to source start_lc (start loc) in
-	let b = walk_to source a (rear loc - start loc) in
+	let a = walk_to source start_lc @@ start loc in
+	let b = walk_to source a @@ rear loc - start loc in
 	{lc_start = a; lc_rear = b}
 
 let output_pos(out: 'o OutputU.t)(pos: pos): unit =

@@ -1,5 +1,7 @@
 open N.Ty
 
+val primitive_name: ty_primitive -> Sym.t
+(*TODO:KILL*)
 val name: ty -> Sym.t
 
 val ft_or_gen_arity: ft_or_gen -> int
