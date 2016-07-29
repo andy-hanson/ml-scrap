@@ -10,13 +10,12 @@ let rec output_rt_origin(out: 'o OutputU.t): rt_origin -> unit = function
 			Sym.output (TyU.name (GenRt g))
 			(ArrayU.output_elements ~delimeter:" " output_brief) inst_with
 
-and output_rt(out: 'o OutputU.t)({rt_id; rt_origin; properties}: rt): unit =
+and output_rt(out: 'o OutputU.t)({rt_origin; properties}: rt): unit =
 	let output_property(out: 'o OutputU.t)((name, ty): property): unit =
 		OutputU.out out "%a: %a"
 			Sym.output name
 			output ty in
-	OutputU.out out "Rt(%i, %a, %a)"
-		rt_id
+	OutputU.out out "Rt(%a, %a)"
 		output_rt_origin rt_origin
 		(ArrayU.output output_property) properties
 
@@ -61,9 +60,7 @@ and output_ft_or_gen(out: 'o OutputU.t): ft_or_gen -> unit = function
 and output_brief(out: 'o OutputU.t): ty -> unit = function
 	| TPrimitive p -> Sym.output out @@ TyU.primitive_name p
 	| Rt rt ->
-		(*TODO: probably don't need id here*)
-		OutputU.out out "%i@%a"
-			rt.rt_id
+		OutputU.out out "%a"
 			output_rt_origin rt.rt_origin
 	| Un un -> output_un_origin out un.un_origin
 	| Ft ft -> output_ft_origin out ft.ft_origin

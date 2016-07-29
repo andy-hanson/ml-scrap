@@ -1,6 +1,4 @@
-(*TODO: cleanup*)
-
-(* Any mutable types in this file are mutable for *creation only*. *)
+(* Any mutable properties in this file are mutable for *creation only*. *)
 
 module rec Ty: sig
 	type ty =
@@ -13,14 +11,11 @@ module rec Ty: sig
 		| GenUn of gen_un
 		| GenVar of gen_var
 
-	(*
-	and ty_with_vars =
-		| TVPlain of ty
-		| TVVar of gen_var
-		(* TODO: may also instantiate another type based on my vars. *)
-	*)
-
 	and gen_var = Ast.ty_param
+	and 'a gen_stuff = {
+		gen_params: gen_var array;
+		gen_cache: 'a GenCache.t
+	}
 
 	and ty_primitive =
 		| TBool
@@ -40,16 +35,12 @@ module rec Ty: sig
 	and property = Sym.t * ty
 	and rt = {
 		rt_origin: rt_origin;
-		(* Mutable for creation only *)
-		mutable properties: property array;
-		rt_id: int
+		mutable properties: property array
 	}
 	and gen_rt = {
 		gen_rt_origin: Ast.gen_rt;
-		gen_rt_params: gen_var array;
-		(* Mutable for creation only *)
-		mutable gen_rt_properties: property array;
-		mutable gen_rt_cache: rt GenCache.t
+		gen_rt_stuff: rt gen_stuff;
+		mutable gen_rt_properties: property array
 	}
 
 	and un_origin =
@@ -65,10 +56,8 @@ module rec Ty: sig
 	}
 	and gen_un = {
 		gen_un_origin: Ast.gen_un;
-		gen_un_params: gen_var array;
-		(* Mutable for creation only *)
-		mutable gen_un_tys: ty array;
-		mutable gen_un_cache: un GenCache.t
+		gen_un_stuff: un gen_stuff;
+		mutable gen_un_tys: ty array
 	}
 
 	and parameter = Sym.t * ty
@@ -81,9 +70,7 @@ module rec Ty: sig
 		| FtGenInst of gen_ft * ty array
 	and ft = {
 		ft_origin: ft_origin;
-		(* Mutable for creation only *)
 		mutable return: ty;
-		(* Mutable for creation only *)
 		mutable parameters: parameter array
 	}
 	and gen_ft_origin =
@@ -91,10 +78,9 @@ module rec Ty: sig
 		| GenFtFromFn of V.declared_fn
 	and gen_ft = {
 		gen_ft_origin: gen_ft_origin;
-		gen_ft_ty_params: gen_var array;
+		gen_ft_stuff: ft gen_stuff;
 		mutable gen_ft_return: ty;
-		mutable gen_ft_parameters: parameter array;
-		mutable gen_ft_cache: ft GenCache.t
+		mutable gen_ft_parameters: parameter array
 	}
 
 	type ft_or_gen =
@@ -192,7 +178,7 @@ and V: sig
 	type declared_fn = {
 		fn_ast: Ast.fn;
 		fn_ty: Ty.ft_or_gen;
-		fn_mdl: Compiler.modul;
+		fn_modul: Compiler.modul;
 		mutable fn_code: Code.code
 	}
 
@@ -212,7 +198,6 @@ and V: sig
 		| PartialFn of partial_fn
 		| Ctr of Ty.rt
 
-	(* V *)
 	and v =
 		| Primitive of primitive
 		| Rc of Ty.rt * v array
@@ -224,7 +209,6 @@ and Compiler: sig
 		| Ty of Ty.ty
 		| V of V.v
 
-	(*TODO:rename to mdl*)
 	type modul = {
 		(* Logical path, e.g. "a/b" *)
 		path: Path.t;

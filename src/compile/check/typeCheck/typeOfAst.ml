@@ -129,17 +129,16 @@ let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.mod
 					let fn =
 						match head with
 						| Ast.FnPlain _ ->
-							let rec fn = {fn_ast; fn_ty; fn_mdl = modul; fn_code = dummy_code}
+							let rec fn = {fn_ast; fn_ty; fn_modul = modul; fn_code = dummy_code}
 							and fn_ty = FoG_Ft {ft_origin = FtFromFn fn; return = t_nil; parameters = nil_array} in
 							fn
-						| Ast.FnGeneric(_, params) ->
-							let rec fn = {fn_ast; fn_ty; fn_mdl = modul; fn_code = dummy_code}
+						| Ast.FnGeneric(_, gen_params) ->
+							let rec fn = {fn_ast; fn_ty; fn_modul = modul; fn_code = dummy_code}
 							and fn_ty = FoG_Gen({
 									gen_ft_origin = GenFtFromFn fn;
-									gen_ft_ty_params = params;
+									gen_ft_stuff = TyU.create_gen_stuff gen_params;
 									gen_ft_return = t_nil;
 									gen_ft_parameters = nil_array;
-									gen_ft_cache = N.GenCache.create()
 								}) in
 							fn in
 					Fns.set fns fn_ast fn
@@ -147,27 +146,25 @@ let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.mod
 			| Ast.DeclTy t ->
 				begin match t with
 				| Ast.Rt r ->
-					Rts.set rts r {rt_id = InstantiateGeneric.next_rt_id(); rt_origin = RtDecl r; properties = nil_array}
-				| Ast.GenRt((_, _, params, _) as g) ->
-					GenRts.set gen_rts g {gen_rt_origin = g; gen_rt_params = params; gen_rt_properties = nil_array; gen_rt_cache = N.GenCache.create()}
+					Rts.set rts r {rt_origin = RtDecl r; properties = nil_array}
+				| Ast.GenRt((_, _, gen_params, _) as g) ->
+					GenRts.set gen_rts g { gen_rt_origin = g; gen_rt_stuff = TyU.create_gen_stuff gen_params; gen_rt_properties = nil_array }
 				| Ast.Un u ->
 					Uns.set uns u {un_origin = UnDecl u; utys = nil_array}
-				| Ast.GenUn((_, _, params, _) as g) ->
+				| Ast.GenUn((_, _, gen_params, _) as g) ->
 					GenUns.set gen_uns g {
 						gen_un_origin = g;
-						gen_un_params = params;
+						gen_un_stuff = TyU.create_gen_stuff gen_params;
 						gen_un_tys = nil_array;
-						gen_un_cache = N.GenCache.create()
 					}
 				| Ast.Ft(ft_ast) ->
 					Fts.set fts ft_ast @@ {ft_origin = FtDecl ft_ast; return = t_nil; parameters = nil_array}
-				| Ast.GenFt((_, _, params, _) as g) ->
+				| Ast.GenFt((_, _, gen_params, _) as g) ->
 					GenFts.set gen_fts g @@ {
 						gen_ft_origin = GenFtDeclared g;
-						gen_ft_ty_params = params;
+						gen_ft_stuff = TyU.create_gen_stuff gen_params;
 						gen_ft_return = t_nil;
-						gen_ft_parameters = nil_array;
-						gen_ft_cache = N.GenCache.create()
+						gen_ft_parameters = nil_array
 					}
 				end
 		end;

@@ -57,7 +57,7 @@ let assert_foo(loc: Loc.t)(expected: expected)(actual: ty): ty =
 		actual
 
 (*TODO: move to TyU?*)
-let ft_of_rt_ctr({rt_id = _; rt_origin = _; properties} as rt: rt): ft =
+let ft_of_rt_ctr({rt_origin = _; properties} as rt: rt): ft =
 	{
 		ft_origin = FtFromRt rt;
 		return = Rt rt;

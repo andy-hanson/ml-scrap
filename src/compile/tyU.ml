@@ -1,5 +1,8 @@
 open N.Ty
 
+let create_gen_stuff(gen_params: gen_var array): 'a gen_stuff =
+	{ gen_params; gen_cache = N.GenCache.create() }
+
 let primitive_name(p: ty_primitive): Sym.t =
 	Sym.of_string @@ match p with
 		| TBool -> "Bool"

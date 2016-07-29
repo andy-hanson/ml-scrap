@@ -1,5 +1,7 @@
 open N.Ty
 
+val create_gen_stuff: gen_var array -> 'a gen_stuff
+
 val primitive_name: ty_primitive -> Sym.t
 (*TODO:KILL*)
 val name: ty -> Sym.t
