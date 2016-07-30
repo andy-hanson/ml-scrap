@@ -1,8 +1,14 @@
 open Err
 
-let raise(loc: Loc.t)(m: message): 'a =
-	(*TODO: Properly get a backtrace and return that along with the exception.*)
-	raise @@ Exn (loc, m)
+let raise_with_path(path: Path.t)(loc: Loc.t)(message: message): 'a =
+	raise @@ CompileError { path; loc; message }
+
+let raise(loc: Loc.t)(message: message): 'a =
+	raise_with_path Path.empty loc message
+
+let add_path(path: Path.t)(error: t): unit =
+	assert (error.path == Path.empty);
+	error.path <- path
 
 let check(cond: bool)(loc: Loc.t)(message: message): unit =
 	if not cond then

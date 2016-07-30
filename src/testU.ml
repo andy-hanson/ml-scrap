@@ -30,26 +30,17 @@ let time(f: unit -> 'a): 'a =
 	Printf.printf "Execution time: %fs\n" @@ t2 -. t1;
 	MutArray.get arr 0
 
-
 let fn_named(modul: modul)(name: string): declared_fn =
-	match ModulU.get_export Loc.zero modul @@ Sym.of_string name with
+	let f =
+		try
+			ModulU.get_export Loc.zero modul @@ Sym.of_string name
+		with Err.CompileError _ ->
+			failwith @@ "No function named " ^ name in
+	match f with
 	| V (Fn (DeclaredFn f)) -> f
-	| _ -> failwith @@ "No function named " ^ name
+	| _ -> failwith @@ name ^ "is not a declared_fn!"
 
 let call_fn(modul: modul)(name: string)(args: v array): v =
 	let fn = fn_named modul name in
 	Runtime.add_thread test_runtime fn args;
 	Runtime.run test_runtime
-
-
-(*
-let fn_named(modul: modul)(name: string): declared_fn =
-	match ModulU.get_export Loc.zero modul @@ Sym.of_string name with
-	| V (Fn (DeclaredFn f)) -> f
-	| _ -> U.todo()
-
-let call_fn(noze: Noze.t)(m: modul)(name: string)(vals: v array): v =
-	let debug = true in
-	let fn = fn_named m name in
-	(if debug then Interpreter.debug_call_fn noze else Interpreter.call_fn) fn vals
-*)

@@ -3,12 +3,14 @@ open Ast
 let output_access(out: 'o OutputU.t)((_, name): access): unit =
 	Sym.output out name
 
-let output_ty(out: 'o OutputU.t)(ty: ty): unit =
+let rec output_ty(out: 'o OutputU.t)(ty: ty): unit =
 	match ty with
 	| TyAccess(access) ->
 		output_access out access
-	| TyInst(_, _, _) ->
-		U.todo()
+	| TyInst(_, ty, args) ->
+		OutputU.out out "[%a %a]"
+			output_ty ty
+			(ArrayU.output output_ty) args
 
 let output_parameter(out: 'o OutputU.t)((_, name, ty): parameter): unit =
 	OutputU.out out "%a %a" Sym.output name output_ty ty
@@ -95,13 +97,21 @@ let rec output_expr(out: 'o OutputU.t)(expr: expr): unit =
 			output_expr expr
 			(ArrayU.output output_ty) tys
 
-let output_fn(_out: 'o OutputU.t)((_, _name, _sign, _body): fn): unit =
-	let _out_sig(out: 'o OutputU.t)((_, ty, params): signature): unit =
+let output_fn(out: 'o OutputU.t)((_, head, signature, body): fn): unit =
+	let output_head(out: 'o OutputU.t): Ast.fn_head -> unit = function
+		| FnPlain(name) -> Sym.output out name
+		| FnGeneric(name, ty_params) ->
+			OutputU.out out "[%a %a]"
+				Sym.output name
+				(ArrayU.output output_ty_param) ty_params in
+	let output_signature(out: 'o OutputU.t)((_, ty, params): signature): unit =
 		let out_param(out: 'o OutputU.t)((_, sym, ty): parameter): unit =
 			OutputU.out out "%a %a" Sym.output sym output_ty ty in
 		OutputU.out out "%a %a" output_ty ty (ArrayU.output out_param) params in
-	U.todo()
-	(*OutputU.out out "fn %a %a %a" Sym.output name out_sig sign output_expr body*)
+	OutputU.out out "fn %a %a %a"
+		output_head head
+		output_signature signature
+		output_expr body
 
 let output_rt(_out: 'o OutputU.t)((_, _, _): rt): unit =
 	U.todo()

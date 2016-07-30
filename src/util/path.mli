@@ -1,6 +1,8 @@
 type t = Sym.t array
 type rel = int * Sym.t array
 
+val empty: t
+
 val to_string: t -> string
 val of_string: string -> t
 val output: (t, 'o) OutputU.printer

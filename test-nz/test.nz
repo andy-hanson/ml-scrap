@@ -1,19 +1,44 @@
 import
 	.x incr
 
+
 rt Foo A
 	foo Has [Has A]
 
 rt Has A
 	a A
 
-fn main Int world World
-	|| s = [id [Pair Int]]: [Pair Int] 1 2
-	|| [id Int] 1
-	x = [Has Int] 1
-	y = [Has [Has Int]] x
-	foo = [Foo Int] y
-	foo.foo.a.a
+|| fn main Int world World
+||	|| s = [id [Pair Int]]: [Pair Int] 1 2
+||	|| [id Int] 1
+||	x = [Has Int] 1
+||	y = [Has [Has Int]] x
+||	foo = [Foo Int] y
+||	foo.foo.a.a
+
+
+rt Ping A
+	pong Pong A
+
+rt Pong A
+	ping Ping A
+
+fn pong-of-ping Pong Int p Ping Int
+	p.pong.ping.pong
+
+
+rt Nil
+	dummy Int
+rt Cons A
+	head A
+	tail List A
+un List A
+	Nil
+	Cons A
+
+fn foof List Int
+	Nil 0
+
 
 || fn main Int world World
 ||	incr 1

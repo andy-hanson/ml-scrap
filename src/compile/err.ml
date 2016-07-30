@@ -44,5 +44,9 @@ type message =
 	| NotExpectedTypeAndNoConversion of ty * ty
 	| NumArgs of int * int (* n_params * n_args *)
 
-type t = Loc.t * message
-exception Exn of t
+type t = {
+	mutable path: Path.t;
+	loc: Loc.t;
+	message: message
+}
+exception CompileError of t

@@ -1,10 +1,8 @@
-type err = { err: 'a. Path.t -> Err.t -> 'a }
-
 let extension = ".nz"
 let main = Sym.of_string @@ "main" ^ extension
 
 (* Returns the resolved path, with '.nz' included *)
-let resolve({err}: err)(io: FileIo.t)(from: Path.t)(from_loc: Loc.t)(rel: Path.rel): Path.t * BatIO.input =
+let resolve(io: FileIo.t)(from: Path.t)(from_loc: Loc.t)(rel: Path.rel): Path.t * BatIO.input =
 	let base = Path.resolve from rel in
 
 	(* Normally, just add the '.nz' extension. *)
@@ -21,7 +19,7 @@ let resolve({err}: err)(io: FileIo.t)(from: Path.t)(from_loc: Loc.t)(rel: Path.r
 	attempt regular_path @@ fun () ->
 		let main_path = Array.append base [| main |] in
 		attempt main_path @@ fun () ->
-			err from (from_loc, Err.CantFindLocalModule(rel, regular_path, main_path))
+			ErrU.raise_with_path from from_loc @@ Err.CantFindLocalModule(rel, regular_path, main_path)
 
 module Moduls = Path.Lookup
 
@@ -29,8 +27,7 @@ module Moduls = Path.Lookup
 Loads modules and produces a linear compilation order.
 https://en.wikipedia.org/wiki/Topological_sorting#Depth-first_search
 *)
-(*TODO: passing in `err` as a parameter is ugly...*)
-let linearize_modul_dependencies(io: FileIo.t)(err: err)(start_path: Path.t): (Path.t * Path.t * Ast.modul) array =
+let linearize_modul_dependencies(io: FileIo.t)(start_path: Path.t): (Path.t * Path.t * Ast.modul) array =
 	(* This also functions as `visited` *)
 	let map: ((Loc.t * Path.rel) array * Ast.modul) Moduls.t = Moduls.create() in
 
@@ -38,14 +35,15 @@ let linearize_modul_dependencies(io: FileIo.t)(err: err)(start_path: Path.t): (P
 		U.loop3 [||] Loc.zero (0, start_path) @@ fun loop from from_loc rel ->
 			let path = Path.resolve from rel in
 			if Moduls.has_key map path then
-				err.err from (from_loc, Err.CircularDependency path)
+				ErrU.raise_with_path from from_loc @@ Err.CircularDependency path
 			else begin
-				let full_path, source = resolve err io from from_loc rel in
+				let full_path, source = resolve io from from_loc rel in
 				let (importses, _) as modul =
 					try
 						Parse.f source
-					with Err.Exn error ->
-						err.err full_path error in
+					with (Err.CompileError error) as e ->
+						ErrU.add_path full_path error;
+						raise e in
 				io#close_in source;
 
 				(* Calculate dependencies *)

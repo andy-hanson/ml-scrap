@@ -76,6 +76,7 @@ let step(runtime: runtime): runtime_state =
 				if MutArray.empty threads then
 					requeue_thread runtime t v
 		end;
+		runtime.current_thread <- None;
 		get_new_thread runtime v
 	| AwaitingIo _ ->
 		U.todo();

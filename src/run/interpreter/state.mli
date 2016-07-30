@@ -7,6 +7,7 @@ val create: declared_fn -> v array -> interpreter_state
 val peek: interpreter_state -> v
 val pop: interpreter_state -> v
 val pop_n: interpreter_state -> int -> v array
+val drop_to_start_of_fn: interpreter_state -> unit
 val push: interpreter_state -> v -> unit
 val un_let: interpreter_state -> int -> unit
 
@@ -23,5 +24,3 @@ val pop_fn: interpreter_state -> bool
 val load: interpreter_state -> int -> v
 
 val call: interpreter_state -> v -> unit
-
-val assert_data_stack_back_to_function_start: interpreter_state -> unit

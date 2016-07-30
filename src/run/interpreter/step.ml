@@ -20,15 +20,28 @@ let case_test(ty: ty)(v: v): bool =
 	| Un _ | Ft _ | GenRt _ | GenUn _ | GenFt _ | GenVar _ -> assert false (*TODO: ocaml type system should be more specific here*)
 
 
-(*
-and step_result =
-	| NotDone
-	| Done of v
-	| AwaitingIo of v Lwt.t
-	| AwaitingThread of thread
-*)
+
+
+
+let debug_print(state: interpreter_state): unit =
+	let {cur = {stack_start_index; _}; data_stack; _} = state in
+	OutputU.printf "Stack: %a (stack_start_index: %i)\n"
+		(MutArray.output_with_max 3 ValOut.output) data_stack
+		stack_start_index;
+	(*let lc_loc = Noze.lc_loc noze full_path @@ State.cur_loc state in*)
+	OutputU.printf "Executing: %a\n"
+		ValOut.output_bytecode (State.cur_code state)
+		(*Path.output full_path
+		Loc.output_lc_loc lc_loc*)
+
+
+
+
+
 
 let step(state: interpreter_state): step_result =
+	if false then debug_print state;
+
 	let goto idx = State.goto state idx; NotDone in
 	let next() = State.goto_next state; NotDone in
 
@@ -105,11 +118,8 @@ let step(state: interpreter_state): step_result =
 	| Return ->
 		(* Remove args from the stack, but leave return value. *)
 		let return_value = State.pop state in
-		State.assert_data_stack_back_to_function_start state;
+		State.drop_to_start_of_fn state;
 		if State.pop_fn state then begin
-			U.do_times (ValU.fn_arity @@ State.cur_fn state) begin fun () ->
-				ignore (State.pop state)
-			end;
 			State.push state return_value;
 			NotDone
 		end else

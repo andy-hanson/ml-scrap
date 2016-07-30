@@ -1,3 +1,6 @@
+let nil: 'a array =
+	[||]
+
 let empty(a: 'a array): bool =
 	Array.length a = 0
 

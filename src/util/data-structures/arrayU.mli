@@ -1,3 +1,5 @@
+val nil: 'a array
+
 val empty: 'a array -> bool
 
 val same_length: 'a array -> 'b array -> bool

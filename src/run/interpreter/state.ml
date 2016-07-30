@@ -24,8 +24,14 @@ let peek({data_stack; _}: interpreter_state): v =
 let pop({data_stack; _}: interpreter_state): v =
 	MutArray.pop data_stack
 
-let pop_n({data_stack; _}: interpreter_state)(n: int): v array =
-	MutArray.pop_n data_stack n
+let pop_n({data_stack; _}: interpreter_state): int -> v array =
+	MutArray.pop_n data_stack
+
+let drop_to_start_of_fn({cur = {cse_fn; stack_start_index; _}; data_stack; _}: interpreter_state): unit =
+	MutArray.drop_to_length data_stack @@ stack_start_index - ValU.fn_arity cse_fn
+
+let assert_data_stack_back_to_function_start({cur = {stack_start_index; _}; data_stack; _}: interpreter_state): unit =
+	Assert.equal (MutArray.length data_stack) stack_start_index OutputU.output_int
 
 let push({data_stack; _}: interpreter_state)(value: v): unit =
 	MutArray.push data_stack value
@@ -82,6 +88,3 @@ let call(state: interpreter_state)(called: v): unit =
 				(*TODO: check property types*)
 				let properties = pop_n state @@ TyU.rt_arity rt in
 				push state @@ Rc(rt, properties)
-
-let assert_data_stack_back_to_function_start({cur = {stack_start_index; _}; data_stack; _}: interpreter_state): unit =
-	Assert.equal (MutArray.length data_stack) stack_start_index OutputU.output_int

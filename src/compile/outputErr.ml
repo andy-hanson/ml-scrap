@@ -1,6 +1,47 @@
-open N.Compiler
-
 open Err
+
+let name: message -> string = function
+	| CircularDependency _ -> "CircularDependency"
+	| CantFindLocalModule _ -> "CantFindLocalModule"
+
+	(* lexer *)
+	| LeadingSpace -> "LeadingSpace"
+	| NumberMustHaveDigitsAfterDecimalPoint -> "NumberMustHaveDigitsAfterDecimalPoint"
+	| TooMuchIndent -> "TooMuchIndent"
+	| TrailingSpace -> "TrailingSpace"
+	| UnrecognizedCharacter _ -> "UnrecognizedCharacter"
+
+	(* parser *)
+	| BlockCantEndInDeclare -> "BlockCantEndInDeclare"
+	| CsMustBeInLineContext -> "CsMustBeInLineContext"
+	| EmptyExpression -> "EmptyExpression"
+	| EqualsInExpression -> "EqualsInExpression"
+	| FnNeedsParts -> "FnNeedsParts"
+	| OrNeedsParts -> "OrNeedsParts"
+	| PrecedingEquals -> "PrecedingEquals"
+	| Unexpected _ -> "Unexpected"
+
+	(* bind *)
+	| CantBind _ -> "CantBind"
+	| CantUseTypeAsValue -> "CantUseTypeAsValue"
+	| ModuleHasNoMember(_, _) -> "ModuleHasNoMember"
+	| NameAlreadyBound(_, _) -> "NameAlreadyBound"
+	| TypeNameAlreadyBound(_, _) -> "TypeNameAlreadyBound"
+
+	(* typeCheck *)
+	| CanOnlyCsUnion _ -> "CanOnlyCsUnion"
+	| CantConvertRtMissingProperty(_, _, _) -> "CantConvertRtMissingProperty"
+	| CsPartType(_, _) -> "CsPartType"
+	| CasesUnhandled _ -> "CasesUnhandled"
+	| CombineTypes(_, _) -> "CombineTypes"
+	| GenInstParameters(_, _) -> "GenInstParameters"
+	| NotAFunction _ -> "NotAFunction"
+	| NotAValue _ -> "NotAValue"
+	| NotARc _ -> "NotARc"
+	| NoSuchProperty(_, _) -> "NoSuchProperty"
+	| NotExpectedType(_, _) -> "NotExpectedType"
+	| NotExpectedTypeAndNoConversion(_, _) -> "NotExpectedTypeAndNoConversion"
+	| NumArgs(_, _) -> "NumArgs"
 
 let output_message(out: 'o OutputU.t)(m: message): unit =
 	let o fmt = OutputU.out out fmt in
@@ -48,7 +89,7 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 			Sym.output name
 	| CantUseTypeAsValue ->
 		o "Attempted to use a type as a value"
-	| ModuleHasNoMember({path; _}, name) ->
+	| ModuleHasNoMember({N.Compiler.path; _}, name) ->
 		o "Module %a has no member %a"
 			Path.output path
 			Sym.output name
@@ -108,3 +149,11 @@ let output_message(out: 'o OutputU.t)(m: message): unit =
 		o "Function needs %d parameters, but is given %d"
 			n_params
 			n_args
+
+let output(translate_loc: Path.t -> Loc.t -> Loc.lc_loc)(out: 'o OutputU.t)({Err.path; loc; message}: Err.t): unit =
+	let lc_loc = translate_loc path loc in
+	OutputU.out out "%s at %a %a:\n%a\n\n"
+		(name message)
+		Path.output path
+		Loc.output_lc_loc lc_loc
+		output_message message

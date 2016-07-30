@@ -1,13 +1,12 @@
 let mock = FileIoMock.v()
+let test_runtime = Runtime.create (mock :> FileIo.t)
 
-let test_noze = Noze.create (mock :> FileIo.t)
-
-let compile_str(path: Path.t)(content: string): N.modul Lwt.t =
+let compile_str(path: Path.t)(content: string): N.Compiler.modul =
 	mock#add_file (Path.add_extension path ".nz") content;
-	Noze.compile test_noze path
+	Runtime.compile test_runtime path
 
 type test_result =
-	| Success of N.v
+	| Success of N.V.v
 	| Failure of Err.t
 
 type test = {
@@ -15,12 +14,12 @@ type test = {
 	src: string
 }
 
-let run_test({name; src}: test): unit Lwt.t =
-	let%lwt mdl = compile_str [| Sym.of_string name |] src in
-	let fn = TestU.fn_named mdl "main" in
-	let actual = Interpreter.call_fn fn [| |] in
-	assert (actual = N.v_void);
-	Lwt.return_unit;;
+let run_test({name; src}: test): unit =
+	let modul = compile_str [| Sym.of_string name |] src in
+	let fn = TestU.fn_named modul "main" in
+	Runtime.add_thread test_runtime fn [||];
+	let actual = Runtime.run test_runtime in
+	assert (actual = ValU.v_void);;
 
 run_test {
 	name = "1 + 1";
@@ -33,7 +32,7 @@ run_test {
 	name = "Recursion";
 	src ="
 fn main Void
-	ck (factorial 6) == 720
+	ck factorial 6 == 720
 
 fn factorial Int x Int
 	less = x < 2

@@ -9,20 +9,12 @@ let v(): t = object
 	method add_file(path: Path.t)(content: string): unit =
 		Path.Lookup.set files path content
 
-	(*
-	method read(path: Path.t): string Lwt.t =
-		Lwt.return @@ try
-			Path.Lookup.get files path
-		with Not_found ->
-			raise @@ FileIo.FileNotFound path
-	*)
-
 	method open_in(path: Path.t): BatIO.input =
 		let text =
 			try
 				Path.Lookup.get files path
 			with Not_found ->
-				raise @@ FileNotFound path in
+				raise @@ FileIo.FileNotFound path in
 		BatIO.input_string text
 
 	method close_in = ignore

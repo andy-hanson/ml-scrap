@@ -1,17 +1,21 @@
 let parse_signature(l: Lexer.t): Ast.signature * Token.t =
 	let start = Lexer.pos l in
-	let return = ParseTy.inline l in
+	let return, next_start, next = ParseTy.free l in
 	let params, next =
-		ArrayU.build_loop0 @@ fun () ->
-			let start, next = Lexer.pos_next l in
-			match next with
-			| Token.Indent | Token.Newline | Token.Dedent ->
-				ArrayU.Done(next)
-			| Token.Name name ->
-				let ty = ParseTy.inline l in
-				ArrayU.Cont (Lexer.loc_from l start, name, ty)
-			| t ->
-				ParseU.unexpected start l t in
+		(*TODO:NEATER*)
+		ArrayU.build_and_return @@ fun build ->
+			let rec foo(start: Loc.pos)(token: Token.t) =
+				match token with
+				| Token.Indent | Token.Newline | Token.Dedent ->
+					token
+				| Token.Name name ->
+					let ty, next_start, next = ParseTy.free l in
+					let loc = Lexer.loc_from l start in
+					build (loc, name, ty);
+					foo next_start next
+				| t ->
+					ParseU.unexpected start l t in
+			foo next_start next in
 	(Lexer.loc_from l start, return, params), next
 
 let parse_fn_head(l: Lexer.t): Ast.fn_head =

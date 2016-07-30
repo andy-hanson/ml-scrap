@@ -83,9 +83,6 @@ let ty_of_ast(type_of_ast: t)(ast: Ast.decl_ty): ty =
 		GenFt(gen_ft_of_ast type_of_ast f)
 	end
 
-(* Use this for a temporary array value to overwrite later. *)
-let nil_array = [||]
-
 (*TODO:NAME*)
 let rec declared_ty(bindings: Bind.t)({declared_tys; _} as type_of_ast: t): Ast.ty -> ty =
 	let rec recur(ty_ast: Ast.ty): ty =
@@ -125,12 +122,12 @@ let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.mod
 			| Ast.DeclVal v ->
 				begin match v with
 				| Ast.Fn((_, head, _, _) as fn_ast) ->
-					let dummy_code = {bytecodes = nil_array; locs = CodeLocs.empty} in
+					let dummy_code = {bytecodes = ArrayU.nil; locs = CodeLocs.empty} in
 					let fn =
 						match head with
 						| Ast.FnPlain _ ->
 							let rec fn = {fn_ast; fn_ty; fn_modul = modul; fn_code = dummy_code}
-							and fn_ty = FoG_Ft {ft_origin = FtFromFn fn; return = t_nil; parameters = nil_array} in
+							and fn_ty = FoG_Ft {ft_origin = FtFromFn fn; return = t_nil; parameters = ArrayU.nil} in
 							fn
 						| Ast.FnGeneric(_, gen_params) ->
 							let rec fn = {fn_ast; fn_ty; fn_modul = modul; fn_code = dummy_code}
@@ -138,7 +135,7 @@ let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.mod
 									gen_ft_origin = GenFtFromFn fn;
 									gen_ft_stuff = TyU.create_gen_stuff gen_params;
 									gen_ft_return = t_nil;
-									gen_ft_parameters = nil_array;
+									gen_ft_parameters = ArrayU.nil;
 								}) in
 							fn in
 					Fns.set fns fn_ast fn
@@ -146,25 +143,21 @@ let build(path: Path.t)(full_path: Path.t)(bindings: Bind.t)((_, decls): Ast.mod
 			| Ast.DeclTy t ->
 				begin match t with
 				| Ast.Rt r ->
-					Rts.set rts r {rt_origin = RtDecl r; properties = nil_array}
+					Rts.set rts r {rt_origin = RtDecl r; properties = ArrayU.nil}
 				| Ast.GenRt((_, _, gen_params, _) as g) ->
-					GenRts.set gen_rts g { gen_rt_origin = g; gen_rt_stuff = TyU.create_gen_stuff gen_params; gen_rt_properties = nil_array }
+					GenRts.set gen_rts g {gen_rt_origin = g; gen_rt_stuff = TyU.create_gen_stuff gen_params; gen_rt_properties = ArrayU.nil}
 				| Ast.Un u ->
-					Uns.set uns u {un_origin = UnDecl u; utys = nil_array}
+					Uns.set uns u {un_origin = UnDecl u; utys = ArrayU.nil}
 				| Ast.GenUn((_, _, gen_params, _) as g) ->
-					GenUns.set gen_uns g {
-						gen_un_origin = g;
-						gen_un_stuff = TyU.create_gen_stuff gen_params;
-						gen_un_tys = nil_array;
-					}
+					GenUns.set gen_uns g {gen_un_origin = g; gen_un_stuff = TyU.create_gen_stuff gen_params; gen_un_tys = ArrayU.nil}
 				| Ast.Ft(ft_ast) ->
-					Fts.set fts ft_ast @@ {ft_origin = FtDecl ft_ast; return = t_nil; parameters = nil_array}
+					Fts.set fts ft_ast @@ {ft_origin = FtDecl ft_ast; return = t_nil; parameters = ArrayU.nil}
 				| Ast.GenFt((_, _, gen_params, _) as g) ->
 					GenFts.set gen_fts g @@ {
 						gen_ft_origin = GenFtDeclared g;
 						gen_ft_stuff = TyU.create_gen_stuff gen_params;
 						gen_ft_return = t_nil;
-						gen_ft_parameters = nil_array
+						gen_ft_parameters = ArrayU.nil
 					}
 				end
 		end;

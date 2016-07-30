@@ -2,6 +2,8 @@ type t = Sym.t array
 (* Parents, then a path from there *)
 type rel = int * t
 
+let empty = [||]
+
 let to_string(path: t): string =
 	OutputU.out_to_string "%a"
 		(ArrayU.output_elements ~delimeter:"/" Sym.output)

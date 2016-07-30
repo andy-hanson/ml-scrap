@@ -23,12 +23,8 @@ let rec write_expr(w: W.t)(expr: Ast.expr): unit =
 				begin match e_ty with
 				| Rt {properties = e_properties; _} ->
 					let indexes = ArrayU.map properties @@ fun (name, _) ->
-						OutputU.printf "%a\n" (ArrayU.output @@ fun out (n, _) -> Sym.output out n) e_properties;
-
 						OpU.force @@ ArrayU.find_index e_properties @@ fun (e_name, _) ->
-							OutputU.printf "%a %a\n" Sym.output name Sym.output e_name;
 							Sym.eq name e_name in
-					OutputU.printf "%a\n" (ArrayU.output OutputU.output_int) indexes ;
 					W.cnv_rc w loc rt indexes
 				| _ ->
 					assert false

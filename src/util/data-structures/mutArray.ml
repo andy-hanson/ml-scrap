@@ -21,6 +21,10 @@ let delete_last = BatDynArray.delete_last
 let delete_range = BatDynArray.delete_range
 let delete_last_n(a: 'a t)(n: int): unit =
 	delete_range a (length a - n) n
+let drop_to_length(a: 'a t)(len: int): unit =
+	let n_to_drop = length a - len in
+	assert (n_to_drop >= 0);
+	delete_range a len n_to_drop
 
 let remove(a: 'a t)(removed: 'a)(eq: 'a -> 'a -> bool): unit =
 	U.loop 0 @@ fun loop i ->
@@ -60,7 +64,6 @@ let pop_n(a: 'a t)(n: int): 'a array =
 	U.returning (slice a start n) begin fun _ ->
 		delete_range a start n
 	end
-
 
 let un_let(a: 'a t)(n: int): unit =
 	let l = length a in
